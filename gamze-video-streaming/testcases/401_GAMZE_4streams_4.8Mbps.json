@@ -1,0 +1,43 @@
+{
+    "test_id":"401_GAMZE_4streams_4.8Mbps",
+    "comment":"two CONTROLLED fighting for 1mbit",
+    "trace":"4.8Mbps",
+    "video":"testVideo",
+    "repeat_n":"1",
+    "udp":"true",
+    
+    "jobs":[
+        {
+            "name":"CONTROLLED1",
+            "abr":"GAMZE",
+            "quic":"false",
+            "transport":"cubic",
+            "start":"0",
+            "duration":"200"
+        },
+        {
+            "name":"CONTROLLED1",
+            "abr":"GAMZE",
+            "quic":"false",
+            "transport":"cubic",
+            "start":"10",
+            "duration":"210"
+        },
+        {
+            "name":"CONTROLLED1",
+            "abr":"GAMZE",
+            "quic":"false",
+            "transport":"cubic",
+            "start":"30",
+            "duration":"230"
+        },
+        {
+            "name":"CONTROLLED1",
+            "abr":"GAMZE",
+            "quic":"false",
+            "transport":"cubic",
+            "start":"30",
+            "duration":"230"
+        }
+    ] 
+}

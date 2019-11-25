@@ -1,0 +1,138 @@
+python controller_competitive_tests.py config.json testcases/001_CONTROLLED_single_1Mbps.json
+
+python vale_run_browser_test.py BOLA 200 cubic.lan:8080 ./testresults/001-BOLA-samestart-2to9Mbps 0 2to9Mbps -q
+
+sudo tc qdisc del dev lo root
+
+sudo tc qdisc add dev lo root tbf rate 10mbit latency 5ms burst 10000
+
+fuser -k -n udp 6003
+
+python plot_true_bandwidth.py 1 testresults/001-CONTROLLED-single-0.34Mbps
+
+python plot_QoE.py 2 testresults/001-RB-fastMPC-9.5Mbps
+
+python plotresults.py  testresults/001-RB-samestart-9Mbps/log_RB_9Mbps_0 testresults/001-RB-samestart-9Mbps/log_RB_9Mbps_1
+
+google-chrome-stable --disable-web-security --user-data-dir
+
+------------------------------------------------------------------
+
+python plotresults.py  testresults/001-CONTROLLED-2streams-1.3Mbps/log_CONTROLLED_1.3Mbps_0 testresults/001-CONTROLLED-2streams-1.3Mbps/log_CONTROLLED_1.3Mbps_1
+
+python plot_QoE.py 2 testresults/001-CONTROLLED-2streams-1.3Mbps
+
+python plotresults.py testresults/201_GAMZE_1stream_2Mbps/log_GAMZE_2Mbps_0
+
+python plotresults.py  testresults/301-GAMZE-2streams-10Mbps/log_GAMZE_10Mbps_0 testresults/301-GAMZE-2streams-10Mbps/log_GAMZE_10Mbps_1
+
+python gamze_competitive_tests.py config.json testcases/301_GAMZE_2streams_0.05Mbps.json
+
+python plotresults.py  testresults/301-GAMZE-10streams-3.4Mbps/log_GAMZE_3.4Mbps_0 testresults/301-GAMZE-10streams-3.4Mbps/log_GAMZE_3.4Mbps_1 testresults/301-GAMZE-10streams-3.4Mbps/log_GAMZE_3.4Mbps_2 testresults/301-GAMZE-10streams-3.4Mbps/log_GAMZE_3.4Mbps_3 testresults/301-GAMZE-10streams-3.4Mbps/log_GAMZE_3.4Mbps_4 testresults/301-GAMZE-10streams-3.4Mbps/log_GAMZE_3.4Mbps_5 testresults/301-GAMZE-10streams-3.4Mbps/log_GAMZE_3.4Mbps_6 testresults/301-GAMZE-10streams-3.4Mbps/log_GAMZE_3.4Mbps_7 testresults/301-GAMZE-10streams-3.4Mbps/log_GAMZE_3.4Mbps_8 testresults/301-GAMZE-10streams-3.4Mbps/log_GAMZE_3.4Mbps_9
+
+*******************************************************************
+To start always execute release.sh to free ports:
+
+chmod +x release.sh
+chmod +x release.sh
+
+To run a competitive test:
+
+*1 STREAM*
+python gamze_competitive_tests.py config.json testcases/201_GAMZE_1stream_2Mbps.json
+python plotresults.py testresults/201_GAMZE_1stream_2.2Mbps/log_GAMZE_2.2Mbps_0
+python plotRTT-CWND.py testresults/201_GAMZE_1stream_2.2Mbps/cwnd/RTT_0 testresults/201_GAMZE_1stream_2.2Mbps/cwnd/qual_0 testresults/201_GAMZE_1stream_2.2Mbps/cwnd/cwnd_0
+python plotCWND.py testresults/201_GAMZE_1stream_2Mbps/cwnd/cwnd_0 
+
+*2 STREAMS*
+python gamze_competitive_tests.py config.json testcases/301_GAMZE_2streams_1.3Mbps.json
+python plotresults.py testresults/301_GAMZE_2streams_1.3Mbps/log_GAMZE_1.3Mbps_0 testresults/301_GAMZE_2streams_1.3Mbps/log_GAMZE_1.3Mbps_1
+python plotRTT-CWND.py testresults/301_GAMZE_2streams_1.3Mbps/cwnd/RTT_0 testresults/301_GAMZE_2streams_1.3Mbps/cwnd/RTT_1
+
+python plotresults.py testresults/301_GAMZE_2streams_4.8Mbps/log_GAMZE_4.8Mbps_0 testresults/301_GAMZE_2streams_4.8Mbps/log_GAMZE_4.8Mbps_1
+
+python plotRTT-CWND.py testresults/301_GAMZE_2streams_4.8Mbps/cwnd/RTT_0 testresults/301_GAMZE_2streams_4.8Mbps/cwnd/RTT_1 testresults/301_GAMZE_2streams_4.8Mbps/cwnd/qual_0 testresults/301_GAMZE_2streams_4.8Mbps/cwnd/qual_1 testresults/301_GAMZE_2streams_4.8Mbps/cwnd/cwnd_0 testresults/301_GAMZE_2streams_4.8Mbps/cwnd/cwnd_1
+
+python plotresults.py testresults/301_GAMZE_2streams_10Mbps/log_GAMZE_10Mbps_0 testresults/301_GAMZE_2streams_10Mbps/log_GAMZE_10Mbps_1
+python plotCWND.py testresults/301_GAMZE_2streams_10Mbps/cwnd/cwnd_0 testresults/301_GAMZE_2streams_10Mbps/cwnd/cwnd_1
+
+python plotresults.py testresults/301_GAMZE_2streams_1.6Mbps/log_GAMZE_1.6Mbps_0 testresults/301_GAMZE_2streams_1.6Mbps/log_GAMZE_1.6Mbps_1
+python plotRTT-CWND.py testresults/301_GAMZE_2streams_1.6Mbps/cwnd/RTT_0 testresults/301_GAMZE_2streams_1.6Mbps/cwnd/RTT_1 testresults/301_GAMZE_2streams_1.6Mbps/cwnd/qual_0 testresults/301_GAMZE_2streams_1.6Mbps/cwnd/qual_1 testresults/301_GAMZE_2streams_1.6Mbps/cwnd/cwnd_0 testresults/301_GAMZE_2streams_1.6Mbps/cwnd/cwnd_1
+
+python plotRTT-CWND.py testresults/301_GAMZE_2streams_10Mbps/cwnd/RTT_0 testresults/301_GAMZE_2streams_10Mbps/cwnd/RTT_1 testresults/301_GAMZE_2streams_10Mbps/cwnd/qual_0 testresults/301_GAMZE_2streams_10Mbps/cwnd/qual_1 
+
+python plotRTT-CWND.py testresults/301_GAMZE_2streams_10Mbps/cwnd/RTT_0 testresults/301_GAMZE_2streams_10Mbps/cwnd/RTT_1 testresults/301_GAMZE_2streams_10Mbps/cwnd/qual_0 testresults/301_GAMZE_2streams_10Mbps/cwnd/qual_1 testresults/301_GAMZE_2streams_10Mbps/cwnd/cwnd_0 testresults/301_GAMZE_2streams_10Mbps/cwnd/cwnd_1
+
+python plotresults.py testresults/301_LIMIT_2streams_4.8Mbps/log_LIMIT_4.8Mbps_0 testresults/301_LIMIT_2streams_4.8Mbps/log_LIMIT_4.8Mbps_1
+*4 STREAMS*
+python gamze_competitive_tests.py config.json testcases/301_GAMZE_4streams_10Mbps.json
+python plotresults.py testresults/301_GAMZE_4streams_10Mbps/log_GAMZE_10Mbps_0 testresults/301_GAMZE_4streams_10Mbps/log_GAMZE_10Mbps_1 testresults/301_GAMZE_4streams_10Mbps/log_GAMZE_10Mbps_2 testresults/301_GAMZE_4streams_10Mbps/log_GAMZE_10Mbps_3
+python plotRTT-CWND.py testresults/301_GAMZE_4streams_10Mbps/cwnd/cwnd_0 testresults/301_GAMZE_4streams_10Mbps/cwnd/cwnd_1 testresults/301_GAMZE_4streams_10Mbps/cwnd/cwnd_2 testresults/301_GAMZE_4streams_10Mbps/cwnd/cwnd_3 testresults/301_GAMZE_4streams_10Mbps/cwnd/RTT_0 testresults/301_GAMZE_4streams_10Mbps/cwnd/RTT_1 testresults/301_GAMZE_4streams_10Mbps/cwnd/RTT_2 testresults/301_GAMZE_4streams_10Mbps/cwnd/RTT_3
+
+python plotRTT-CWND.py testresults/301_GAMZE_4streams_10Mbps/cwnd/RTT_0 testresults/301_GAMZE_4streams_10Mbps/cwnd/RTT_1 testresults/301_GAMZE_4streams_10Mbps/cwnd/RTT_2 testresults/301_GAMZE_4streams_10Mbps/cwnd/RTT_3
+
+python plotresults.py testresults/301_GAMZE_4streams_8Mbps/log_GAMZE_8Mbps_0 testresults/301_GAMZE_4streams_8Mbps/log_GAMZE_8Mbps_1 testresults/301_GAMZE_4streams_8Mbps/log_GAMZE_8Mbps_2 testresults/301_GAMZE_4streams_8Mbps/log_GAMZE_8Mbps_3
+
+python plotRTT-CWND.py testresults/301_GAMZE_4streams_8Mbps/cwnd/RTT_0 testresults/301_GAMZE_4streams_8Mbps/cwnd/RTT_1 testresults/301_GAMZE_4streams_8Mbps/cwnd/RTT_2 testresults/301_GAMZE_4streams_8Mbps/cwnd/RTT_3 testresults/301_GAMZE_4streams_8Mbps/cwnd/qual_0 testresults/301_GAMZE_4streams_8Mbps/cwnd/qual_1 testresults/301_GAMZE_4streams_8Mbps/cwnd/qual_2 testresults/301_GAMZE_4streams_8Mbps/cwnd/qual_3 testresults/301_GAMZE_4streams_8Mbps/cwnd/cwnd_0 testresults/301_GAMZE_4streams_8Mbps/cwnd/cwnd_1 testresults/301_GAMZE_4streams_8Mbps/cwnd/cwnd_2 testresults/301_GAMZE_4streams_8Mbps/cwnd/cwnd_3
+
+*5 STREAMS*
+
+python plotresults.py testresults/501_GAMZE_5streams_8Mbps/log_GAMZE_8Mbps_0 testresults/501_GAMZE_5streams_8Mbps/log_GAMZE_8Mbps_1 testresults/501_GAMZE_5streams_8Mbps/log_GAMZE_8Mbps_2 testresults/501_GAMZE_5streams_8Mbps/log_GAMZE_8Mbps_3 testresults/501_GAMZE_5streams_8Mbps/log_GAMZE_8Mbps_4
+
+python plotresults.py testresults/501_BB_5streams_8Mbps/log_BB_8Mbps_0 testresults/501_BB_5streams_8Mbps/log_BB_8Mbps_1 testresults/501_BB_5streams_8Mbps/log_BB_8Mbps_2 testresults/501_BB_5streams_8Mbps/log_BB_8Mbps_3 testresults/501_BB_5streams_8Mbps/log_BB_8Mbps_4
+
+*6 STREAMS*
+
+python gamze_competitive_tests.py config.json testcases/301_GAMZE_6streams_10Mbps.json
+python plotresults.py testresults/301_GAMZE_6streams_10Mbps/log_GAMZE_10Mbps_0 testresults/301_GAMZE_6streams_10Mbps/log_GAMZE_10Mbps_1 testresults/301_GAMZE_6streams_10Mbps/log_GAMZE_10Mbps_2 testresults/301_GAMZE_6streams_10Mbps/log_GAMZE_10Mbps_3 testresults/301_GAMZE_6streams_10Mbps/log_GAMZE_10Mbps_4 testresults/301_GAMZE_6streams_10Mbps/log_GAMZE_10Mbps_5
+
+python plotresults.py testresults/601_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_0 testresults/601_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_1 testresults/601_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_2 testresults/601_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_3 testresults/601_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_4 testresults/601_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_5
+
+python plotresults.py testresults/602_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_0 testresults/602_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_1 testresults/602_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_2 testresults/602_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_3 testresults/602_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_4 testresults/602_GAMZE_6streams_4.8Mbps/log_GAMZE_4.8Mbps_5
+
+python plotresults.py testresults/301_BB_6streams_10Mbps/log_BB_10Mbps_0 testresults/301_BB_6streams_10Mbps/log_BB_10Mbps_1 testresults/301_BB_6streams_10Mbps/log_BB_10Mbps_2 testresults/301_BB_6streams_10Mbps/log_BB_10Mbps_3 testresults/301_BB_6streams_10Mbps/log_BB_10Mbps_4 testresults/301_BB_6streams_10Mbps/log_BB_10Mbps_5 
+
+python plotresults.py testresults/301_RB_6streams_10Mbps/log_RB_10Mbps_0 testresults/301_RB_6streams_10Mbps/log_RB_10Mbps_1 testresults/301_RB_6streams_10Mbps/log_RB_10Mbps_2 testresults/301_RB_6streams_10Mbps/log_RB_10Mbps_3 testresults/301_RB_6streams_10Mbps/log_RB_10Mbps_4 testresults/301_RB_6streams_10Mbps/log_RB_10Mbps_5
+
+python plotresults.py testresults/301_RL_6streams_10Mbps/log_RL_10Mbps_0 testresults/301_RL_6streams_10Mbps/log_RL_10Mbps_1 testresults/301_RL_6streams_10Mbps/log_RL_10Mbps_2 testresults/301_RL_6streams_10Mbps/log_RL_10Mbps_3 testresults/301_RL_6streams_10Mbps/log_RL_10Mbps_4 testresults/301_RL_6streams_10Mbps/log_RL_10Mbps_5
+
+python plotresults.py testresults/301_fastMPC_6streams_10Mbps/log_fastMPC_10Mbps_0 testresults/301_fastMPC_6streams_10Mbps/log_fastMPC_10Mbps_1 testresults/301_fastMPC_6streams_10Mbps/log_fastMPC_10Mbps_2 testresults/301_fastMPC_6streams_10Mbps/log_fastMPC_10Mbps_3 testresults/301_fastMPC_6streams_10Mbps/log_fastMPC_10Mbps_4 testresults/301_fastMPC_6streams_10Mbps/log_fastMPC_10Mbps_5
+
+python plotresults.py testresults/301_robustMPC_6streams_10Mbps/log_robustMPC_10Mbps_0 testresults/301_robustMPC_6streams_10Mbps/log_robustMPC_10Mbps_1 testresults/301_robustMPC_6streams_10Mbps/log_robustMPC_10Mbps_2 testresults/301_robustMPC_6streams_10Mbps/log_robustMPC_10Mbps_3 testresults/301_robustMPC_6streams_10Mbps/log_robustMPC_10Mbps_4 testresults/301_robustMPC_6streams_10Mbps/log_robustMPC_10Mbps_5
+
+python plotresults.py testresults/301_FESTIVE_6streams_10Mbps/log_FESTIVE_10Mbps_0 testresults/301_FESTIVE_6streams_10Mbps/log_FESTIVE_10Mbps_1 testresults/301_FESTIVE_6streams_10Mbps/log_FESTIVE_10Mbps_2 testresults/301_FESTIVE_6streams_10Mbps/log_FESTIVE_10Mbps_3 testresults/301_FESTIVE_6streams_10Mbps/log_FESTIVE_10Mbps_4 testresults/301_FESTIVE_6streams_10Mbps/log_FESTIVE_10Mbps_5
+
+python plotresults.py testresults/301_BOLA_6streams_10Mbps/log_BOLA_10Mbps_0 testresults/301_BOLA_6streams_10Mbps/log_BOLA_10Mbps_1 testresults/301_BOLA_6streams_10Mbps/log_BOLA_10Mbps_2 testresults/301_BOLA_6streams_10Mbps/log_BOLA_10Mbps_3 testresults/301_BOLA_6streams_10Mbps/log_BOLA_10Mbps_4 testresults/301_BOLA_6streams_10Mbps/log_BOLA_10Mbps_5 
+
+python plotresults.py testresults/609_RL_6streams_4.8Mbps/log_RL_4.8Mbps_0 testresults/609_RL_6streams_4.8Mbps/log_RL_4.8Mbps_1 testresults/609_RL_6streams_4.8Mbps/log_RL_4.8Mbps_2 testresults/609_RL_6streams_4.8Mbps/log_RL_4.8Mbps_3 testresults/609_RL_6streams_4.8Mbps/log_RL_4.8Mbps_4 testresults/609_RL_6streams_4.8Mbps/log_RL_4.8Mbps_5
+
+python plotRTT-CWND.py testresults/301_GAMZE_6streams_10Mbps/cwnd/RTT_0 testresults/301_GAMZE_6streams_10Mbps/cwnd/RTT_1 testresults/301_GAMZE_6streams_10Mbps/cwnd/RTT_2 testresults/301_GAMZE_6streams_10Mbps/cwnd/RTT_3 testresults/301_GAMZE_6streams_10Mbps/cwnd/RTT_4 testresults/301_GAMZE_6streams_10Mbps/cwnd/RTT_5 testresults/301_GAMZE_6streams_10Mbps/cwnd/qual_0 testresults/301_GAMZE_6streams_10Mbps/cwnd/qual_1 testresults/301_GAMZE_6streams_10Mbps/cwnd/qual_2 testresults/301_GAMZE_6streams_10Mbps/cwnd/qual_3 testresults/301_GAMZE_6streams_10Mbps/cwnd/qual_4 testresults/301_GAMZE_6streams_10Mbps/cwnd/qual_5 testresults/301_GAMZE_6streams_10Mbps/cwnd/cwnd_0 testresults/301_GAMZE_6streams_10Mbps/cwnd/cwnd_1 testresults/301_GAMZE_6streams_10Mbps/cwnd/cwnd_2 testresults/301_GAMZE_6streams_10Mbps/cwnd/cwnd_3 testresults/301_GAMZE_6streams_10Mbps/cwnd/cwnd_4 testresults/301_GAMZE_6streams_10Mbps/cwnd/cwnd_5 
+
+python plotRTT-CWND.py testresults/601_GAMZE_6streams_4.8Mbps/cwnd/RTT_0 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/RTT_1 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/RTT_2 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/RTT_3 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/RTT_4 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/RTT_5 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/qual_0 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/qual_1 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/qual_2 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/qual_3 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/qual_4 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/qual_5 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/cwnd_0 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/cwnd_1 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/cwnd_2 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/cwnd_3 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/cwnd_4 testresults/601_GAMZE_6streams_4.8Mbps/cwnd/cwnd_5
+
+*10 STREAMS*
+python gamze_competitive_tests.py config.json testcases/301_GAMZE_10streams_3.4Mbps.json
+
+python plotresults.py  testresults/301_GAMZE_10streams_3.4Mbps/log_GAMZE_3.4Mbps_0 testresults/301_GAMZE_10streams_3.4Mbps/log_GAMZE_3.4Mbps_1 testresults/301_GAMZE_10streams_3.4Mbps/log_GAMZE_3.4Mbps_2 testresults/301_GAMZE_10streams_3.4Mbps/log_GAMZE_3.4Mbps_3 testresults/301_GAMZE_10streams_3.4Mbps/log_GAMZE_3.4Mbps_4 testresults/301_GAMZE_10streams_3.4Mbps/log_GAMZE_3.4Mbps_5 testresults/301_GAMZE_10streams_3.4Mbps/log_GAMZE_3.4Mbps_6 testresults/301_GAMZE_10streams_3.4Mbps/log_GAMZE_3.4Mbps_7 testresults/301_GAMZE_10streams_3.4Mbps/log_GAMZE_3.4Mbps_8 testresults/301_GAMZE_10streams_3.4Mbps/log_GAMZE_3.4Mbps_9
+
+python plotCWND.py  testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_0 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_1 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_2 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_3 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_4 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_5 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_6 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_7 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_8 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_9
+
+python plotRTT-CWND.py  testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_0 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_1 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_2 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_3 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_4 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_5 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_6 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_7 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_8 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_9 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/RTT_0 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/RTT_1 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/RTT_2 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/RTT_3 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/RTT_4 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/RTT_5 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/RTT_6 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/RTT_7 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/RTT_8 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/RTT_9
+
+*10 STREAMS*
+python gamze_competitive_tests.py config.json testcases/301_GAMZE_10streams_10Mbps.json
+
+python plotresults.py  testresults/301_GAMZE_10streams_10Mbps/log_GAMZE_10Mbps_0 testresults/301_GAMZE_10streams_10Mbps/log_GAMZE_10Mbps_1 testresults/301_GAMZE_10streams_10Mbps/log_GAMZE_10Mbps_2 testresults/301_GAMZE_10streams_10Mbps/log_GAMZE_10Mbps_3 testresults/301_GAMZE_10streams_10Mbps/log_GAMZE_10Mbps_4 testresults/301_GAMZE_10streams_10Mbps/log_GAMZE_10Mbps_5 testresults/301_GAMZE_10streams_10Mbps/log_GAMZE_10Mbps_6 testresults/301_GAMZE_10streams_10Mbps/log_GAMZE_10Mbps_7 testresults/301_GAMZE_10streams_10Mbps/log_GAMZE_10Mbps_8 testresults/301_GAMZE_10streams_10Mbps/log_GAMZE_10Mbps_9
+
+python plotresults.py  testresults/301_BB_10streams_10Mbps/log_BB_10Mbps_0 testresults/301_BB_10streams_10Mbps/log_BB_10Mbps_1 testresults/301_BB_10streams_10Mbps/log_BB_10Mbps_2 testresults/301_BB_10streams_10Mbps/log_BB_10Mbps_3 testresults/301_BB_10streams_10Mbps/log_BB_10Mbps_4 testresults/301_BB_10streams_10Mbps/log_BB_10Mbps_5 testresults/301_BB_10streams_10Mbps/log_BB_10Mbps_6 testresults/301_BB_10streams_10Mbps/log_BB_10Mbps_7 testresults/301_BB_10streams_10Mbps/log_BB_10Mbps_8 testresults/301_BB_10streams_10Mbps/log_BB_10Mbps_9
+
+python plotRTT-CWND.py testresults/301_GAMZE_10streams_10Mbps/cwnd/RTT_0 testresults/301_GAMZE_10streams_10Mbps/cwnd/RTT_1 testresults/301_GAMZE_10streams_10Mbps/cwnd/RTT_2 testresults/301_GAMZE_10streams_10Mbps/cwnd/RTT_3 testresults/301_GAMZE_10streams_10Mbps/cwnd/RTT_4 testresults/301_GAMZE_10streams_10Mbps/cwnd/RTT_5 testresults/301_GAMZE_10streams_10Mbps/cwnd/RTT_6 testresults/301_GAMZE_10streams_10Mbps/cwnd/RTT_7 testresults/301_GAMZE_10streams_10Mbps/cwnd/RTT_8 testresults/301_GAMZE_10streams_10Mbps/cwnd/RTT_9 testresults/301_GAMZE_10streams_10Mbps/cwnd/qual_0 testresults/301_GAMZE_10streams_10Mbps/cwnd/qual_1 testresults/301_GAMZE_10streams_10Mbps/cwnd/qual_2 testresults/301_GAMZE_10streams_10Mbps/cwnd/qual_3 testresults/301_GAMZE_10streams_10Mbps/cwnd/qual_4 testresults/301_GAMZE_10streams_10Mbps/cwnd/qual_5 testresults/301_GAMZE_10streams_10Mbps/cwnd/qual_6 testresults/301_GAMZE_10streams_10Mbps/cwnd/qual_7 testresults/301_GAMZE_10streams_10Mbps/cwnd/qual_8 testresults/301_GAMZE_10streams_10Mbps/cwnd/qual_9 testresults/301_GAMZE_10streams_10Mbps/cwnd/cwnd_0 testresults/301_GAMZE_10streams_10Mbps/cwnd/cwnd_1 testresults/301_GAMZE_10streams_10Mbps/cwnd/cwnd_2 testresults/301_GAMZE_10streams_10Mbps/cwnd/cwnd_3 testresults/301_GAMZE_10streams_10Mbps/cwnd/cwnd_4 testresults/301_GAMZE_10streams_10Mbps/cwnd/cwnd_5 testresults/301_GAMZE_10streams_10Mbps/cwnd/cwnd_6 testresults/301_GAMZE_10streams_10Mbps/cwnd/cwnd_7 testresults/301_GAMZE_10streams_10Mbps/cwnd/cwnd_8 testresults/301_GAMZE_10streams_10Mbps/cwnd/cwnd_9
+
+python plotCWND.py  testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_0 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_1 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_2 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_3 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_4 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_5 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_6 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_7 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_8 testresults/301_GAMZE_10streams_3.4Mbps/cwnd/cwnd_9
+-----------------------------------------
+python plotresults.py  testresults/301_GAMZE_2streams_0.4Mbps/log_GAMZE_0.4Mbps_0 testresults/301_GAMZE_2streams_0.4Mbps/log_GAMZE_0.4Mbps_1
+
+
+python plotresults_LIMIT.py REPORT_RESULTS/LIMIT_2streams_4.8Mbps/201_LIMIT_2streams_4.8Mbps_woTCP/log_LIMIT_4.8Mbps_0 REPORT_RESULTS/LIMIT_2streams_4.8Mbps/201_LIMIT_2streams_4.8Mbps_woTCP/log_LIMIT_4.8Mbps_1 REPORT_RESULTS/LIMIT_2streams_4.8Mbps/201_LIMIT_2streams_4.8Mbps_woTCP/cwnd/qual_0 REPORT_RESULTS/LIMIT_2streams_4.8Mbps/201_LIMIT_2streams_4.8Mbps_woTCP/cwnd/qual_1
+
+

@@ -1,0 +1,1 @@
+{"comment": "Gamze wo controller with BB", "udp": "true", "jobs": [{"name": "GAMZE", "start": "0", "abr": "GAMZE", "quic": "false", "duration": "200", "transport": "cubic"}], "fname": "testcases/201_GAMZE_1stream_2.2Mbps.json", "trace": "2.2Mbps", "video": "testVideo", "repeat_n": "1", "test_id": "201_GAMZE_1stream_2.2Mbps"}

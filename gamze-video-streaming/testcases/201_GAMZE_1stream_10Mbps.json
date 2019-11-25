@@ -1,0 +1,20 @@
+{
+    "test_id":"201_GAMZE_1stream_10Mbps",
+    "comment":"Gamze wo controller with BB",
+    "trace":"10Mbps",
+    "video":"testVideo",
+    "repeat_n":"1",
+    "udp":"true",
+
+    "jobs":[
+        {
+            "name":"GAMZE",
+            "abr":"GAMZE",
+            "quic":"false",
+            "transport":"cubic",
+            "start":"0",
+            "duration":"200"
+            
+        }
+    ]
+}

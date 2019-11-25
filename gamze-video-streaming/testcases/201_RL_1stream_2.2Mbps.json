@@ -1,0 +1,20 @@
+{
+    "test_id":"201_RL_1stream_2.2Mbps",
+    "comment":"Gamze wo controller with BB",
+    "trace":"2.2Mbps",
+    "video":"testVideo",
+    "repeat_n":"1",
+    "udp":"false",
+
+    "jobs":[
+        {
+            "name":"RL",
+            "abr":"RL",
+            "quic":"false",
+            "transport":"cubic",
+            "start":"0",
+            "duration":"200"
+            
+        }
+    ]
+}

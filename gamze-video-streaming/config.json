@@ -1,0 +1,13 @@
+{
+    "if_name":"eth0",
+    "server":{
+        "cubic": {
+            "address": "cubic.lan",
+            "port": "8080"
+        },
+        "bbr": {
+            "address": "bbr.lan",
+            "port": "8080"
+        }
+    }
+}

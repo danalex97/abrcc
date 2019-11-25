@@ -1,0 +1,3 @@
+In order to convert the m4s files to one mp4, use the following command:
+	cat OfForestAndMen_4s_init.mp4 *.m4s > file.mp4
+	cat Header.m4s *.m4s > file.mp4

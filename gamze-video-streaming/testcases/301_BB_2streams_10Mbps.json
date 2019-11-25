@@ -1,0 +1,27 @@
+{
+    "test_id":"301_BB_2streams_10Mbps",
+    "comment":"two CONTROLLED fighting for 1mbit",
+    "trace":"10Mbps",
+    "video":"testVideo",
+    "repeat_n":"1",
+    "udp":"false",
+    
+    "jobs":[
+        {
+            "name":"CONTROLLED1",
+            "abr":"BB",
+            "quic":"false",
+            "transport":"cubic",
+            "start":"0",
+            "duration":"200"
+        },
+        {
+            "name":"CONTROLLED2",
+            "abr":"BB",
+            "quic":"false",
+            "transport":"cubic",
+            "start":"10",
+            "duration":"210"
+        }
+    ] 
+}
