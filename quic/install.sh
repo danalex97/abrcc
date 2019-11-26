@@ -45,10 +45,10 @@ function run_hooks {
     pushd $DIR/$CHROMIUM/src > /dev/null
 
     log "Install deps..."
-    ./build/install-build-deps.sh
+    run_cmd ./build/install-build-deps.sh
 
     log "Run hooks..."
-    $TOOLS/gclient runhooks
+    run_cmd $TOOLS_DIR/gclient runhooks
 
     popd > /dev/null
     log "Hooks ran."
