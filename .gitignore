@@ -1,3 +1,4 @@
 depot_tools
 chromium
 *.swp
+*.swo

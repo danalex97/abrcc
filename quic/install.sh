@@ -1,22 +1,10 @@
 #!/bin/bash
-DIR=$(pwd)
-
-function log {
-    echo "[installer] $@"
-}
-
-function run_cmd {
-    echo "[running] $@"
-    $@
-}
+LOG=installer
+source ./env.sh
 
 function fetch_tools {
     log "Fetching tools..."
     
-    TOOLS=depot_tools
-    TOOLS_REPO=https://chromium.googlesource.com/chromium/tools/depot_tools.git
-    TOOLS_DIR=$DIR/$TOOLS
-
     if [ -d $TOOLS_DIR ]; then
         log "$TOOLS_DIR already present..."
     else
@@ -29,14 +17,13 @@ function fetch_tools {
 function fetch_chromium {
     log "Fetching Chromium..."
     
-    CHROMIUM=chromium
-    CHROMIUM_DIR=$DIR/$CHROMIUM
     mkdir -p $CHROMIUM_DIR
 
     pushd $CHROMIUM_DIR > /dev/null
     run_cmd $TOOLS_DIR/fetch --nohooks --no-history $CHROMIUM
     run_cmd $TOOLS_DIR/gclient sync --nohooks --no-history
     popd > /dev/null
+
     log "Chromium fetched."
 }
 
@@ -54,6 +41,34 @@ function run_hooks {
     log "Hooks ran."
 }
 
+function build {
+    log "Build..."
+    pushd $DIR/$CHROMIUM/src > /dev/null
+
+    log "Setup build..."
+    run_cmd $TOOLS_DIR/gn gen $TARGET
+
+    log "Chainging PATH variable..."
+    export PATH="$PATH:$TOOLS_DIR"
+    echo $PATH
+ 
+    log "Build Chromium..."
+    run_cmd $TOOLS_DIR/autoninja -C $TARGET chrome
+
+    popd > /dev/null
+    log "Build finished."
+}
+
+function generate_certs {
+    log "Generating certs..."
+    pushd $CERTS_PATH > /dev/null
+    ./generate-certs.sh
+    popd > /dev/null
+    log "Certs generated."
+}
+
 fetch_tools
 fetch_chromium
 run_hooks
+build
+generate_certs
