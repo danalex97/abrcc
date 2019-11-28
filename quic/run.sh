@@ -51,6 +51,13 @@ function usage() {
 function parse_command_line_options() {
     while [ "${1:-}" != "" ]; do
         case $1 in
+            -b | --build)
+                shift
+                build net
+                build quic_client
+                build quic_server
+                exit 0
+                ;;
             -c | --client)
                 shift
                 FUNC=quic_client

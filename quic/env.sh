@@ -19,3 +19,21 @@ function run_cmd {
     echo "[running] $@"
     $@
 }
+
+function build_chromium {
+    log "Build..."
+    pushd $DIR/$CHROMIUM/src > /dev/null
+
+    log "Setup build..."
+    run_cmd $TOOLS_DIR/gn gen $TARGET
+
+    log "Chainging PATH variable..."
+    export PATH="$PATH:$TOOLS_DIR"
+    echo $PATH
+ 
+    log "Build Chromium..."
+    run_cmd $TOOLS_DIR/autoninja -C $TARGET chrome
+
+    popd > /dev/null
+    log "Build finished."
+}

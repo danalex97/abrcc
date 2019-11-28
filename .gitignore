@@ -1,4 +1,5 @@
 depot_tools
-chromium
 *.swp
 *.swo
+
+quic/chromium/*

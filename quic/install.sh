@@ -41,30 +41,16 @@ function run_hooks {
     log "Hooks ran."
 }
 
-function build {
-    log "Build..."
-    pushd $DIR/$CHROMIUM/src > /dev/null
-
-    log "Setup build..."
-    run_cmd $TOOLS_DIR/gn gen $TARGET
-
-    log "Chainging PATH variable..."
-    export PATH="$PATH:$TOOLS_DIR"
-    echo $PATH
- 
-    log "Build Chromium..."
-    run_cmd $TOOLS_DIR/autoninja -C $TARGET chrome
-
-    popd > /dev/null
-    log "Build finished."
-}
-
 function generate_certs {
     log "Generating certs..."
     pushd $CERTS_PATH > /dev/null
     ./generate-certs.sh
     popd > /dev/null
     log "Certs generated."
+}
+
+function build {
+    build_chromium
 }
 
 fetch_tools
