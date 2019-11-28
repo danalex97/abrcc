@@ -2,4 +2,7 @@ depot_tools
 *.swp
 *.swo
 
-quic/chromium/*
+quic/chromium/src/*
+!quic/chromium/src/net/**
+quic/chromium/src/net/tools/quic/certs/out/
+quic/chromium/src/net/tools/quic/certs/out/*
