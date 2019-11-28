@@ -32,6 +32,21 @@ function quic_client {
         $SITE
 }
 
+function quic_chrome {
+    RED_PORT=443   
+ 
+    run_cmd google-chrome \
+        --user-data-dir=/tmp/chrome-profile \
+        --no-proxy-server \
+        --enable-quic \
+        --origin-to-force-quic-on=$SITE:$RED_PORT \
+        --ignore-certificate-errors \
+        --allow-running-insecure-content \
+        --host-resolver-rules="'""MAP $SITE:$RED_PORT $HOST:$PORT""'" \
+        --enable-features=NetworkService \
+        https://$SITE
+}
+
 function usage() {
     echo "Usage: $0 [OPTION]..."
     echo "Quic runner."
@@ -65,6 +80,10 @@ function parse_command_line_options() {
             -s | --server)
                 shift
                 FUNC=quic_server
+                ;;
+            --chrome)
+                shift
+                FUNC=quic_chrome
                 ;;
             --host)
                 shift
