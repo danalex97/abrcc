@@ -3605,6 +3605,8 @@ if (!is_ios) {
       "abrcc/dash_server_bin.cc",
       "abrcc/dash_server_backend_factory.cc",
       "abrcc/dash_server_backend_factory.h",
+      "abrcc/dash_backend.cc",
+      "abrcc/dash_backend.h",
     ]
     deps = [
       ":net",

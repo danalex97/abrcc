@@ -1,0 +1,42 @@
+#ifndef ABRCC_DASH_BACKEND_H_
+#define ABRCC_DASH_BACKEND_H_
+
+#include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
+#include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
+#include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
+#include "net/third_party/quiche/src/quic/tools/quic_url.h"
+
+namespace quic {
+
+// Backend for serving DASH a single video from memory. The 
+// files are loaded by using a JSON config. Wrapper around 
+// QuicMemoryCacheBackend.
+class DashBackend : public QuicSimpleServerBackend {
+ public:
+  DashBackend();
+  DashBackend(const DashBackend&) = delete;
+  DashBackend& operator=(const DashBackend&) = delete;
+  ~DashBackend() override;
+
+  // Add video to the active video cache. 
+  void AddVideo(QuicStringPiece host, QuicStringPiece path);
+
+  // Implements the functions for interface QuicSimpleServerBackend
+  bool InitializeBackend(const std::string& backend_url) override;
+  bool IsBackendInitialized() const override;
+  void FetchResponseFromBackend(
+      const spdy::SpdyHeaderBlock& request_headers,
+      const std::string& request_body,
+      QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
+  void CloseBackendResponseStream(
+      QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
+
+ private:
+  std::unique_ptr<QuicMemoryCacheBackend> cache;
+  bool backend_initialized_;
+};
+
+}  
+
+#endif  

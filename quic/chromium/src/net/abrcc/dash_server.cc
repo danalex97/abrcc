@@ -3,11 +3,11 @@
 #include <utility>
 #include <vector>
 
+#include "net/abrcc/dash_backend.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_default_proof_providers.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
-#include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
                               port,
@@ -26,8 +26,12 @@ namespace quic {
 
 std::unique_ptr<quic::QuicSimpleServerBackend>
 QuicDashServer::MemoryCacheBackendFactory::CreateBackend() {
-  auto memory_cache_backend = std::make_unique<QuicMemoryCacheBackend>();
-  return memory_cache_backend;
+  auto dash_backend = std::make_unique<DashBackend>();
+  if (!GetQuicFlag(FLAGS_quic_config_path).empty()) {
+    dash_backend->InitializeBackend(
+      GetQuicFlag(FLAGS_quic_config_path));
+  }
+  return dash_backend;
 }
 
 QuicDashServer::QuicDashServer(BackendFactory* backend_factory,
