@@ -14,10 +14,9 @@ function build {
 }
 
 function quic_server {
-    build quic_server
-    run_cmd $OUT_DIR/quic_server \
+    build dash_server
+    run_cmd $OUT_DIR/dash_server \
         --v=1 \
-        --quic_response_cache_dir=$DIR/sites/$SITE \
         --port=$PORT \
         --certificate_file=$CERTS_PATH/out/leaf_cert.pem \
         --key_file=$CERTS_PATH/out/leaf_cert.pkcs8

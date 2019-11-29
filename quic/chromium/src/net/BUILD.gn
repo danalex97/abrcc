@@ -3598,6 +3598,23 @@ if (!is_ios) {
       "//third_party/protobuf:protobuf_lite",
     ]
   }
+  executable("dash_server") {
+    sources = [
+      "abrcc/dash_server.cc",
+      "abrcc/dash_server.h",
+      "abrcc/dash_server_bin.cc",
+      "abrcc/dash_server_backend_factory.cc",
+      "abrcc/dash_server_backend_factory.h",
+    ]
+    deps = [
+      ":net",
+      ":simple_quic_tools",
+      "//base",
+      "//build/win:default_exe_manifest",
+      "//third_party/boringssl",
+      "//third_party/protobuf:protobuf_lite",
+    ]
+  }
   executable("quic_transport_simple_server") {
     sources = [
       "tools/quic/quic_transport_simple_server_bin.cc",
