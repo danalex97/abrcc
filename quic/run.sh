@@ -13,8 +13,25 @@ function build {
     run_cmd $TOOLS_DIR/ninja -C $OUT_DIR $1
 }
 
+function build_dash_client_npm {
+    pushd $DIR/../dash > /dev/null
+
+    npm run build 
+    
+    SRC=$DIR/../dash
+    DST=$DIR/sites/$SITE
+    rm -rf $DST/dist
+    cp -r $SRC/dist $DST
+    rm -rf $DST/index.html
+    cp $SRC/index.html $DST
+
+    popd > /dev/null
+}
+
 function quic_server {
+    build_dash_client_npm
     build dash_server
+
     run_cmd $OUT_DIR/dash_server \
         --v=1 \
         --quic_config_path=$DIR/config.json \
@@ -33,17 +50,18 @@ function quic_client {
 }
 
 function quic_chrome {
-    RED_PORT=443   
- 
-    run_cmd google-chrome \
+    RED_PORT=443
+    google-chrome-stable \
+        --v=1 \
         --user-data-dir=/tmp/chrome-profile \
         --no-proxy-server \
         --enable-quic \
         --origin-to-force-quic-on=$SITE:$RED_PORT \
         --ignore-certificate-errors \
         --allow-running-insecure-content \
-        --host-resolver-rules="'""MAP $SITE:$RED_PORT $HOST:$PORT""'" \
         --enable-features=NetworkService \
+        --incognito \
+        --host-resolver-rules='MAP www.example.org:443 127.0.0.1:6121' \
         https://$SITE
 }
 
@@ -70,7 +88,7 @@ function parse_command_line_options() {
                 shift
                 build net
                 build quic_client
-                build quic_server
+                build dash_server
                 exit 0
                 ;;
             -c | --client)

@@ -6,6 +6,9 @@ quic/chromium/src/net/data/**
 quic/chromium/src/net/tools/quic/certs/out/
 quic/chromium/src/net/tools/quic/certs/out/*
 
+quic/sites/www.example.org/index.html
+quic/sites/www.example.org/dist/
+
 depot_tools
 *.swp
 *.swo

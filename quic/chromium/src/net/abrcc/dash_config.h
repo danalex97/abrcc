@@ -5,6 +5,23 @@
 
 namespace quic {
 
+struct PlayerConfig {
+  std::string index;
+  std::string manifest;
+  std::string player;
+
+  PlayerConfig();
+  PlayerConfig(const PlayerConfig&) = delete;
+  PlayerConfig& operator=(const PlayerConfig&) = delete;
+  ~PlayerConfig();
+
+  static void RegisterJSONConverter(base::JSONValueConverter<PlayerConfig>* converter) {
+    converter->RegisterStringField("index", &PlayerConfig::index);
+    converter->RegisterStringField("manifest", &PlayerConfig::manifest);
+    converter->RegisterStringField("player", &PlayerConfig::player);
+  }
+};
+
 struct VideoConfig {
   std::string resource;
   std::string path;
@@ -22,6 +39,8 @@ struct VideoConfig {
 
 struct DashBackendConfig {
   std::string domain;
+  std::string base_path;
+  PlayerConfig player_config;
   std::vector<std::unique_ptr<VideoConfig>> video_configs;
 
   DashBackendConfig();
@@ -32,7 +51,9 @@ struct DashBackendConfig {
   static void RegisterJSONConverter(
       base::JSONValueConverter<DashBackendConfig>* converter) {
     converter->RegisterStringField("domain", &DashBackendConfig::domain);
+    converter->RegisterStringField("base_path", &DashBackendConfig::base_path);
     converter->RegisterRepeatedMessage<VideoConfig>("video_paths", &DashBackendConfig::video_configs);
+    converter->RegisterNestedField<PlayerConfig>("player", &DashBackendConfig::player_config);
   }
 };
 

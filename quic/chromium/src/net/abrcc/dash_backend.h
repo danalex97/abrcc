@@ -19,9 +19,6 @@ class DashBackend : public QuicSimpleServerBackend {
   DashBackend& operator=(const DashBackend&) = delete;
   ~DashBackend() override;
 
-  // Add video to the active video cache. 
-  void AddVideo(QuicStringPiece host, QuicStringPiece path);
-
   // Implements the functions for interface QuicSimpleServerBackend
   bool InitializeBackend(const std::string& config_path) override;
   bool IsBackendInitialized() const override;
@@ -33,6 +30,16 @@ class DashBackend : public QuicSimpleServerBackend {
       QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
 
  private:
+  void registerResource(
+    const std::string& domain, 
+    const std::string& base_path,
+    const std::string& resource);
+  void registerVideo(
+    const std::string& domain,
+    const std::string& base_path,
+    const std::string& resource,
+    const int video_length);
+
   std::unique_ptr<QuicMemoryCacheBackend> cache;
   bool backend_initialized_;
 };

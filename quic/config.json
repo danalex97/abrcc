@@ -1,17 +1,19 @@
 {
-    "domain" : "www.example.com",
+    "domain" : "www.example.org",
+    "base_path" : "/sites/www.example.org",
+    "player" : {
+        "index" : "/index.html",
+        "manifest" : "/manifest.mpd",
+        "player" : "/dist/bundle.js"
+    },
     "video_paths" : [
         {
-            "resource" : "video1",
-            "path" : ""
-        },
+            "resource" : "/video1",
+            "path" : "/sites/common/video1"
+        }, 
         {
-            "resource" : "video1",
-            "path" : ""
-        },
-        {
-            "resource" : "video1",
-            "path" : ""
-        }
+            "resource" : "/video5",
+            "path" : "/sites/common/video5"
+        } 
     ]
 }

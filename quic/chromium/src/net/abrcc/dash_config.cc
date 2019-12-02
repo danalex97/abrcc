@@ -2,6 +2,9 @@
 
 namespace quic {
 
+PlayerConfig::PlayerConfig() {}
+PlayerConfig::~PlayerConfig() {}
+
 VideoConfig::VideoConfig() {} 
 VideoConfig::~VideoConfig() {}
 
