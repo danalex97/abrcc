@@ -23,7 +23,7 @@ class DashBackend : public QuicSimpleServerBackend {
   void AddVideo(QuicStringPiece host, QuicStringPiece path);
 
   // Implements the functions for interface QuicSimpleServerBackend
-  bool InitializeBackend(const std::string& backend_url) override;
+  bool InitializeBackend(const std::string& config_path) override;
   bool IsBackendInitialized() const override;
   void FetchResponseFromBackend(
       const spdy::SpdyHeaderBlock& request_headers,

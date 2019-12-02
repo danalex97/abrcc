@@ -1,0 +1,17 @@
+{
+    "domain" : "www.example.com",
+    "video_paths" : [
+        {
+            "resource" : "video1",
+            "path" : ""
+        },
+        {
+            "resource" : "video1",
+            "path" : ""
+        },
+        {
+            "resource" : "video1",
+            "path" : ""
+        }
+    ]
+}

@@ -17,7 +17,7 @@ function quic_server {
     build dash_server
     run_cmd $OUT_DIR/dash_server \
         --v=1 \
-        --quic_config_path=$DIR/sites/$SITE \
+        --quic_config_path=$DIR/config.json \
         --port=$PORT \
         --certificate_file=$CERTS_PATH/out/leaf_cert.pem \
         --key_file=$CERTS_PATH/out/leaf_cert.pkcs8

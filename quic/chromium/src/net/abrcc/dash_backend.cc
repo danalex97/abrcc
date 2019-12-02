@@ -1,7 +1,15 @@
 #include "net/abrcc/dash_backend.h"
 
 #include <utility>
+#include <string>
+#include <fstream>
+#include <streambuf>
 
+#include "base/json/json_value_converter.h"
+#include "base/json/json_reader.h"
+#include "base/values.h"
+
+#include "net/abrcc/dash_config.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
@@ -18,11 +26,21 @@ DashBackend::DashBackend()
   , backend_initialized_(false)  {}
 DashBackend::~DashBackend() {}
 
-bool DashBackend::InitializeBackend(const std::string& backend_url) {
-  // [TODO]
-  QUIC_LOG(INFO) << "Starting DASH backend: " << backend_url;
+
+bool DashBackend::InitializeBackend(const std::string& config_path) {
+  QUIC_LOG(INFO) << "Starting DASH backend from config: " << config_path;
   
-  cache->InitializeBackend(backend_url);
+  // read config file
+  std::ifstream stream(config_path);
+  std::string data((std::istreambuf_iterator<char>(stream)),
+                   std::istreambuf_iterator<char>());
+
+  base::Optional<base::Value> value = base::JSONReader::Read(data);
+  DashBackendConfig config;
+  base::JSONValueConverter<DashBackendConfig> converter;
+  converter.Convert(*value, &config);
+
+  // cache->InitializeBackend(config_path);
   backend_initialized_ = true;
   
   return true;
