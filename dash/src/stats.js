@@ -76,7 +76,7 @@ export class Metrics {
         this.dropped_frames = new Value(raw_metrics.dropped.droppedFrames)
             .withTimestamp(raw_metrics.dropped.time.getTime());
         this.player_time = new Value(raw_metrics.info.time * 1000);
-        this.buffer_level = new Value(raw_metrics.buffer_level)
+        this.buffer_level = new Value(raw_metrics.buffer_level.level)
             .withTimestamp(raw_metrics.buffer_level.t.getTime());
     }
 
@@ -94,12 +94,16 @@ export class Metrics {
 export class StatsTracker {
     constructor(player) {
         this.player = player;
+        this.callbacks = [];
     }
 
     start() {
         setInterval(() => {
             let metrics_wrapper = this.player.getDashMetrics();
-            this.tick(metrics_wrapper);
+            let metrics = this.tick(metrics_wrapper);
+            for (let callback of this.callbacks) {
+                callback(metrics);
+            }
         }, TICK_INTERVAL_MS);
     }
 
@@ -117,6 +121,10 @@ export class StatsTracker {
         };
 
         let metrics = new Metrics(raw_metrics);
-        console.log(metrics);
+        return metrics;
+    }
+
+    registerCallback(callback) {
+        this.callbacks.push(callback); 
     }
 }

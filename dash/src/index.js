@@ -10,6 +10,9 @@ function init() {
     player.initialize(video, url, true);
 
     let tracker = new StatsTracker(player);
+    tracker.registerCallback((metrics) => {
+        console.log(metrics);
+    });
     tracker.start();
 }
 
