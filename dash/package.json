@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {
-    "build": "browserify src/index.js -o dist/bundle.js",
+    "build": "browserify src/stats.js src/index.js > dist/bundle.js",
     "watch": "watchify src/index.js -o dist/bundle.js -v"
   },
   "browserify": {

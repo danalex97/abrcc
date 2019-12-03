@@ -1,3 +1,4 @@
+import { StatsTracker } from './stats'; 
 import { MediaPlayer } from 'dashjs';
 import readingTime from 'reading-time';
 
@@ -7,6 +8,9 @@ function init() {
     let video = document.querySelector('#videoPlayer');
 
     player.initialize(video, url, true);
+
+    let tracker = new StatsTracker(player);
+    tracker.start();
 }
 
 window.calcRT = ev => { 
