@@ -1,6 +1,7 @@
-import { GetServerSideRule } from './abr';
-import { QualityController } from './controller';
-import { StatsTracker } from './stats'; 
+import { GetServerSideRule } from './component/abr';
+import { StatsTracker } from './component/stats'; 
+import { BackendShim } from './component/backend';
+import { QualityController } from './controller/quality';
 import { MediaPlayer } from 'dashjs';
 import readingTime from 'reading-time';
 
@@ -24,6 +25,9 @@ function init() {
         GetServerSideRule(controller)
     );
     player.initialize(video, url, true);
+
+    let shim = new BackendShim();
+    shim.request().addPieceRequest().send().then(console.log);
 
     let tracker = new StatsTracker(player);
     tracker.registerCallback((metrics) => {

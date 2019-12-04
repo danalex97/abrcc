@@ -1,4 +1,4 @@
-import { Value, Segment } from './data'; 
+import { Value, Segment } from '../common/data'; 
 
 
 const TICK_INTERVAL_MS = 500;

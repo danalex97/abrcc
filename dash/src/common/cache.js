@@ -1,4 +1,4 @@
-import { Piece } from './data'; 
+import { Piece } from '../common/data'; 
 
 
 export class PieceCache {

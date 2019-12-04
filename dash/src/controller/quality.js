@@ -1,5 +1,5 @@
-import { Decision } from './data';
-import { PieceCache } from './cache';  
+import { Decision } from '../common/data';
+import { PieceCache } from '../common/cache';  
 
 
 export class QualityController {
