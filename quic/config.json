@@ -12,8 +12,24 @@
             "path" : "/sites/common/video1"
         }, 
         {
+            "resource" : "/video2",
+            "path" : "/sites/common/video2"
+        }, 
+        {
+            "resource" : "/video3",
+            "path" : "/sites/common/video3"
+        },
+        {   
+            "resource" : "/video4",
+            "path" : "/sites/common/video4"
+        }, 
+        {
             "resource" : "/video5",
             "path" : "/sites/common/video5"
+        }, 
+        {
+            "resource" : "/video6",
+            "path" : "/sites/common/video6"
         } 
     ]
 }

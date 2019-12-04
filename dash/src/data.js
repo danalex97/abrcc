@@ -1,4 +1,4 @@
-const MAX_QUALITY = 5;
+const MAX_QUALITY = 5; // 0 -> 6
 
 
 export class Piece {
@@ -14,13 +14,21 @@ export class Piece {
 
 export class Value {
     constructor(value, timestamp) {
-        this.value = value;
-        this.timestamp = new Date().getTime();
+        this._value = value;
+        this._timestamp = new Date().getTime();
     }
 
     withTimestamp(timestamp) {
-        this.timestamp = timestamp;
+        this._timestamp = timestamp;
         return this;
+    }
+
+    get value() {
+        return this._value;
+    }
+
+    get timestamp() {
+        return this._timestamp;
     }
 }
 
@@ -28,26 +36,27 @@ export class Value {
 export class Segment extends Piece {
     constructor() {
         super()
-        this.timestamp = new Date().getTime();
+        this._timestamp = new Date().getTime();
     }
 
     withTimestamp(timestamp) {
-        this.timestamp = timestamp;
+        this._timestamp = timestamp;
         return this;
     }
 
     withQuality(quality) {
-        this.quality = quality;
+        this._quality = quality;
         return this;
     }
 
     withState(state) {
-        this.state = state;
+        this._state = state;
         return this;
     }
    
     withIndex(startTime, duration) {
-        this.index = Math.round(startTime / duration) - 1;
+        // segments start from 1
+        this._index = Math.round(startTime / duration);
         return this;
     }
 
@@ -61,11 +70,27 @@ export class Segment extends Piece {
         let raw_segment = split[split.length - 1];
         let segment = parseInt(raw_segment.split('.')[0], 10);
     
-        this.quality = MAX_QUALITY - quality + 1;
-        this.index = segment;
-        this.state = 'downloaded';
+        this._quality = MAX_QUALITY - quality + 1;
+        this._index = segment;
+        this._state = 'downloaded';
         
         return this;
+    }
+
+    get timestamp() {
+        return this._timestamp;
+    }
+
+    get index() {
+        return this._index;
+    }
+
+    get quality() {
+        return this._quality;
+    }
+
+    get state() { 
+        return this._state;
     }
 }
 
