@@ -2,6 +2,7 @@ import { GetServerSideRule } from './component/abr';
 import { StatsTracker } from './component/stats'; 
 import { BackendShim } from './component/backend';
 import { QualityController } from './controller/quality';
+import { StatsController } from './controller/stats';
 import { MediaPlayer } from 'dashjs';
 import readingTime from 'reading-time';
 
@@ -9,7 +10,9 @@ function init() {
     let url = "https://www.example.org/manifest.mpd";
     let player = MediaPlayer().create();
     let video = document.querySelector('#videoPlayer');
-    let controller = new QualityController();
+    
+    let qualityController = new QualityController();
+    let statsController = new StatsController();
 
     player.updateSettings({
         'streaming': {
@@ -18,11 +21,10 @@ function init() {
             }
         }
     });
-    console.log(controller);
     player.addABRCustomRule(
         'qualitySwitchRules', 
         'ServerSideRule', 
-        GetServerSideRule(controller)
+        GetServerSideRule(qualityController)
     );
     player.initialize(video, url, true);
 
@@ -31,7 +33,8 @@ function init() {
 
     let tracker = new StatsTracker(player);
     tracker.registerCallback((metrics) => {
-        console.log(metrics);
+        statsController.addMetrics(metrics);
+        console.log(statsController.metrics);
     });
     tracker.start();
 }

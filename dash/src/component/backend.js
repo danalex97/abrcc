@@ -19,6 +19,8 @@ export class Request {
     }
 
     send() {
+        console.log(`[BackendShim] sending request`)
+        console.log(this._json)
         request.post(this._shim.path, {
             json : this._json,
         }, (error, res, body) => {

@@ -5,33 +5,101 @@ const TICK_INTERVAL_MS = 500;
 const MEDIA_TYPE = 'video';
 
 
+function pushDefault(context, value) {
+    if (context === undefined) {
+        context = [];
+    }
+    context.push(value);
+}
+
+
 export class Metrics {
     constructor(raw_metrics) {
-        this.addSegment(new Segment()
-            .withIndex(raw_metrics.scheduling.startTime, raw_metrics.scheduling.duration)
-            .withState(raw_metrics.scheduling.state)
-            .withTimestamp(raw_metrics.scheduling.t.getTime())
-            .withQuality(raw_metrics.scheduling.quality)
-        );
-        this.addSegment(new Segment() 
-            .withUrl(raw_metrics.http_request.url)
-            .withTimestamp(raw_metrics.http_request.tresponse.getTime())
-        );
-
-        this.dropped_frames = new Value(raw_metrics.dropped.droppedFrames)
-            .withTimestamp(raw_metrics.dropped.time.getTime());
-        this.player_time = new Value(raw_metrics.info.time * 1000);
-        this.buffer_level = new Value(raw_metrics.buffer_level.level)
-            .withTimestamp(raw_metrics.buffer_level.t.getTime());
+        this._droppedFrames = [];
+        this._bufferLevel = [];
+        this._playerTime = [];
+        this._segments = [];
+        if (raw_metrics !== undefined) {
+            this.withSegment(new Segment()
+                .withIndex(raw_metrics.scheduling.startTime, raw_metrics.scheduling.duration)
+                .withState(raw_metrics.scheduling.state)
+                .withTimestamp(raw_metrics.scheduling.t.getTime())
+                .withQuality(raw_metrics.scheduling.quality)
+            ).withSegment(new Segment() 
+                .withUrl(raw_metrics.http_request.url)
+                .withTimestamp(raw_metrics.http_request.tresponse.getTime())
+            ).withDroppedFrames(new Value(raw_metrics.dropped.droppedFrames)
+                .withTimestamp(raw_metrics.dropped.time.getTime())
+            ).withPlayerTime(new Value(raw_metrics.info.time * 1000)
+            ).withBufferLevel(new Value(raw_metrics.buffer_level.level)
+                .withTimestamp(raw_metrics.buffer_level.t.getTime())
+            );
+        }
     }
 
-    addSegment(segment) {
-        if (this.segments === undefined) {
-            this.segments = [];
+    _apply(builder, array, filter) {
+        if (filter !== undefined) {
+            array = array.filter(filter);
         }
+        for (let value of array) {
+            this[builder](value);    
+        }
+        return this;
+    }
+
+    withMetrics(metrics, filter) {
+        return this
+            ._apply('withDroppedFrames', metrics.droppedFrames, filter)
+            ._apply('withPlayerTime', metrics.playerTime, filter)
+            ._apply('withBufferLevel', metrics.bufferLevel, filter)
+            ._apply('withSegment', metrics.segments, filter);
+    }
+
+    sorted() {
+        let cmp = (a, b) => a.timestamp - b.timestamp;
+        this._droppedFrames.sort(cmp);
+        this._playerTime.sort(cmp);
+        this._bufferLevel.sort(cmp);
+        this._segments.sort(cmp);
+        return this;
+    }
+
+    withDroppedFrames(droppedFrames) {
+        this._droppedFrames.push(droppedFrames);
+        return this;
+    }
+
+    withBufferLevel(bufferLevel) {
+        this._bufferLevel.push(bufferLevel);
+        return this;
+    }
+
+    withPlayerTime(playerTime) {
+        this._playerTime.push(playerTime);
+        return this;
+    }
+
+    withSegment(segment) {
         if (!isNaN(segment.index) && !isNaN(segment.quality)) {
-            this.segments.push(segment);
+            this._segments.push(segment);
         }
+        return this;
+    }
+
+    get segments() {
+        return this._segments;
+    }
+
+    get bufferLevel() {
+        return this._bufferLevel;
+    }
+
+    get playerTime() {
+        return this._playerTime;
+    }
+
+    get droppedFrames() {
+        return this._droppedFrames;
     }
 }
 
