@@ -1,19 +1,10 @@
 import { GetServerSideRule } from './component/abr';
-import { StatsTracker } from './component/stats'; 
-import { BackendShim } from './component/backend';
-import { QualityController } from './controller/quality';
-import { StatsController } from './controller/stats';
+import { App } from './app';
 import { MediaPlayer } from 'dashjs';
 import readingTime from 'reading-time';
 
-function init() {
-    let url = "https://www.example.org/manifest.mpd";
-    let player = MediaPlayer().create();
-    let video = document.querySelector('#videoPlayer');
-    
-    let qualityController = new QualityController();
-    let statsController = new StatsController();
 
+function updateAbrSettings(player) {
     player.updateSettings({
         'streaming': {
             'abr': {
@@ -24,20 +15,22 @@ function init() {
     player.addABRCustomRule(
         'qualitySwitchRules', 
         'ServerSideRule', 
-        GetServerSideRule(qualityController)
+        GetServerSideRule()
     );
-    player.initialize(video, url, true);
-
-    let shim = new BackendShim();
-    shim.request().addPieceRequest().send().then(console.log);
-
-    let tracker = new StatsTracker(player);
-    tracker.registerCallback((metrics) => {
-        statsController.addMetrics(metrics);
-        console.log(statsController.metrics);
-    });
-    tracker.start();
 }
+
+
+function init() {
+    let url = "https://www.example.org/manifest.mpd";
+    let player = MediaPlayer().create();
+    let video = document.querySelector('#videoPlayer'); 
+    let app = new App(player);
+    
+    updateAbrSettings(player);
+    player.initialize(video, url, true);
+    app.start();
+}
+
 
 window.calcRT = ev => { 
     var stats = readingTime(ev.value).text;

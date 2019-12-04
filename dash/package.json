@@ -4,7 +4,7 @@
   "main": "src/index.js",
   "scripts": {
     "lint": "eslint src",
-    "build": "browserify src/index.js src/common/* src/component/* src/controller/* > dist/bundle.js",
+    "build": "browserify src/index.js src/app.js src/common/* src/component/* src/controller/* > dist/bundle.js",
     "watch": "watchify src/* -o dist/bundle.js -v"
   },
   "browserify": {

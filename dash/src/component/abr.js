@@ -8,7 +8,7 @@ function getQualityController() {
     return window.qualityController;
 }
 
-function setQualityController(qualityController) {
+export function SetQualityController(qualityController) {
     window.qualityController = qualityController;
 }
 
@@ -49,8 +49,7 @@ function ServerSideRuleClass() {
     return instance;
 }
 
-export function GetServerSideRule(qualityController) {
-    setQualityController(qualityController);
+export function GetServerSideRule() {
     ServerSideRuleClass.__dashjs_factory_name = 'ServerSideRule';
     return getFactory().getClassFactory(ServerSideRuleClass);
 }
