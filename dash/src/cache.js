@@ -1,9 +1,9 @@
 import { Piece } from './data'; 
 
 
-class PieceCache {
+export class PieceCache {
     constructor() {
-        this.container = {}
+        this.container = {};
     }
 
     piece(index) {

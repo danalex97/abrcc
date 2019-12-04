@@ -1,6 +1,7 @@
-const MAX_QUALITY = 5; // 0 -> 6
+const MAX_QUALITY = 5; // 0 -> 5
 
 
+// @abstract
 export class Piece {
     get index() {
         throw new TypeError("not implemented error")
@@ -12,8 +13,10 @@ export class Piece {
 }
 
 
-export class Value {
+// @abstract 
+export class Value extends Piece {
     constructor(value, timestamp) {
+        super();
         this._value = value;
         this._timestamp = new Date().getTime();
     }
@@ -29,6 +32,17 @@ export class Value {
 
     get timestamp() {
         return this._timestamp;
+    }
+}
+
+
+export class Decision extends Value {
+    constructor(value, timestamp) {
+        super(value, timestamp);
+    }
+    
+    get index() {
+        return this.value; 
     }
 }
 
