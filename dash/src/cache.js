@@ -1,9 +1,4 @@
-class Piece {
-    constructor(index, timestamp) {
-        this.index = index; 
-        this.timestamp = timestamp;
-    }
-}
+import { Piece } from './data'; 
 
 
 class PieceCache {
@@ -11,11 +6,14 @@ class PieceCache {
         this.container = {}
     }
 
-    get piece(index) {
-        return this.container[piece.index]; 
+    piece(index) {
+        return this.container[index]; 
     }
 
     insert(piece) {
+        if (!(piece instanceof Piece)) {
+            throw new TypeError("[PieceCache] wrong type inserted")
+        }
         if (this.container[piece.index]) { 
             let currentPiece = this.container[piece.index];
             if (currentPiece.timestamp < piece.timestamp) {

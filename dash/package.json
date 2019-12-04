@@ -3,8 +3,9 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {
-    "build": "browserify src/stats.js src/index.js > dist/bundle.js",
-    "watch": "watchify src/index.js -o dist/bundle.js -v"
+    "lint" : "eslint src",
+    "build": "browserify src/* > dist/bundle.js",
+    "watch": "watchify src/* -o dist/bundle.js -v"
   },
   "browserify": {
     "transform": [
@@ -27,6 +28,7 @@
   "devDependencies": {
     "babel-core": "^6.26.3",
     "babel-preset-es2015": "^6.24.1",
-    "babelify": "^8.0.0"
+    "babelify": "^8.0.0",
+    "eslint": "^6.7.2"
   }
 }
