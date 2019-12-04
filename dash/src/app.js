@@ -17,10 +17,25 @@ export class App {
     }
 
     start() {
-        this.shim.request().addPieceRequest().send().then(console.log);
         this.tracker.registerCallback((metrics) => {
+            // Log metrics
             this.statsController.addMetrics(metrics);
             console.log(this.statsController.metrics);
+             
+            // Request a new peice from the backend
+            let allMetrics = this.statsController.metrics;
+            this.shim
+                .request()
+                .addStats(allMetrics)
+                .addPieceRequest()
+                .onSuccess((body) => {
+                    console.log(body);
+
+                    // [TODO] should use the body to talk to the 
+                    // quality and stats controllers 
+                }).onFail(() => {
+                    console.log("[App] Request failed")
+                }).send();
         });
         this.tracker.start();
     }

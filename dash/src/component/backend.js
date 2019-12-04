@@ -6,6 +6,7 @@ export class Request {
         this._shim = shim;
         this._json = {};
         this._callback = (body) => {};
+        this._error = () => {};
     }
 
     addStats(stats) {
@@ -26,6 +27,7 @@ export class Request {
         }, (error, res, body) => {
             if (error) {
                 console.log(`[BackendShim] ${error}`);
+                this._error();
                 return
             }
             let statusCode = res.statusCode;
@@ -33,6 +35,7 @@ export class Request {
                 console.log(`[BackendShim] status code ${statusCode}`);
                 console.log(res);
                 console.log(body);
+                this._error();
                 return
             }
             console.log(`[BackendShim] successful request`);
@@ -42,7 +45,12 @@ export class Request {
         return this;
     }
 
-    then(callback) {
+    onFail(callback) {
+        this._error = callback;
+        return this;
+    }
+
+    onSuccess(callback) {
         this._callback = callback;
         return this;
     }
