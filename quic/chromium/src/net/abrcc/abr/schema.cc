@@ -46,8 +46,8 @@ std::string Decision::serialize() {
   std::stringstream out;
   out << "{";
   out << "\"index\":" << this->index << ",";
-  out << "\"quality\":" << this->index << ",";
-  out << "\"timestamp\":" << this->index;
+  out << "\"quality\":" << this->quality << ",";
+  out << "\"timestamp\":" << this->timestamp;
   out << "}";
   return out.str();
 }
