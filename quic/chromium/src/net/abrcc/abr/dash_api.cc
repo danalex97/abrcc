@@ -4,6 +4,7 @@
 
 #include "base/json/json_value_converter.h"
 #include "base/json/json_reader.h"
+#include "base/json/json_writer.h"
 #include "base/values.h"
 
 using namespace abr_schema;
@@ -11,7 +12,7 @@ using spdy::SpdyHeaderBlock;
 
 namespace quic {
 
-DashApi::DashApi() {}
+DashApi::DashApi(std::unique_ptr<AbrInterface> abr) : abr(std::move(abr)) {}
 DashApi::~DashApi() {}
 
 void DashApi::FetchResponseFromBackend(
@@ -25,14 +26,12 @@ void DashApi::FetchResponseFromBackend(
   base::JSONValueConverter<DashRequest> converter;
   converter.Convert(*value, &request);
   
-  registerMetrics(request.metrics);  
+  abr->registerMetrics(request.metrics);  
   if (request.piggyback) {
-    // [TODO]
+    Decision decision = abr->decide();
+   
+     
   }
-}
-
-void DashApi::registerMetrics(const Metrics &metrics) {
-  // [TODO]
 }
 
 }

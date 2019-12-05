@@ -73,6 +73,19 @@ struct DashRequest {
   }
 };
 
+struct Decision {
+  int index;
+  int quality;
+  int timestamp;
+
+  Decision(int index, int quality, int timestamp);
+  Decision(const Decision&);
+  Decision& operator=(const Decision&);
+  ~Decision();
+
+  std::string serialize();
+};
+
 }
 
 #endif  

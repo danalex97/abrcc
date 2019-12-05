@@ -1,4 +1,5 @@
 #include "net/abrcc/dash_backend.h"
+#include "net/abrcc/abr/abr.h"
 
 #include <utility>
 #include <string>
@@ -21,10 +22,14 @@ using spdy::SpdyHeaderBlock;
 
 namespace quic {
 
-DashBackend::DashBackend() 
+DashBackend::DashBackend()
   : cache(new QuicMemoryCacheBackend())
-  , api(new DashApi())
-  , backend_initialized_(false)  {}
+  , backend_initialized_(false) 
+{
+  std::unique_ptr<AbrInterface> interface(new AbrRandom());
+  std::unique_ptr<DashApi> api(new DashApi(std::move(interface)));
+  this->api = std::move(api);
+}
 DashBackend::~DashBackend() {}
 
 void DashBackend::registerResource(
