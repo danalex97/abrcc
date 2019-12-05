@@ -9,10 +9,13 @@
 #include "base/json/json_reader.h"
 #include "base/values.h"
 
+#include "net/abrcc/abr/dash_api.h"
 #include "net/abrcc/dash_config.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+
+const std::string API_PATH = "/request";
 
 using spdy::SpdyHeaderBlock;
 
@@ -20,6 +23,7 @@ namespace quic {
 
 DashBackend::DashBackend() 
   : cache(new QuicMemoryCacheBackend())
+  , api(new DashApi())
   , backend_initialized_(false)  {}
 DashBackend::~DashBackend() {}
 
@@ -113,11 +117,21 @@ bool DashBackend::IsBackendInitialized() const {
 void DashBackend::FetchResponseFromBackend(
     const SpdyHeaderBlock& request_headers,
     const std::string& string, 
-    QuicSimpleServerBackend::RequestHandler* quic_stream) {
-  cache->FetchResponseFromBackend(request_headers, string, quic_stream);
+    QuicSimpleServerBackend::RequestHandler* quic_stream
+) {
+    auto pathWrapper = request_headers.find(":path");
+    if (pathWrapper != request_headers.end()) {
+      auto path = pathWrapper->second;
+      if (path == API_PATH) {
+        api->FetchResponseFromBackend(request_headers, string, quic_stream);
+      } else {
+        cache->FetchResponseFromBackend(request_headers, string, quic_stream);
+      }
+    } else {
+      cache->FetchResponseFromBackend(request_headers, string, quic_stream);
+    }
 }
 
 void DashBackend::CloseBackendResponseStream(
     QuicSimpleServerBackend::RequestHandler* quic_server_stream) { }
-
 }  

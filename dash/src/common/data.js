@@ -33,6 +33,13 @@ export class Value extends Piece {
     get timestamp() {
         return this._timestamp;
     }
+
+    serialize() {
+        return {
+            "value" : this.value,
+            "timestamp" : this.timestamp,
+        };
+    }
 }
 
 
@@ -105,6 +112,15 @@ export class Segment extends Piece {
 
     get state() { 
         return this._state;
+    }
+
+    serialize() {
+        return {
+            "index" : this.index,
+            "quality" : this.quality,
+            "state" : this.state,
+            "timestamp" : this.timestamp,
+        };
     }
 }
 

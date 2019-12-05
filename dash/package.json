@@ -23,6 +23,7 @@
     "browserify": "^16.2.2",
     "dashjs": "^3.0.0",
     "https": "^1.0.0",
+    "json-stable-stringify": "^1.0.1",
     "reading-time": "^1.1.3",
     "request": "^2.88.0",
     "watchify": "^3.11.0"

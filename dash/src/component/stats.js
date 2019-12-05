@@ -1,4 +1,5 @@
-import { Value, Segment } from '../common/data'; 
+import { Value, Segment } from '../common/data';
+import { default as stringify } from 'json-stable-stringify';
 
 
 const TICK_INTERVAL_MS = 500;
@@ -53,6 +54,18 @@ export class Metrics {
             ._apply('withPlayerTime', metrics.playerTime, filter)
             ._apply('withBufferLevel', metrics.bufferLevel, filter)
             ._apply('withSegment', metrics.segments, filter);
+    }
+
+    serialize() {
+        let unique = arr => [...new Set(arr.map(stringify))].map(JSON.parse); 
+        let transform = arr => unique(arr.map(x => x.serialize()));
+        let cmp = (a, b) => a.timestamp - b.timestamp;
+        return {
+            "droppedFrames" : transform(this._droppedFrames).sort(cmp),
+            "playerTime" : transform(this._playerTime).sort(cmp),
+            "bufferLevel" : transform(this._bufferLevel).sort(cmp),
+            "segments" : transform(this._segments).sort(cmp),
+        };
     }
 
     sorted() {

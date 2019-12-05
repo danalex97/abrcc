@@ -3600,6 +3600,10 @@ if (!is_ios) {
   }
   executable("dash_server") {
     sources = [
+      "abrcc/abr/dash_api.cc",
+      "abrcc/abr/dash_api.h",
+      "abrcc/abr/schema.cc",
+      "abrcc/abr/schema.h",
       "abrcc/dash_server.cc",
       "abrcc/dash_server.h",
       "abrcc/dash_server_bin.cc",

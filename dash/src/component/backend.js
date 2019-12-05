@@ -4,7 +4,9 @@ import * as request from 'request';
 export class Request {
     constructor(shim) {
         this._shim = shim;
-        this._json = {};
+        this._json = {
+            'pieceRequest' : false,
+        };
         this._callback = (body) => {};
         this._error = () => {};
     }

@@ -26,7 +26,7 @@ export class App {
             let allMetrics = this.statsController.metrics;
             this.shim
                 .request()
-                .addStats(allMetrics)
+                .addStats(allMetrics.serialize())
                 .addPieceRequest()
                 .onSuccess((body) => {
                     console.log(body);
