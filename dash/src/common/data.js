@@ -1,3 +1,6 @@
+import { timestamp as create_timestamp } from '../common/time';
+
+
 const MAX_QUALITY = 5; // 0 -> 5
 
 
@@ -15,10 +18,10 @@ export class Piece {
 
 // @abstract 
 export class Value extends Piece {
-    constructor(value, timestamp) {
+    constructor(value) {
         super();
         this._value = value;
-        this._timestamp = new Date().getTime();
+        this._timestamp = create_timestamp(new Date());
     }
 
     withTimestamp(timestamp) {
@@ -57,7 +60,7 @@ export class Decision extends Value {
 export class Segment extends Piece {
     constructor() {
         super()
-        this._timestamp = new Date().getTime();
+        this._timestamp = create_timestamp(new Date());
     }
 
     withTimestamp(timestamp) {

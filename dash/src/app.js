@@ -29,8 +29,6 @@ export class App {
                 .addStats(allMetrics.serialize())
                 .addPieceRequest()
                 .onSuccess((body) => {
-                    console.log(body);
-
                     // [TODO] should use the body to talk to the 
                     // quality and stats controllers 
                 }).onFail(() => {

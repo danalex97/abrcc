@@ -69,7 +69,7 @@ struct DashRequest {
 
   static void RegisterJSONConverter(base::JSONValueConverter<DashRequest>* converter) {
     converter->RegisterNestedField<Metrics>("stats", &DashRequest::metrics);
-    converter->RegisterBoolField("pieceDashRequest", &DashRequest::piggyback);
+    converter->RegisterBoolField("pieceRequest", &DashRequest::piggyback);
   }
 };
 

@@ -1,3 +1,4 @@
+import { timestamp } from '../common/time';
 import { Value, Segment } from '../common/data';
 import { default as stringify } from 'json-stable-stringify';
 
@@ -24,16 +25,16 @@ export class Metrics {
             this.withSegment(new Segment()
                 .withIndex(raw_metrics.scheduling.startTime, raw_metrics.scheduling.duration)
                 .withState(raw_metrics.scheduling.state)
-                .withTimestamp(raw_metrics.scheduling.t.getTime())
+                .withTimestamp(timestamp(raw_metrics.scheduling.t))
                 .withQuality(raw_metrics.scheduling.quality)
             ).withSegment(new Segment() 
                 .withUrl(raw_metrics.http_request.url)
-                .withTimestamp(raw_metrics.http_request.tresponse.getTime())
+                .withTimestamp(timestamp(raw_metrics.http_request.tresponse))
             ).withDroppedFrames(new Value(raw_metrics.dropped.droppedFrames)
-                .withTimestamp(raw_metrics.dropped.time.getTime())
-            ).withPlayerTime(new Value(raw_metrics.info.time * 1000)
-            ).withBufferLevel(new Value(raw_metrics.buffer_level.level)
-                .withTimestamp(raw_metrics.buffer_level.t.getTime())
+                .withTimestamp(timestamp(raw_metrics.dropped.time))
+            ).withPlayerTime(new Value(Math.round(raw_metrics.info.time * 1000))
+            ).withBufferLevel(new Value(Math.round(raw_metrics.buffer_level.level))
+                .withTimestamp(timestamp(raw_metrics.buffer_level.t))
             );
         }
     }
