@@ -10,16 +10,18 @@ export class Piece {
         throw new TypeError("not implemented error")
     }
 
+    get quality() {
+        throw new TypeError("not implemented error")
+    }
+
     get timestamp() {
         throw new TypeError("not implemented error")
     }
 }
 
 
-// @abstract 
-export class Value extends Piece {
+export class Value {
     constructor(value) {
-        super();
         this._value = value;
         this._timestamp = create_timestamp(new Date());
     }
@@ -46,13 +48,24 @@ export class Value extends Piece {
 }
 
 
-export class Decision extends Value {
-    constructor(value, timestamp) {
-        super(value, timestamp);
+export class Decision extends Piece {
+    constructor(index, quality, timestamp) {
+        super();
+        this._index = index;
+        this._quality = quality;
+        this._timestamp = timestamp;
     }
     
     get index() {
-        return this.value; 
+        return this._index; 
+    }
+
+    get quality() {
+        return this._quality;
+    }
+
+    get timestamp() {
+        return this._timestamp;   
     }
 }
 

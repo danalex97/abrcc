@@ -35,7 +35,7 @@ function ServerSideRuleClass() {
 
         let switchRequest = SwitchRequest(context).create();
         switchRequest.quality = quality;
-        switchRequest.reason = 'Always switching to the lowest bitrate';
+        switchRequest.reason = 'New rate received';
         switchRequest.priority = SwitchRequest.PRIORITY.STRONG;
         return switchRequest;
     }

@@ -9,6 +9,9 @@ export class QualityController {
     }
 
     advance(index) {
+        if (index < this._index) {
+            throw new RangeError(`[QualityController] index ${index} < prev index ${this._index}`);
+        }
         this._index = index;
     }
 
@@ -19,7 +22,9 @@ export class QualityController {
     getQuality() {
         let decision = this._cache[this._index];
         if (decision !== undefined) {
-            return decision.index;
+            console.log('[QualityController] new decision:');
+            console.log(decision);
+            return decision.quality;
         } 
         console.log('[QualityController] default decision');
         return 0;

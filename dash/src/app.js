@@ -1,3 +1,4 @@
+import { Decision } from './common/data';
 import { SetQualityController } from './component/abr';
 import { StatsTracker } from './component/stats'; 
 import { BackendShim } from './component/backend';
@@ -29,8 +30,15 @@ export class App {
                 .addStats(allMetrics.serialize())
                 .addPieceRequest()
                 .onSuccess((body) => {
-                    // [TODO] should use the body to talk to the 
-                    // quality and stats controllers 
+                    let decision = new Decision(
+                        body.index,
+                        body.quality,
+                        body.timestamp,
+                    );
+                    this.qualityController.addPiece(decision);
+
+                    this.qualityController.advance(decision.index);
+                    this.statsController.advance(decision.timestamp);
                 }).onFail(() => {
                     console.log("[App] Request failed")
                 }).send();

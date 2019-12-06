@@ -67,7 +67,7 @@ void DashBackend::registerVideo(
   const int length 
 ) {
   registerResource(domain, resource_path + "/Header.m4s", resource + "/Header.m4s");
-  for (int i = 1; i < length; ++i) {
+  for (int i = 1; i <= length; ++i) {
     std::string file = "/" + QuicTextUtils::Uint64ToString(i) + ".m4s";
     registerResource(domain, resource_path + file, resource + file);
   }
