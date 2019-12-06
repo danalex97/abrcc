@@ -1,4 +1,9 @@
+import { logging } from '../common/logger'; 
+
+
+const logger = logging('abr');
 const MEDIA_TYPE = 'video';
+
 
 function getFactory() {
     return window.dashjs.FactoryMaker;
@@ -27,7 +32,8 @@ function ServerSideRuleClass() {
         let streamController = StreamController(context).getInstance();
         let abrController = rulesContext.getAbrController();
         let current = abrController.getQualityFor(MEDIA_TYPE, streamController.getActiveStreamInfo());
-    
+        
+        logger.log("new request");
         let quality = getQualityController().getQuality();
         if (current === quality) {
             return SwitchRequest(context).create();

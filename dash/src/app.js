@@ -1,9 +1,13 @@
 import { Decision } from './common/data';
+import { logging } from './common/logger';
 import { SetQualityController } from './component/abr';
 import { StatsTracker } from './component/stats'; 
 import { BackendShim } from './component/backend';
 import { QualityController } from './controller/quality';
 import { StatsController } from './controller/stats';
+
+
+const logger = logging('App');
 
 
 export class App {
@@ -21,8 +25,8 @@ export class App {
         this.tracker.registerCallback((metrics) => {
             // Log metrics
             this.statsController.addMetrics(metrics);
-            console.log(this.statsController.metrics);
-             
+            logger.log("metrics", this.statsController.metrics);
+
             // Request a new peice from the backend
             let allMetrics = this.statsController.metrics;
             this.shim
@@ -40,7 +44,7 @@ export class App {
                     this.qualityController.advance(decision.index);
                     this.statsController.advance(decision.timestamp);
                 }).onFail(() => {
-                    console.log("[App] Request failed")
+                    logger.log("request failed")
                 }).send();
         });
         this.tracker.start();

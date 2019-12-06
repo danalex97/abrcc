@@ -1,4 +1,8 @@
 import { Piece } from '../common/data'; 
+import { logging } from '../common/logger';
+
+
+const logger = logging('PieceCache');
 
 
 export class PieceCache {
@@ -22,5 +26,6 @@ export class PieceCache {
         } else {
             this.container[piece.index] = piece;
         }
+        logger.log('piece', this.container[piece.index]);
     }
 }

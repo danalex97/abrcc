@@ -1,5 +1,9 @@
+import { logging } from '../common/logger';
 import { Decision } from '../common/data';
 import { PieceCache } from '../common/cache';  
+
+
+const logger = logging('QualityController');
 
 
 export class QualityController {
@@ -13,20 +17,21 @@ export class QualityController {
             throw new RangeError(`[QualityController] index ${index} < prev index ${this._index}`);
         }
         this._index = index;
+        logger.log('advance', index);
     }
 
     addPiece(piece) {
         this._cache.insert(piece);
+        logger.log('addPiece', piece);
     }
     
     getQuality() {
-        let decision = this._cache[this._index];
+        let decision = this._cache.piece(this._index);
         if (decision !== undefined) {
-            console.log('[QualityController] new decision:');
-            console.log(decision);
+            logger.log('new decision', decision);
             return decision.quality;
         } 
-        console.log('[QualityController] default decision');
+        logger.log('default decision');
         return 0;
     }
 }

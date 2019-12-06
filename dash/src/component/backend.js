@@ -1,4 +1,8 @@
 import * as request from 'request';
+import { logging } from '../common/logger'; 
+
+
+const logger = logging('BackendShim');
 
 
 export class Request {
@@ -22,26 +26,22 @@ export class Request {
     }
 
     send() {
-        console.log(`[BackendShim] sending request`)
-        console.log(this._json)
+        logger.log('sending request', this._json);
         request.post(this._shim.path, {
             json : this._json,
         }, (error, res, body) => {
             if (error) {
-                console.log(`[BackendShim] ${error}`);
+                logger.log(error);
                 this._error();
                 return
             }
             let statusCode = res.statusCode;
             if (statusCode != 200) {
-                console.log(`[BackendShim] status code ${statusCode}`);
-                console.log(res);
-                console.log(body);
+                logger.log(`status code ${statusCode}`, res, body);
                 this._error();
                 return
             }
-            console.log(`[BackendShim] successful request`);
-            console.log(body);
+            logger.log('successful request', body);
             this._callback(body);
         })
         return this;
