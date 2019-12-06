@@ -93,7 +93,7 @@ export class Segment extends Piece {
    
     withIndex(startTime, duration) {
         // segments start from 1
-        this._index = Math.round(startTime / duration);
+        this._index = Math.round(startTime / duration) + 1;
         return this;
     }
 

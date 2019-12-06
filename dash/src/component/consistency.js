@@ -3,6 +3,7 @@ import { logging } from '../common/logger';
 
 
 const logger = logging('PieceConsistencyChecker');
+const STATS_INTERVAL = 20000;
 
 
 class Stream {
@@ -26,6 +27,18 @@ class ConsistencyChecker {
     constructor() {
         this._streams = {};
         this._values = {};
+    
+        setInterval(() => {
+            this.__stats();
+        }, STATS_INTERVAL);    
+    }
+
+    __stats() {
+        logger.log("Periodic stats...");
+        for (let name in this._streams) {
+            let size = Object.keys(this._values[name] || {}).length;
+            logger.log(`stream ${name}`, `size ${size}`, this._values[name]);
+        }
     }
 
     __addStream(name, stream) {
