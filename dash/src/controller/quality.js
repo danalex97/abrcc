@@ -1,6 +1,7 @@
 import { logging } from '../common/logger';
 import { Decision } from '../common/data';
 import { PieceCache } from '../common/cache';  
+import { checking } from '../component/consistency';
 
 
 const logger = logging('QualityController');

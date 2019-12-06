@@ -3,6 +3,7 @@
 
 #include "net/abrcc/abr/schema.h"
 #include <vector>
+#include <unordered_map>
 
 namespace quic {
 
@@ -25,6 +26,7 @@ class AbrRandom : public AbrInterface {
  private:
   int last_index;
   int last_timestamp;
+  std::unordered_map<int, abr_schema::Decision> decisions; 
 };
 
 }

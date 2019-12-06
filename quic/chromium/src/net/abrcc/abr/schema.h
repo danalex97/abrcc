@@ -78,6 +78,7 @@ struct Decision {
   int quality;
   int timestamp;
 
+  Decision();
   Decision(int index, int quality, int timestamp);
   Decision(const Decision&);
   Decision& operator=(const Decision&);

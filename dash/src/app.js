@@ -3,11 +3,14 @@ import { logging } from './common/logger';
 import { SetQualityController } from './component/abr';
 import { StatsTracker } from './component/stats'; 
 import { BackendShim } from './component/backend';
+import { checking } from './component/consistency';
 import { QualityController } from './controller/quality';
 import { StatsController } from './controller/stats';
 
 
 const logger = logging('App');
+const qualityStream = checking('quality');
+const metricsStream = checking('metrics');
 
 
 export class App {
@@ -29,6 +32,10 @@ export class App {
 
             // Request a new peice from the backend
             let allMetrics = this.statsController.metrics;
+            for (let segment of metrics.segments) {
+                metricsStream.push(segment);
+            }
+
             this.shim
                 .request()
                 .addStats(allMetrics.serialize())
@@ -40,6 +47,7 @@ export class App {
                         body.timestamp,
                     );
                     this.qualityController.addPiece(decision);
+                    qualityStream.push(decision);
 
                     this.qualityController.advance(decision.index);
                     this.statsController.advance(decision.timestamp);

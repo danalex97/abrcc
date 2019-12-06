@@ -23,11 +23,15 @@ void AbrRandom::registerMetrics(const abr_schema::Metrics &metrics) {
 
 abr_schema::Decision AbrRandom::decide() { 
   int random_quality = rand() % QUALITIES;
-  return abr_schema::Decision(
-    last_index + 1, 
-    random_quality, 
-    last_timestamp
-  );
+  if (decisions.find(last_index + 1) == decisions.end()) {
+    // decisions should be idempotent
+    decisions[last_index + 1] = abr_schema::Decision(
+      last_index + 1, 
+      random_quality, 
+      last_timestamp
+    );
+  }
+  return decisions[last_index + 1];
 }
 
 

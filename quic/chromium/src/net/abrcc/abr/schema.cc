@@ -30,6 +30,7 @@ Metrics::~Metrics() {}
 DashRequest::DashRequest() {}
 DashRequest::~DashRequest() {}
 
+Decision::Decision() {}
 Decision::Decision(int index, int quality, int timestamp) : index(index)
                                                           , quality(quality)
                                                           , timestamp(timestamp) {}
