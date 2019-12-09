@@ -1190,6 +1190,8 @@ component("net") {
       "third_party/quiche/src/quic/core/congestion_control/bbr2_sender.h",
       "third_party/quiche/src/quic/core/congestion_control/bbr2_startup.cc",
       "third_party/quiche/src/quic/core/congestion_control/bbr2_startup.h",
+      "abrcc/cc/dummycc.cc",
+      "abrcc/cc/dummycc.h",
       "third_party/quiche/src/quic/core/congestion_control/bbr_sender.cc",
       "third_party/quiche/src/quic/core/congestion_control/bbr_sender.h",
       "third_party/quiche/src/quic/core/congestion_control/cubic_bytes.cc",

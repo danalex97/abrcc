@@ -5,6 +5,7 @@ quic/chromium/src/net/data/
 quic/chromium/src/net/data/**
 quic/chromium/src/net/tools/quic/certs/out/
 quic/chromium/src/net/tools/quic/certs/out/*
+!quic/chromium/src/net/third_party/**
 
 quic/sites/www.example.org/index.html
 quic/sites/www.example.org/dist/
