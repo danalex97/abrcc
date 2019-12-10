@@ -3,6 +3,8 @@
 
 #include "net/abrcc/dash_config.h"
 
+#include "base/threading/thread.h"
+
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
@@ -24,7 +26,9 @@ class StoreService {
     const spdy::SpdyHeaderBlock& request_headers,
     const std::string& string, 
     QuicSimpleServerBackend::RequestHandler* quic_stream
-  ); 
+  );
+
+  std::unique_ptr<QuicMemoryCacheBackend> cache;
  private:
   void registerResource(
     const std::string& domain, 
@@ -35,8 +39,11 @@ class StoreService {
     const std::string& base_path,
     const std::string& resource,
     const int video_length);
-
-  std::unique_ptr<QuicMemoryCacheBackend> cache;
+  std::unique_ptr<base::Thread> registerVideoAsync(
+    const std::string& domain,
+    const std::string& base_path,
+    const std::string& resource,
+    const int video_length);
 };
 
 }  
