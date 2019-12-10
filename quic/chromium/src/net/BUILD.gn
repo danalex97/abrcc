@@ -3617,6 +3617,8 @@ if (!is_ios) {
       "abrcc/service/metrics_service.h",
       "abrcc/service/push_service.cc",
       "abrcc/service/push_service.h",
+      "abrcc/service/store_service.cc",
+      "abrcc/service/store_service.h",
     ]
     deps = [
       ":net",

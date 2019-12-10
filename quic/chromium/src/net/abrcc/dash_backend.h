@@ -1,16 +1,14 @@
 #ifndef ABRCC_DASH_BACKEND_H_
 #define ABRCC_DASH_BACKEND_H_
 
+#include "net/abrcc/service/store_service.h"
+
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
-#include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
 
 namespace quic {
 
-// Backend for serving DASH a single video from memory. The 
-// files are loaded by using a JSON config. Wrapper around 
-// QuicMemoryCacheBackend.
 class DashBackend : public QuicSimpleServerBackend {
  public:
   DashBackend();
@@ -29,17 +27,8 @@ class DashBackend : public QuicSimpleServerBackend {
       QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
 
  private:
-  void registerResource(
-    const std::string& domain, 
-    const std::string& base_path,
-    const std::string& resource);
-  void registerVideo(
-    const std::string& domain,
-    const std::string& base_path,
-    const std::string& resource,
-    const int video_length);
-
-  std::unique_ptr<QuicMemoryCacheBackend> cache;
+  std::unique_ptr<StoreService> video_store;
+  std::unique_ptr<StoreService> meta_store;
   bool backend_initialized_;
 };
 
