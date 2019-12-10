@@ -1,5 +1,4 @@
 #include "net/abrcc/dash_backend.h"
-#include "net/abrcc/abr/abr.h"
 
 #include <utility>
 #include <string>
@@ -10,7 +9,6 @@
 #include "base/json/json_reader.h"
 #include "base/values.h"
 
-#include "net/abrcc/abr/dash_api.h"
 #include "net/abrcc/dash_config.h"
 #include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -24,12 +22,7 @@ namespace quic {
 
 DashBackend::DashBackend()
   : cache(new QuicMemoryCacheBackend())
-  , backend_initialized_(false) 
-{
-  std::unique_ptr<AbrInterface> interface(new AbrRandom());
-  std::unique_ptr<DashApi> api(new DashApi(std::move(interface)));
-  this->api = std::move(api);
-}
+  , backend_initialized_(false) { }
 DashBackend::~DashBackend() {}
 
 void DashBackend::registerResource(
@@ -120,23 +113,24 @@ bool DashBackend::IsBackendInitialized() const {
 }
 
 void DashBackend::FetchResponseFromBackend(
-    const SpdyHeaderBlock& request_headers,
-    const std::string& string, 
-    QuicSimpleServerBackend::RequestHandler* quic_stream
+  const SpdyHeaderBlock& request_headers,
+  const std::string& string, 
+  QuicSimpleServerBackend::RequestHandler* quic_stream
 ) {
-    auto pathWrapper = request_headers.find(":path");
-    if (pathWrapper != request_headers.end()) {
-      auto path = pathWrapper->second;
-      if (path == API_PATH) {
-        api->FetchResponseFromBackend(request_headers, string, quic_stream);
-      } else {
-        cache->FetchResponseFromBackend(request_headers, string, quic_stream);
-      }
+  auto pathWrapper = request_headers.find(":path");
+  if (pathWrapper != request_headers.end()) {
+    auto path = pathWrapper->second;
+    if (path == API_PATH) {
     } else {
       cache->FetchResponseFromBackend(request_headers, string, quic_stream);
     }
+  } else {
+    cache->FetchResponseFromBackend(request_headers, string, quic_stream);
+  }
 }
 
 void DashBackend::CloseBackendResponseStream(
-    QuicSimpleServerBackend::RequestHandler* quic_server_stream) { }
+  QuicSimpleServerBackend::RequestHandler* quic_server_stream
+) {}
+
 }  

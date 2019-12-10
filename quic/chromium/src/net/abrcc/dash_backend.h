@@ -1,7 +1,6 @@
 #ifndef ABRCC_DASH_BACKEND_H_
 #define ABRCC_DASH_BACKEND_H_
 
-#include "net/abrcc/abr/dash_api.h"
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_memory_cache_backend.h"
@@ -41,7 +40,6 @@ class DashBackend : public QuicSimpleServerBackend {
     const int video_length);
 
   std::unique_ptr<QuicMemoryCacheBackend> cache;
-  std::unique_ptr<DashApi> api;
   bool backend_initialized_;
 };
 

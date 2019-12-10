@@ -1,5 +1,5 @@
-#ifndef ABRCC_ABR_SCHEMA_H_
-#define ABRCC_ABR_SCHEMA_H_
+#ifndef ABRCC_SERVICE_SCHEMA_H_
+#define ABRCC_SERVICE_SCHEMA_H_
 
 #include "base/json/json_value_converter.h"
 
@@ -60,7 +60,6 @@ struct Metrics {
 
 struct DashRequest {
   Metrics metrics;
-  bool piggyback;
 
   DashRequest();
   DashRequest(const DashRequest&) = delete;
@@ -69,22 +68,7 @@ struct DashRequest {
 
   static void RegisterJSONConverter(base::JSONValueConverter<DashRequest>* converter) {
     converter->RegisterNestedField<Metrics>("stats", &DashRequest::metrics);
-    converter->RegisterBoolField("pieceRequest", &DashRequest::piggyback);
   }
-};
-
-struct Decision {
-  int index;
-  int quality;
-  int timestamp;
-
-  Decision();
-  Decision(int index, int quality, int timestamp);
-  Decision(const Decision&);
-  Decision& operator=(const Decision&);
-  ~Decision();
-
-  std::string serialize();
 };
 
 }
