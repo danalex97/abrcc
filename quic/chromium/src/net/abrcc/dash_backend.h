@@ -2,6 +2,7 @@
 #define ABRCC_DASH_BACKEND_H_
 
 #include "net/abrcc/service/store_service.h"
+#include "net/abrcc/service/metrics_service.h"
 
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
@@ -29,6 +30,7 @@ class DashBackend : public QuicSimpleServerBackend {
  private:
   std::unique_ptr<StoreService> video_store;
   std::unique_ptr<StoreService> meta_store;
+  std::unique_ptr<MetricsService> metrics_service;
   bool backend_initialized_;
 };
 

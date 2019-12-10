@@ -25,6 +25,7 @@ namespace quic {
 DashBackend::DashBackend()
   : video_store(new StoreService())
   , meta_store(new StoreService())
+  , metrics_service(new MetricsService())
   , backend_initialized_(false) { }
 DashBackend::~DashBackend() {}
 
@@ -67,6 +68,7 @@ void DashBackend::FetchResponseFromBackend(
   if (pathWrapper != request_headers.end()) {
     auto path = pathWrapper->second;
     if (path == API_PATH) {
+      metrics_service->AddMetrics(request_headers, string, quic_stream);
     } else {
       video_store->FetchResponseFromBackend(request_headers, string, quic_stream);
     }
