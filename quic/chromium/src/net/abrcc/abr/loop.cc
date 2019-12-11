@@ -59,6 +59,7 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
     QUIC_LOG(INFO) << "[AbrLoop] New decision: " << decision.index << ":" << decision.quality;
 
     bool wasPushed = false;
+    break;
     while (!wasPushed) {
       auto qualified_response = loop->store->GetVideo(decision.index, decision.quality);
       auto* response = qualified_response.response;

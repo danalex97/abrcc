@@ -96,11 +96,7 @@ void DashBackend::FetchResponseFromBackend(
     auto path = pathWrapper->second;
     if (path == API_PATH) {
       metrics_service->AddMetrics(request_headers, string, quic_stream);
-    } else if (path == "/") {
-      meta_store->FetchResponseFromBackend(request_headers, string, quic_stream);
-      push_service->RegisterPath(request_headers, string, quic_stream);
-    }
-    else {
+    } else {
       meta_store->FetchResponseFromBackend(request_headers, string, quic_stream);
     }
   } else {

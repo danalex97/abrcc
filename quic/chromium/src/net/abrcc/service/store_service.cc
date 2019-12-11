@@ -30,8 +30,7 @@ static void staticRegisterResource(
   quic::StoreService* service,
   const std::string& domain, 
   const std::string& resource_path, 
-  const std::string& resource,
-  bool final_response
+  const std::string& resource
 ) {
   QUIC_LOG(INFO) << "[register resource] " << domain << " -> " << resource 
                  << " : " << resource_path;
@@ -53,13 +52,7 @@ static void staticRegisterResource(
   response_headers[":status"] = QuicTextUtils::Uint64ToString(200);
   response_headers["content-length"] = QuicTextUtils::Uint64ToString(data.size());
  
-  if (final_response) {
-    service->cache->AddResponse(domain, resource, std::move(response_headers), data);
-  } else {
-    service->cache->AddSpecialResponse(
-      domain, resource, std::move(response_headers), data, QuicBackendResponse::INCOMPLETE_RESPONSE
-    );
-  }
+  service->cache->AddResponse(domain, resource, std::move(response_headers), data);
 }
 
 static void staticRegisterVideo(
@@ -69,10 +62,10 @@ static void staticRegisterVideo(
   const std::string& resource,
   const int length 
 ) {
-  staticRegisterResource(service, domain, resource_path + "/Header.m4s", resource + "/Header.m4s", true);
+  staticRegisterResource(service, domain, resource_path + "/Header.m4s", resource + "/Header.m4s");
   for (int i = 1; i <= length; ++i) {
     std::string file = "/" + QuicTextUtils::Uint64ToString(i) + ".m4s";
-    staticRegisterResource(service, domain, resource_path + file, resource + file, true);
+    staticRegisterResource(service, domain, resource_path + file, resource + file);
   }
 }
 
@@ -81,7 +74,7 @@ void StoreService::registerResource(
   const std::string& resource_path, 
   const std::string& resource
 ) {
-  staticRegisterResource(this, domain, resource_path, resource, false);
+  staticRegisterResource(this, domain, resource_path, resource);
 }
 
 void StoreService::registerVideo(
