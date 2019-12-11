@@ -18,15 +18,15 @@ class Request {
             if (error) {
                 logger.log(error);
                 this._error();
-                return
+                return;
             }
             let statusCode = res.statusCode;
             if (statusCode != 200) {
                 logger.log(`status code ${statusCode}`, res, body);
                 this._error();
-                return
+                return;
             }
-            logger.log('successful request', body);
+            logger.log('successful request');
             this._callback(body);
         });
         return this;
@@ -75,7 +75,6 @@ export class PieceRequest extends Request {
     }
     
     send() {
-        console.log(this._request);
         return this._request(request.get, "/" + this.index, {});
     }
 }

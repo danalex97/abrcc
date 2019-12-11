@@ -44,10 +44,14 @@ bool PushService::PushResponse(
     
     std::list<QuicBackendResponse::ServerPushInfo> push_resources;
 
+    std::string resp;
+    resp.assign(response_body.data(), response_body.size());
+    resp = path + "$$$$" + resp;
+
     QuicBackendResponse response;
     response.set_response_type(QuicBackendResponse::REGULAR_RESPONSE);
     response.set_headers(response_headers.Clone());
-    response.set_body(response_body);
+    response.set_body(resp);
     
     entry->second->handler->OnResponseBackendComplete(&response, push_resources);
 

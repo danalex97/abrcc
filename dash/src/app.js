@@ -29,6 +29,17 @@ export class App {
     start() {
         this.requestController
             .onSuccess((index, body) => {
+                let rawData = body;
+                
+                let sep = '$$$$';
+                let pos = rawData.indexOf(sep);
+
+                let url = rawData.substring(0, pos);
+                let data = rawData.substring(pos + sep.length);
+           
+                logger.log("New piece", url, data.length); 
+                
+                // [TODO] do stuff with the data
             })
             .start();
 

@@ -29,11 +29,13 @@ static void Push(
   StoreService::QualifiedResponse qualified_response,
   bool* wasPushed,
   bool* done,
-  std::string piece_id
+  abr_schema::Decision decision
 ) {
   auto* response = qualified_response.response;
+  auto resource = "/request/" + std::to_string(decision.index);
+  
   bool couldPush = loop->push->PushResponse(
-    qualified_response.path,
+    resource,
     qualified_response.host,
     qualified_response.path,
     response->headers(),
@@ -41,7 +43,7 @@ static void Push(
 
   if (couldPush) {
     *wasPushed = true;
-    loop->pushed.insert(piece_id);
+    loop->pushed.insert(decision.Id());
   }
 
   *done = true;
@@ -68,14 +70,13 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
     while (!wasPushed) {
       auto qualified_response = loop->store->GetVideo(decision.index, decision.quality);
       auto* response = qualified_response.response;
-      qualified_response.path = "/request/" + std::to_string(decision.index);
 
       if (response != nullptr && loop->pushed.find(decision.Id()) == loop->pushed.end()) {
         bool done = false;
 
         // post task to the task runner
         runner->PostTask(FROM_HERE,
-          base::BindOnce(&Push, loop, qualified_response, &wasPushed, &done, decision.Id()));
+          base::BindOnce(&Push, loop, qualified_response, &wasPushed, &done, decision));
     
         while (!done);
       }
