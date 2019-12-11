@@ -1,6 +1,7 @@
 #include "net/abrcc/dash_backend.h"
 
 #include "net/abrcc/service/store_service.h"
+#include "net/abrcc/service/metrics_service.h"
 
 #include <utility>
 #include <string>

@@ -1,5 +1,6 @@
 #include "net/abrcc/abr/abr.h"
-#include "net/abrcc/abr/schema.h"
+#include "net/abrcc/abr/interface.h"
+#include "net/abrcc/service/schema.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 #include <algorithm>
@@ -7,8 +8,6 @@
 const int QUALITIES = 6;
 
 namespace quic {
-
-AbrInterface::~AbrInterface() {}
 
 AbrRandom::AbrRandom() {}
 AbrRandom::~AbrRandom() {}
@@ -33,6 +32,5 @@ abr_schema::Decision AbrRandom::decide() {
   }
   return decisions[last_index + 1];
 }
-
 
 }

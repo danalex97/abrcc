@@ -3611,6 +3611,14 @@ if (!is_ios) {
       "abrcc/dash_backend.h",
       "abrcc/dash_config.cc",
       "abrcc/dash_config.h",
+      
+      "abrcc/abr/interface.cc",
+      "abrcc/abr/interface.h",
+      "abrcc/abr/abr.cc",
+      "abrcc/abr/abr.h",
+      "abrcc/abr/loop.cc",
+      "abrcc/abr/loop.h",
+      
       "abrcc/service/schema.cc",
       "abrcc/service/schema.h",
       "abrcc/service/metrics_service.cc",
