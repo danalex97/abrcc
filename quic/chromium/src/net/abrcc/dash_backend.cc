@@ -1,7 +1,11 @@
 #include "net/abrcc/dash_backend.h"
 
+#include "net/abrcc/abr/abr.h"
+#include "net/abrcc/abr/interface.h"
+
 #include "net/abrcc/service/store_service.h"
 #include "net/abrcc/service/metrics_service.h"
+#include "net/abrcc/service/push_service.h"
 
 #include <utility>
 #include <string>
@@ -23,11 +27,30 @@ using spdy::SpdyHeaderBlock;
 
 namespace quic {
 
+  std::unique_ptr<StoreService> meta_store;
+ 
+  std::shared_ptr<StoreService> video_store;
+  std::shared_ptr<MetricsService> metrics_service;
+  std::shared_ptr<PushService> push_service;
+ 
+  std::unique_ptr<AbrLoop> abr_loop;
+  
 DashBackend::DashBackend()
-  : video_store(new StoreService())
-  , meta_store(new StoreService())
+  : meta_store(new StoreService())
+  , video_store(new StoreService())
   , metrics_service(new MetricsService())
-  , backend_initialized_(false) { }
+  , push_service(new PushService())
+  , backend_initialized_(false) 
+{
+  std::unique_ptr<AbrInterface> interface(new AbrRandom());
+  std::unique_ptr<AbrLoop> abr_loop(new AbrLoop(
+    std::move(interface),
+    metrics_service,
+    video_store,
+    push_service
+  ));
+  this->abr_loop = std::move(abr_loop); 
+}
 DashBackend::~DashBackend() {}
 
 bool DashBackend::InitializeBackend(const std::string& config_path) {
@@ -52,6 +75,9 @@ bool DashBackend::InitializeBackend(const std::string& config_path) {
   meta_store->MetaFromConfig(base_path, config); 
   video_store->VideoFromConfig(dir_path, config);
   
+  // start the ABR loop
+  abr_loop->Start();
+
   backend_initialized_ = true;
   return true;
 }
