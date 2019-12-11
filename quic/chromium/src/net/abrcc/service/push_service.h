@@ -42,16 +42,16 @@ class PushService {
     const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* quic_server_stream);
 
-  // Push a response towards a path identified via the request_headers.
+  // Push a response towards a path.
   //
   // The response has to contain the host, path, response headers and 
   // the response body.
-  void PushResponse(
-    const spdy::SpdyHeaderBlock& request_headers,
+  bool PushResponse(
+    const std::string request_path,
     QuicStringPiece host,
     QuicStringPiece path,
-    spdy::SpdyHeaderBlock response_headers,
-    QuicStringPiece response_body);
+    const spdy::SpdyHeaderBlock& response_headers,
+    const QuicStringPiece response_body);
    
  private:
   std::unordered_map<std::string, std::unique_ptr<CacheEntry>> stream_cache; 

@@ -7,6 +7,8 @@
 #include "net/abrcc/service/push_service.h"
 #include "net/abrcc/service/store_service.h"
 
+#include "base/threading/thread.h"
+
 namespace quic {
 
 class AbrLoop {
@@ -22,12 +24,15 @@ class AbrLoop {
   
   void Start();
 
- private:
   std::unique_ptr<AbrInterface> interface;
   
   std::shared_ptr<MetricsService> metrics;
   std::shared_ptr<StoreService> store;
   std::shared_ptr<PushService> push;    
+  
+  std::unique_ptr<base::Thread> thread;
+
+  std::unordered_set<std::string> pushed;
 };
 
 }

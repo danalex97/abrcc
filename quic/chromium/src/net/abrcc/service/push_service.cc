@@ -31,25 +31,21 @@ void PushService::RegisterPath(
   }
 }
 
-void PushService::PushResponse(
-  const spdy::SpdyHeaderBlock& request_headers,
+bool PushService::PushResponse(
+  const std::string request_path,
   QuicStringPiece host,
   QuicStringPiece path,
-  spdy::SpdyHeaderBlock response_headers,
-  QuicStringPiece response_body
+  const spdy::SpdyHeaderBlock& response_headers,
+  const QuicStringPiece response_body
 ) {
-  auto pathWrapper = request_headers.find(":path");
-  if (pathWrapper != request_headers.end()) {
-    auto path = pathWrapper->second.as_string();
-    auto entry = stream_cache.find(path);
-    if (entry != stream_cache.end()){
-      QUIC_LOG(INFO) << "Pushing entry [" << host << ", " << path << "]";
-       
-    } else {
-      QUIC_LOG(INFO) << "Failed to push resource: cache entry not found";
-    }
+  auto entry = stream_cache.find(request_path);
+  if (entry != stream_cache.end()){
+    QUIC_LOG(INFO) << "Pushing entry [" << host << ", " << path << "]";
+    // [TODO] push     
+    return true;
   } else {
-    QUIC_LOG(INFO) << "Failed to push resource: path not found";
+    QUIC_LOG(INFO) << "Failed to push resource: cache entry not found";
+    return false;
   }
 }
    

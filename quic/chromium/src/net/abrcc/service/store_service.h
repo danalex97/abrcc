@@ -19,8 +19,23 @@ class StoreService {
   StoreService& operator=(const StoreService&) = delete;
   ~StoreService();
 
-  void VideoFromConfig(const std::string& dir_path, const DashBackendConfig& config);
-  void MetaFromConfig(const std::string& base_path, const DashBackendConfig& config);
+  struct QualifiedResponse {
+    QualifiedResponse(
+      const QuicBackendResponse* response,
+      std::string host,
+      std::string path);
+    QualifiedResponse(const QualifiedResponse&);
+    ~QualifiedResponse();
+
+    const QuicBackendResponse* response;
+    std::string host;
+    std::string path;
+  };
+
+  QualifiedResponse GetVideo(const int piece, const int quality);
+
+  void VideoFromConfig(const std::string& dir_path, std::shared_ptr<DashBackendConfig> config);
+  void MetaFromConfig(const std::string& base_path, std::shared_ptr<DashBackendConfig> config);
   
   void FetchResponseFromBackend(
     const spdy::SpdyHeaderBlock& request_headers,
@@ -30,6 +45,10 @@ class StoreService {
 
   std::unique_ptr<QuicMemoryCacheBackend> cache;
  private:
+  std::shared_ptr<DashBackendConfig> config;
+  std::string base_path;
+  std::string dir_path;
+  
   void registerResource(
     const std::string& domain, 
     const std::string& base_path,

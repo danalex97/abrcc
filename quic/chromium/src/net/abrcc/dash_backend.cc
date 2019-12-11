@@ -63,13 +63,13 @@ bool DashBackend::InitializeBackend(const std::string& config_path) {
  
   // get config
   base::Optional<base::Value> value = base::JSONReader::Read(data);
-  DashBackendConfig config;
+  std::shared_ptr<DashBackendConfig> config(new DashBackendConfig());
   base::JSONValueConverter<DashBackendConfig> converter;
-  converter.Convert(*value, &config);
+  converter.Convert(*value, config.get());
 
   // paths
   std::string dir_path = config_path.substr(0, config_path.find_last_of("/"));
-  std::string base_path = dir_path + config.base_path;
+  std::string base_path = dir_path + config->base_path;
  
   // register stores
   meta_store->MetaFromConfig(base_path, config); 
@@ -96,8 +96,12 @@ void DashBackend::FetchResponseFromBackend(
     auto path = pathWrapper->second;
     if (path == API_PATH) {
       metrics_service->AddMetrics(request_headers, string, quic_stream);
-    } else {
-      video_store->FetchResponseFromBackend(request_headers, string, quic_stream);
+    } else if (path == "/") {
+      meta_store->FetchResponseFromBackend(request_headers, string, quic_stream);
+      push_service->RegisterPath(request_headers, string, quic_stream);
+    }
+    else {
+      meta_store->FetchResponseFromBackend(request_headers, string, quic_stream);
     }
   } else {
     meta_store->FetchResponseFromBackend(request_headers, string, quic_stream);
