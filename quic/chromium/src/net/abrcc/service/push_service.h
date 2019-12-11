@@ -7,9 +7,11 @@
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
+#include "net/third_party/quiche/src/quic/core/http/spdy_utils.h"
 
 namespace quic {
 
+// !THREAD_USAFE
 class PushService {
  public:
   class CacheEntry {
@@ -48,8 +50,8 @@ class PushService {
   // the response body.
   bool PushResponse(
     const std::string request_path,
-    QuicStringPiece host,
-    QuicStringPiece path,
+    const std::string host,
+    const std::string path,
     const spdy::SpdyHeaderBlock& response_headers,
     const QuicStringPiece response_body);
    

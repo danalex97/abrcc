@@ -6,8 +6,11 @@
 #include "base/run_loop.h"
 #include "base/task_runner.h"
 #include "base/threading/thread.h"
+#include "base/threading/thread_task_runner_handle.h"
+#include "base/task/task_traits.h"
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 const std::string RESPONSE_PATH = "/";
 
@@ -21,7 +24,30 @@ AbrLoop::AbrLoop(
 ) : interface(std::move(interface)), metrics(metrics), store(store), push(push) {}
 AbrLoop::~AbrLoop() { }
 
-static void Loop(AbrLoop *loop) {  
+static void Push(
+  AbrLoop *loop, 
+  StoreService::QualifiedResponse qualified_response,
+  bool* wasPushed,
+  bool* done,
+  std::string piece_id
+) {
+  auto* response = qualified_response.response;
+  bool couldPush = loop->push->PushResponse(
+    RESPONSE_PATH,
+    qualified_response.host,
+    qualified_response.path,
+    response->headers(),
+    response->body());
+
+  if (couldPush) {
+    *wasPushed = true;
+    loop->pushed.insert(piece_id);
+  }
+
+  *done = true;
+}
+
+static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner> runner) {
   while (true) {
     // regsiter metrics
     for (auto& metrics : loop->metrics->GetMetrics()) {
@@ -39,31 +65,31 @@ static void Loop(AbrLoop *loop) {
     
       std::string piece_id = qualified_response.host + ":" + qualified_response.path;
       if (response != nullptr && loop->pushed.find(piece_id) == loop->pushed.end()) {
-        bool couldPush = loop->push->PushResponse(
-          RESPONSE_PATH,
-          qualified_response.host,
-          qualified_response.path,
-          response->headers(),
-          response->body());
+        bool done = false;
 
-        if (couldPush) {
-          wasPushed = true;
-          loop->pushed.insert(piece_id);
-          
-          QUIC_LOG(INFO) << "[AbrLoop] Successful push " << piece_id;
-        }
+        // post task to the task runner
+        runner->PostTask(FROM_HERE,
+          base::BindOnce(&Push, loop, qualified_response, &wasPushed, &done, piece_id));
+     
+        while (!done);
       }
     }
+
+    QUIC_LOG(INFO) << "[AbrLoop] Pushed";
   }
 }
 
 void AbrLoop::Start() {
+  const scoped_refptr<base::SingleThreadTaskRunner> runner(
+    base::ThreadTaskRunnerHandle::Get()
+  );
+
   std::unique_ptr<base::Thread> worker_thread(new base::Thread(""));
   CHECK(worker_thread->Start());
 
   base::RunLoop run_loop;
   worker_thread->task_runner()->PostTaskAndReply(
-    FROM_HERE, base::BindOnce(&Loop, this), run_loop.QuitClosure());
+    FROM_HERE, base::BindOnce(&Loop, this, runner), run_loop.QuitClosure());
 
   this->thread = std::move(worker_thread);
 }

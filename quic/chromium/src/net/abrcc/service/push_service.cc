@@ -33,15 +33,25 @@ void PushService::RegisterPath(
 
 bool PushService::PushResponse(
   const std::string request_path,
-  QuicStringPiece host,
-  QuicStringPiece path,
+  const std::string host,
+  const std::string path,
   const spdy::SpdyHeaderBlock& response_headers,
   const QuicStringPiece response_body
 ) {
   auto entry = stream_cache.find(request_path);
   if (entry != stream_cache.end()){
     QUIC_LOG(INFO) << "Pushing entry [" << host << ", " << path << "]";
-    // [TODO] push     
+    
+    std::list<QuicBackendResponse::ServerPushInfo> push_resources;
+    push_resources.push_back(QuicBackendResponse::ServerPushInfo(
+      QuicUrl(host + path), response_headers.Clone(), 0, "muie"
+    ));
+
+    QuicBackendResponse dummy;
+    dummy.set_response_type(QuicBackendResponse::IGNORE_REQUEST);
+
+    entry->second->handler->OnResponseBackendComplete(&dummy, push_resources);
+
     return true;
   } else {
     QUIC_LOG(INFO) << "Failed to push resource: cache entry not found";
