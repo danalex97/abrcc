@@ -1,4 +1,5 @@
 #include "net/abrcc/abr/interface.h"
+#include <string>
 
 namespace abr_schema {
 
@@ -14,6 +15,10 @@ Decision& Decision::operator =(const Decision& rhs) {
   this->quality = rhs.quality;
   this->timestamp = rhs.timestamp;
   return *this;
+}
+
+std::string Decision::Id() {
+  return std::to_string(index) + ":" + std::to_string(quality);
 }
 
 }

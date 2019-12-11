@@ -5,31 +5,16 @@ import { logging } from '../common/logger';
 const logger = logging('BackendShim');
 
 
-export class Request {
+class Request {
     constructor(shim) {
         this._shim = shim;
-        this._json = {
-            'pieceRequest' : false,
-        };
         this._callback = (body) => {};
         this._error = () => {};
     }
 
-    addStats(stats) {
-        this._json['stats'] = stats;
-        return this;
-    }
-
-    addPieceRequest() {
-        this._json['pieceRequest'] = true;
-        return this;
-    }
-
-    send() {
-        logger.log('sending request', this._json);
-        request.post(this._shim.path, {
-            json : this._json,
-        }, (error, res, body) => {
+    _request(requestFunc, resource, content) {
+        logger.log('sending request', content);
+        requestFunc(this._shim.path + resource, content, (error, res, body) => {
             if (error) {
                 logger.log(error);
                 this._error();
@@ -43,7 +28,7 @@ export class Request {
             }
             logger.log('successful request', body);
             this._callback(body);
-        })
+        });
         return this;
     }
 
@@ -59,13 +44,53 @@ export class Request {
 }
 
 
+export class MetricsRequest extends Request {
+    constructor(shim) {
+        super(shim);
+        this._json = {
+        };
+    }
+
+    addStats(stats) {
+        this._json['stats'] = stats;
+        return this;
+    }
+
+    send() {
+        return this._request(request.post, "", {
+            json : this._json,
+        });
+    }
+}
+
+
+export class PieceRequest extends Request {
+    constructor(shim) {
+        super(shim);
+    }
+
+    addIndex(index) {
+        this.index = index;
+        return this;
+    }
+    
+    send() {
+        console.log(this._request);
+        return this._request(request.get, "/" + this.index, {});
+    }
+}
+
 export class BackendShim {
     constructor() {
         this._path = "https://www.example.org/request";
     }
 
-    request() {
-        return new Request(this);
+    metricsRequest() {
+        return new MetricsRequest(this);
+    }
+
+    pieceRequest() {
+        return new PieceRequest(this); 
     }
 
     get path() {

@@ -41,22 +41,19 @@ bool PushService::PushResponse(
   auto entry = stream_cache.find(request_path);
   if (entry != stream_cache.end()){
     QUIC_LOG(INFO) << "Pushing entry [" << host << ", " << path << "]";
-
-    entry->second->handler->PushResponse(entry->second->base_request_headers->Clone());
-/*
+    
     std::list<QuicBackendResponse::ServerPushInfo> push_resources;
-    push_resources.push_back(QuicBackendResponse::ServerPushInfo(
-      QuicUrl(host + path), response_headers.Clone(), 0, "muie"
-    ));
 
-    QuicBackendResponse dummy;
-    dummy.set_response_type(QuicBackendResponse::IGNORE_REQUEST);
+    QuicBackendResponse response;
+    response.set_response_type(QuicBackendResponse::REGULAR_RESPONSE);
+    response.set_headers(response_headers.Clone());
+    response.set_body(response_body);
+    
+    entry->second->handler->OnResponseBackendComplete(&response, push_resources);
 
-    entry->second->handler->OnResponseBackendComplete(&dummy, push_resources);
-*/
     return true;
   } else {
-    QUIC_LOG(INFO) << "Failed to push resource: cache entry not found";
+    // QUIC_LOG(INFO) << "Failed to push resource: cache entry not found";
     return false;
   }
 }

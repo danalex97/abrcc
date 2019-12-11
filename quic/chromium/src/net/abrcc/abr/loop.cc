@@ -33,7 +33,7 @@ static void Push(
 ) {
   auto* response = qualified_response.response;
   bool couldPush = loop->push->PushResponse(
-    RESPONSE_PATH,
+    qualified_response.path,
     qualified_response.host,
     qualified_response.path,
     response->headers(),
@@ -56,27 +56,31 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
 
     // get decision
     auto decision = loop->interface->decide();  
-    QUIC_LOG(INFO) << "[AbrLoop] New decision: " << decision.index << ":" << decision.quality;
 
+    // check if decision is not new
+    if (loop->pushed.find(decision.Id()) != loop->pushed.end()) {
+      continue;
+    }
+
+    QUIC_LOG(INFO) << "[AbrLoop] New decision: " << decision.index << ":" << decision.quality;
+    
     bool wasPushed = false;
-    break;
     while (!wasPushed) {
       auto qualified_response = loop->store->GetVideo(decision.index, decision.quality);
       auto* response = qualified_response.response;
-    
-      std::string piece_id = qualified_response.host + ":" + qualified_response.path;
-      if (response != nullptr && loop->pushed.find(piece_id) == loop->pushed.end()) {
+      qualified_response.path = "/request/" + std::to_string(decision.index);
+
+      if (response != nullptr && loop->pushed.find(decision.Id()) == loop->pushed.end()) {
         bool done = false;
 
         // post task to the task runner
         runner->PostTask(FROM_HERE,
-          base::BindOnce(&Push, loop, qualified_response, &wasPushed, &done, piece_id));
-     
+          base::BindOnce(&Push, loop, qualified_response, &wasPushed, &done, decision.Id()));
+    
         while (!done);
       }
     }
 
-    QUIC_LOG(INFO) << "[AbrLoop] Pushed";
   }
 }
 

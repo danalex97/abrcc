@@ -88,19 +88,21 @@ bool DashBackend::IsBackendInitialized() const {
 
 void DashBackend::FetchResponseFromBackend(
   const SpdyHeaderBlock& request_headers,
-  const std::string& string, 
+  const std::string& request_body, 
   QuicSimpleServerBackend::RequestHandler* quic_stream
 ) {
   auto pathWrapper = request_headers.find(":path");
   if (pathWrapper != request_headers.end()) {
     auto path = pathWrapper->second;
     if (path == API_PATH) {
-      metrics_service->AddMetrics(request_headers, string, quic_stream);
+      metrics_service->AddMetrics(request_headers, request_body, quic_stream);
+    } else if (path.find(API_PATH) != std::string::npos) {
+      push_service->RegisterPath(request_headers, request_body, quic_stream);
     } else {
-      meta_store->FetchResponseFromBackend(request_headers, string, quic_stream);
+      meta_store->FetchResponseFromBackend(request_headers, request_body, quic_stream);
     }
   } else {
-    meta_store->FetchResponseFromBackend(request_headers, string, quic_stream);
+    meta_store->FetchResponseFromBackend(request_headers, request_body, quic_stream);
   }
 }
 

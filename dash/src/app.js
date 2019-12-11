@@ -6,25 +6,32 @@ import { BackendShim } from './component/backend';
 import { checking } from './component/consistency';
 import { QualityController } from './controller/quality';
 import { StatsController } from './controller/stats';
-
+import { RequestController } from './controller/request';
 
 const logger = logging('App');
 const qualityStream = checking('quality');
 const metricsStream = checking('metrics');
+const POOL_SIZE = 10;
 
 
 export class App {
     constructor(player) {
-        this.qualityController = new QualityController();
-        this.statsController = new StatsController();
-
         this.tracker = new StatsTracker(player);
         this.shim = new BackendShim(); 
         
+        this.qualityController = new QualityController();
+        this.statsController = new StatsController();
+        this.requestController = new RequestController(POOL_SIZE, this.shim);
+
         SetQualityController(this.qualityController);
     }
 
     start() {
+        this.requestController
+            .onSuccess((index, body) => {
+            })
+            .start();
+
         this.tracker.registerCallback((metrics) => {
             // Log metrics
             this.statsController.addMetrics(metrics);
@@ -37,22 +44,15 @@ export class App {
             }
 
             this.shim
-                .request()
+                .metricsRequest()
                 .addStats(allMetrics.serialize())
-                .addPieceRequest()
                 .onSuccess((body) => {
-                    let decision = new Decision(
-                        body.index,
-                        body.quality,
-                        body.timestamp,
-                    );
-                    this.qualityController.addPiece(decision);
-                    qualityStream.push(decision);
+                    // this.qualityController.addPiece(decision);
+                    // qualityStream.push(decision);
 
-                    this.qualityController.advance(decision.index);
-                    this.statsController.advance(decision.timestamp);
+                    // this.qualityController.advance(decision.index);
+                    // this.statsController.advance(decision.timestamp);
                 }).onFail(() => {
-                    logger.log("request failed")
                 }).send();
         });
         this.tracker.start();

@@ -15,6 +15,8 @@ struct Decision {
   Decision(const Decision&);
   Decision& operator=(const Decision&);
   ~Decision();
+  
+  std::string Id();
 };
 
 }
