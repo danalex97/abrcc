@@ -69,7 +69,6 @@ export class Decision extends Piece {
     }
 }
 
-
 export class Segment extends Piece {
     constructor() {
         super()

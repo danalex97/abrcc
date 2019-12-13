@@ -73,8 +73,9 @@ bool DashBackend::InitializeBackend(const std::string& config_path) {
  
   // register stores
   meta_store->MetaFromConfig(base_path, config); 
+  meta_store->VideoFromConfig(dir_path, config);
   video_store->VideoFromConfig(dir_path, config);
-  
+
   // start the ABR loop
   abr_loop->Start();
 
