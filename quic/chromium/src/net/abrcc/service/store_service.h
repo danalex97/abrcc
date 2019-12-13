@@ -19,21 +19,6 @@ class StoreService {
   StoreService& operator=(const StoreService&) = delete;
   ~StoreService();
 
-  struct QualifiedResponse {
-    QualifiedResponse(
-      const QuicBackendResponse* response,
-      std::string host,
-      std::string path);
-    QualifiedResponse(const QualifiedResponse&);
-    ~QualifiedResponse();
-
-    const QuicBackendResponse* response;
-    std::string host;
-    std::string path;
-  };
-
-  QualifiedResponse GetVideo(const int piece, const int quality);
-
   void VideoFromConfig(const std::string& dir_path, std::shared_ptr<DashBackendConfig> config);
   void MetaFromConfig(const std::string& base_path, std::shared_ptr<DashBackendConfig> config);
   

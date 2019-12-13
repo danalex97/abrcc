@@ -3616,15 +3616,13 @@ if (!is_ios) {
       "abrcc/abr/interface.h",
       "abrcc/abr/abr.cc",
       "abrcc/abr/abr.h",
-      "abrcc/abr/loop.cc",
-      "abrcc/abr/loop.h",
       
       "abrcc/service/schema.cc",
       "abrcc/service/schema.h",
       "abrcc/service/metrics_service.cc",
       "abrcc/service/metrics_service.h",
-      "abrcc/service/push_service.cc",
-      "abrcc/service/push_service.h",
+      "abrcc/service/poll_service.cc",
+      "abrcc/service/poll_service.h",
       "abrcc/service/store_service.cc",
       "abrcc/service/store_service.h",
     ]

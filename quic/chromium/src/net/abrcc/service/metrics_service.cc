@@ -3,6 +3,7 @@
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
 
 #include "base/json/json_value_converter.h"
 #include "base/json/json_reader.h"
@@ -32,11 +33,15 @@ void MetricsService::AddMetrics(
 }
 
 void MetricsService::AddMetricsImpl(Metrics* metrics) {
+  QuicWriterMutexLock lock(&mutex_);
+
   std::unique_ptr<Metrics> to_push(metrics);
   this->metrics.push_back(std::move(to_push)); 
 }
-
+  
 std::vector<std::unique_ptr<Metrics>> MetricsService::GetMetrics() {
+  QuicWriterMutexLock lock(&mutex_);
+  
   std::vector<std::unique_ptr<Metrics>> out = std::move(metrics);
   metrics = std::vector<std::unique_ptr<Metrics>>();
   return out;

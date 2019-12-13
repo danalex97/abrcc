@@ -103,30 +103,6 @@ std::unique_ptr<base::Thread> StoreService::registerVideoAsync(
   return worker_thread;
 }
 
-StoreService::QualifiedResponse::QualifiedResponse(
-  const QuicBackendResponse* response,
-  std::string host,
-  std::string path) : response(response), host(host), path(path) {}
-StoreService::QualifiedResponse::QualifiedResponse(const QualifiedResponse& resp) 
-  : response(resp.response), host(resp.host), path(resp.path) {}
-StoreService::QualifiedResponse::~QualifiedResponse() {}
-
-StoreService::QualifiedResponse StoreService::GetVideo(const int piece, const int quality) {
-  for (const auto& video_config : config->video_configs) {
-    std::string resource = video_config->resource;    
-    if (resource.find(std::to_string(quality)) != std::string::npos) {
-      std::string file = "/" + QuicTextUtils::Uint64ToString(piece) + ".m4s";
-      return StoreService::QualifiedResponse(
-        cache->GetResponse(config->domain, resource + file),
-        config->domain,
-        resource + file
-      );
-    }
-  }
-  return StoreService::QualifiedResponse(nullptr, "", "");
-}
-
-
 void StoreService::VideoFromConfig(
   const std::string& dir_path, 
   std::shared_ptr<DashBackendConfig> config

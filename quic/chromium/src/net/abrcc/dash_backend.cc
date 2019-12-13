@@ -5,7 +5,7 @@
 
 #include "net/abrcc/service/store_service.h"
 #include "net/abrcc/service/metrics_service.h"
-#include "net/abrcc/service/push_service.h"
+#include "net/abrcc/service/poll_service.h"
 
 #include <utility>
 #include <string>
@@ -29,8 +29,8 @@ namespace quic {
  
 DashBackend::DashBackend()
   : store(new StoreService())
-  , metrics_service(new MetricsService())
-  , push_service(new PushService())
+  , metrics(new MetricsService())
+  , polling(new PollingService())
   , backend_initialized_(false) 
 {
   std::unique_ptr<AbrInterface> interface(new AbrRandom());
@@ -78,28 +78,16 @@ void DashBackend::FetchResponseFromBackend(
     auto path = pathWrapper->second;
     if (path == API_PATH) {
       // new metrics received
-      metrics_service->AddMetrics(request_headers, request_body, quic_stream);
+      metrics->AddMetrics(request_headers, request_body, quic_stream);
     } else if (path.find(API_PATH) != std::string::npos) {
+      polling->AddRequest(request_headers, request_body, std::move(quic_stream));
+      
       // [TODO] do this async
-      for (auto& metrics : metrics_service->GetMetrics()) {
-        abr->registerMetrics(*metrics);
+      for (auto& metrics : this->metrics->GetMetrics()) {
+        abr->registerMetrics(*metrics); 
       }
       abr_schema::Decision decision = abr->decide();
-      std::string body = decision.serialize();
-    
-      SpdyHeaderBlock response_headers;
-      response_headers[":status"] = QuicTextUtils::Uint64ToString(200);
-      response_headers["content-length"] = QuicTextUtils::Uint64ToString(body.length());
-      
-      auto* quic_response = new QuicBackendResponse(); 
-      quic_response->set_response_type(QuicBackendResponse::REGULAR_RESPONSE);
-      quic_response->set_headers(std::move(response_headers));
-      quic_response->set_body(body);
-      quic_response->set_trailers(SpdyHeaderBlock());
-      quic_response->set_stop_sending_code(0);
-
-      auto push_info = std::list<QuicBackendResponse::ServerPushInfo>();
-      quic_stream->OnResponseBackendComplete(quic_response, push_info); 
+      polling->SendResponse(decision.path(), decision.serialize());
     } else {
       store->FetchResponseFromBackend(request_headers, request_body, quic_stream);
     }

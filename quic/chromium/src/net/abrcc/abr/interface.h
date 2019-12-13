@@ -18,6 +18,7 @@ struct Decision {
   
   std::string Id();
   std::string serialize();
+  std::string path();
 };
 
 }

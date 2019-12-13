@@ -5,7 +5,7 @@
 
 #include "net/abrcc/service/store_service.h"
 #include "net/abrcc/service/metrics_service.h"
-#include "net/abrcc/service/push_service.h"
+#include "net/abrcc/service/poll_service.h"
 
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
@@ -32,8 +32,8 @@ class DashBackend : public QuicSimpleServerBackend {
 
  private:
   std::shared_ptr<StoreService> store;
-  std::shared_ptr<MetricsService> metrics_service;
-  std::shared_ptr<PushService> push_service;
+  std::shared_ptr<MetricsService> metrics;
+  std::shared_ptr<PollingService> polling;
 
   bool backend_initialized_;
   

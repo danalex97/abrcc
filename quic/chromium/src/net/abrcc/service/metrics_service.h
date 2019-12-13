@@ -4,13 +4,14 @@
 #include "net/abrcc/service/schema.h"
 
 #include "net/third_party/quiche/src/quic/platform/api/quic_string_piece.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
 #include "net/third_party/quiche/src/quic/tools/quic_backend_response.h"
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
 #include "net/third_party/quiche/src/quic/tools/quic_url.h"
 
 namespace quic {
 
-// !THREAD_UNSAFE
+// !THREAD_SAFE
 class MetricsService {
  public:
   MetricsService();
@@ -28,6 +29,8 @@ class MetricsService {
   std::vector<std::unique_ptr<abr_schema::Metrics>> GetMetrics();
  
  private:
+  mutable QuicMutex mutex_;
+  
   void AddMetricsImpl(abr_schema::Metrics* metrics);
   std::vector<std::unique_ptr<abr_schema::Metrics>> metrics;
 };
