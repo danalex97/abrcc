@@ -3616,6 +3616,8 @@ if (!is_ios) {
       "abrcc/abr/interface.h",
       "abrcc/abr/abr.cc",
       "abrcc/abr/abr.h",
+      "abrcc/abr/loop.cc",
+      "abrcc/abr/loop.h",
       
       "abrcc/service/schema.cc",
       "abrcc/service/schema.h",

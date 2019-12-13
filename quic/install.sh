@@ -66,9 +66,9 @@ function install_certs {
     log "Certs installed."
 }
 
-# fetch_tools
-# fetch_chromium
-# run_hooks
-# build
+fetch_tools
+fetch_chromium
+run_hooks
+build
 generate_certs
 install_certs

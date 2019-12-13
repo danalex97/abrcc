@@ -32,7 +32,8 @@ function build_chromium {
     echo $PATH
  
     log "Build Chromium..."
-    run_cmd $TOOLS_DIR/autoninja -C $TARGET chrome
+    run_cmd $TOOLS_DIR/autoninja -C $TARGET quic_server
+    run_cmd $TOOLS_DIR/autoninja -C $TARGET net
 
     popd > /dev/null
     log "Build finished."

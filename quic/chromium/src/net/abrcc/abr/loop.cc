@@ -19,33 +19,23 @@ namespace quic {
 AbrLoop::AbrLoop(
     std::unique_ptr<AbrInterface> interface,
     std::shared_ptr<MetricsService> metrics,
-    std::shared_ptr<StoreService> store,
-    std::shared_ptr<PushService> push
-) : interface(std::move(interface)), metrics(metrics), store(store), push(push) {}
+    std::shared_ptr<PollingService> poll
+) : interface(std::move(interface)), metrics(metrics), poll(poll) {}
 AbrLoop::~AbrLoop() { }
 
-static void Push(
+static void Respond(
   AbrLoop *loop, 
-  StoreService::QualifiedResponse qualified_response,
-  bool* wasPushed,
+  bool* sent,
   bool* done,
   abr_schema::Decision decision
 ) {
-  auto* response = qualified_response.response;
-  auto resource = "/request/" + std::to_string(decision.index);
-  
-  bool couldPush = loop->push->PushResponse(
-    resource,
-    qualified_response.host,
-    qualified_response.path,
-    response->headers(),
-    response->body());
-
-  if (couldPush) {
-    *wasPushed = true;
-    loop->pushed.insert(decision.Id());
+  bool couldRespond = loop->poll->SendResponse(
+    decision.path(),
+    decision.serialize());
+  if (couldRespond) {
+    *sent = true;
+    loop->sent.insert(decision.id());
   }
-
   *done = true;
 }
 
@@ -60,35 +50,28 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
     auto decision = loop->interface->decide();  
 
     // check if decision is not new
-    if (loop->pushed.find(decision.Id()) != loop->pushed.end()) {
+    if (loop->sent.find(decision.id()) != loop->sent.end()) {
       continue;
     }
 
     QUIC_LOG(INFO) << "[AbrLoop] New decision: " << decision.index << ":" << decision.quality;
-    
-    bool wasPushed = false;
-    while (!wasPushed) {
-      auto qualified_response = loop->store->GetVideo(decision.index, decision.quality);
-      auto* response = qualified_response.response;
 
-      if (response != nullptr && loop->pushed.find(decision.Id()) == loop->pushed.end()) {
+    bool sent = false;
+    while (!sent) {
+      if (loop->sent.find(decision.id()) == loop->sent.end()) {
         bool done = false;
-
-        // post task to the task runner
         runner->PostTask(FROM_HERE,
-          base::BindOnce(&Push, loop, qualified_response, &wasPushed, &done, decision));
-    
+          base::BindOnce(&Respond, loop, &sent, &done, decision));
         while (!done);
       }
     }
 
+    // [TODO] maybe sleep
   }
 }
 
 void AbrLoop::Start() {
-
-
-const scoped_refptr<base::SingleThreadTaskRunner> runner(
+  const scoped_refptr<base::SingleThreadTaskRunner> runner(
     base::ThreadTaskRunnerHandle::Get()
   );
 

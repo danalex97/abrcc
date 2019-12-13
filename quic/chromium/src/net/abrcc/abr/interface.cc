@@ -17,7 +17,7 @@ Decision& Decision::operator =(const Decision& rhs) {
   return *this;
 }
 
-std::string Decision::Id() {
+std::string Decision::id() {
   return std::to_string(index) + ":" + std::to_string(quality);
 }
 

@@ -4,7 +4,7 @@
 #include "net/abrcc/abr/interface.h"
 
 #include "net/abrcc/service/metrics_service.h"
-#include "net/abrcc/service/push_service.h"
+#include "net/abrcc/service/poll_service.h"
 #include "net/abrcc/service/store_service.h"
 
 #include "base/threading/thread.h"
@@ -16,8 +16,7 @@ class AbrLoop {
   AbrLoop(
     std::unique_ptr<AbrInterface> interface,
     std::shared_ptr<MetricsService> metrics,
-    std::shared_ptr<StoreService> store,
-    std::shared_ptr<PushService> push);  
+    std::shared_ptr<PollingService> poll);  
   AbrLoop(const AbrLoop&) = delete;
   AbrLoop& operator=(const AbrLoop&) = delete;
   ~AbrLoop();
@@ -25,14 +24,11 @@ class AbrLoop {
   void Start();
 
   std::unique_ptr<AbrInterface> interface;
-  
   std::shared_ptr<MetricsService> metrics;
-  std::shared_ptr<StoreService> store;
-  std::shared_ptr<PushService> push;    
+  std::shared_ptr<PollingService> poll;    
   
   std::unique_ptr<base::Thread> thread;
-
-  std::unordered_set<std::string> pushed;
+  std::unordered_set<std::string> sent;
 };
 
 }

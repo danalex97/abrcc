@@ -16,7 +16,7 @@ struct Decision {
   Decision& operator=(const Decision&);
   ~Decision();
   
-  std::string Id();
+  std::string id();
   std::string serialize();
   std::string path();
 };
