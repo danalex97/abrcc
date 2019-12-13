@@ -5,6 +5,7 @@ import { BackendShim } from '../component/backend';
 const logger = logging('RequestControler');
 
 
+// [TODO] Should we still use this?
 export class RequestController {
     constructor(poolSize, shim) {
         this._currentSize = 0;

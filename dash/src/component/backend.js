@@ -13,7 +13,7 @@ class Request {
     }
 
     _request(requestFunc, resource, content) {
-        logger.log('sending request', content);
+        logger.log('sending request', resource, content);
         requestFunc(this._shim.path + resource, content, (error, res, body) => {
             if (error) {
                 logger.log(error);

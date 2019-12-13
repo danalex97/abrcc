@@ -125,13 +125,20 @@ export class StatsTracker {
     }
 
     start() {
-        setInterval(() => {
-            let metrics_wrapper = this.player.getDashMetrics();
-            let metrics = this.tick(metrics_wrapper);
-            for (let callback of this.callbacks) {
-                callback(metrics);
-            }
-        }, TICK_INTERVAL_MS);
+        setInterval(this.getMetrics, TICK_INTERVAL_MS);
+    }
+
+    getMetrics() {
+        let metrics_wrapper, metrics;
+        try { 
+            metrics_wrapper = this.player.getDashMetrics();
+            metrics = this.tick(metrics_wrapper);
+        } catch(err) {
+            return; 
+        }
+        for (let callback of this.callbacks) {
+            callback(metrics);
+        }
     }
 
     tick(metrics_wrapper) {

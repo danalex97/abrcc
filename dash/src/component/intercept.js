@@ -1,7 +1,3 @@
-import { timestamp as create_timestamp } from '../common/time';
-
-import { Piece } from '../common/data'; 
-import { PieceCache } from '../common/cache';
 import { logging } from '../common/logger';
 
 
@@ -21,67 +17,40 @@ class UrlProcessor {
     }
 
     get quality() {
-        return MAX_QUALITY - parseInt(this.url.split('/')[1].split('video')[1]) + 1;
+        try {
+            return MAX_QUALITY - parseInt(this.url.split('/')[1].split('video')[1]) + 1;
+        } catch(err) {
+            return undefined;
+        }
     }
 
     get index() {
-        return parseInt(this.url.split('/')[2].split('.')[0]);
+        try {
+            return parseInt(this.url.split('/')[2].split('.')[0]);
+        } catch(err) {
+            return undefined;
+        }
     }
 }
 
-export class DataPiece extends Piece {
-    constructor(rawData) {
-        super();
 
-        let sep = '$$$$';
-        let pos = rawData.indexOf(sep);
-
-        let url = rawData.substring(0, pos);
-        let data = rawData.substring(pos + sep.length);
-        
-        this._data = data;
-        this._url = url;
-
-        this._timestamp = create_timestamp(new Date());
-        
-        let processor = new UrlProcessor(url);
-        this._quality = processor.quality;
-        this._index = processor.index;
+export class Interceptor {
+    constructor() {
+        this._onRequest = (index) => {};
     }
-
-    get data() {
-        return new TextEncoder().encode(this._data);
+   
+    onRequest(callback) {
+        this._onRequest = callback;
+        return this;
     }
     
-    get index() {
-        return this._index;
-    }
-
-    get quality() {
-        return this._quality;
-    }
-
-    get timestamp() {
-        return this._timestamp;
-    }
-}
-
-
-
-export class Interceptor extends PieceCache {
-    constructor() {
-        super(); 
-    }
-
-    start() { 
-        // make properties writable
-        let makeWritable = (object, property) => {
+    start() {
+         // make properties writable
+         let makeWritable = (object, property) => {
             let descriptor = Object.getOwnPropertyDescriptor(object, property) || {};
             descriptor.writable = true;
             Object.defineProperty(object, property, descriptor);
-        };
-        // makeWritable(window.XMLHttpRequest, 'responseUrl');
-        // makeWritable(window.XMLHttpRequest, 'response');
+         };
 
         let interceptor = this;
         let oldOpen = window.XMLHttpRequest.prototype.open; 
@@ -91,54 +60,17 @@ export class Interceptor extends PieceCache {
             let ctx = this;
             let oldSend = ctx.send;
             
+            // modify url
+            if (url.includes('video') && url.endsWith('.m4s') && !url.includes('Header')) {
+                let processor = new UrlProcessor(url);
+                interceptor._onRequest(processor.index);
+            }
+
             ctx.send = () => {
-                if (url.includes('video') && url.endsWith('.m4s') && !url.includes('Header')) {
-                    logger.log('Intercepted', url);
-                    // get the piece
-                    let index = new UrlProcessor(url).index;
-                    let piece = interceptor.piece(index);
-                    if (piece == undefined) {
-                        setTimeout(ctx.send, 1000);  
-                        return;
-                    }
-                    logger.log('Cached piece', url, piece);
-
-                    // make writable
-                    makeWritable(ctx, 'responseURL');
-                    makeWritable(ctx, 'response'); 
-                    makeWritable(ctx, 'readyState');
-                    makeWritable(ctx, 'status');
-                    makeWritable(ctx, 'statusText');
-                   
-                    // starting
-                    ctx.readyState = 3;
-                    if (ctx.onreadystatechange) {
-                        ctx.onreadystatechange();
-                    }
-
-                    // modify response
-                    ctx.responseType = "arraybuffer";
-                    ctx.responseURL = url;
-                    ctx.response = piece.data;
-                    ctx.readyState = 4;
-                    ctx.status = 200;
-                    ctx.statusText = "OK";
-                    logger.log('Overrided', ctx);
-
-                    // do callbacks
-                    if (ctx.onreadystatechange) {
-                        ctx.onreadystatechange();
-                    }
-                    if (ctx.onloadend) {
-                        ctx.onloadend(); 
-                    }
-                    return oldSend.apply(this, arguments);
-                } else {
-                    logger.log('Pass', ctx);
-                    return oldSend.apply(this, arguments);
-                }
+                logger.log('Request', url);
+                return oldSend.apply(this, arguments);
             };
-            return oldOpen.apply(this, arguments);
+            return oldOpen.apply(this, arguments); 
         }
 
         window.XMLHttpRequest.prototype.open = newXHROpen;

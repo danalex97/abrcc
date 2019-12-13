@@ -21,6 +21,16 @@ std::string Decision::Id() {
   return std::to_string(index) + ":" + std::to_string(quality);
 }
 
+std::string Decision::serialize() {
+  std::stringstream out;
+  out << "{";
+  out << "\"index\":" << this->index << ",";
+  out << "\"quality\":" << this->quality << ",";
+  out << "\"timestamp\":" << this->timestamp;
+  out << "}";
+  return out.str();
+}
+
 }
 
 namespace quic {

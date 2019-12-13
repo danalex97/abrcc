@@ -26,30 +26,15 @@ const std::string API_PATH = "/request";
 using spdy::SpdyHeaderBlock;
 
 namespace quic {
-
-  std::unique_ptr<StoreService> meta_store;
  
-  std::shared_ptr<StoreService> video_store;
-  std::shared_ptr<MetricsService> metrics_service;
-  std::shared_ptr<PushService> push_service;
- 
-  std::unique_ptr<AbrLoop> abr_loop;
-  
 DashBackend::DashBackend()
-  : meta_store(new StoreService())
-  , video_store(new StoreService())
+  : store(new StoreService())
   , metrics_service(new MetricsService())
   , push_service(new PushService())
   , backend_initialized_(false) 
 {
   std::unique_ptr<AbrInterface> interface(new AbrRandom());
-  std::unique_ptr<AbrLoop> abr_loop(new AbrLoop(
-    std::move(interface),
-    metrics_service,
-    video_store,
-    push_service
-  ));
-  this->abr_loop = std::move(abr_loop); 
+  this->abr = std::move(interface); 
 }
 DashBackend::~DashBackend() {}
 
@@ -72,12 +57,8 @@ bool DashBackend::InitializeBackend(const std::string& config_path) {
   std::string base_path = dir_path + config->base_path;
  
   // register stores
-  meta_store->MetaFromConfig(base_path, config); 
-  meta_store->VideoFromConfig(dir_path, config);
-  video_store->VideoFromConfig(dir_path, config);
-
-  // start the ABR loop
-  abr_loop->Start();
+  store->MetaFromConfig(base_path, config); 
+  store->VideoFromConfig(dir_path, config);
 
   backend_initialized_ = true;
   return true;
@@ -96,14 +77,34 @@ void DashBackend::FetchResponseFromBackend(
   if (pathWrapper != request_headers.end()) {
     auto path = pathWrapper->second;
     if (path == API_PATH) {
+      // new metrics received
       metrics_service->AddMetrics(request_headers, request_body, quic_stream);
     } else if (path.find(API_PATH) != std::string::npos) {
-      push_service->RegisterPath(request_headers, request_body, quic_stream);
+      // [TODO] do this async
+      for (auto& metrics : metrics_service->GetMetrics()) {
+        abr->registerMetrics(*metrics);
+      }
+      abr_schema::Decision decision = abr->decide();
+      std::string body = decision.serialize();
+    
+      SpdyHeaderBlock response_headers;
+      response_headers[":status"] = QuicTextUtils::Uint64ToString(200);
+      response_headers["content-length"] = QuicTextUtils::Uint64ToString(body.length());
+      
+      auto* quic_response = new QuicBackendResponse(); 
+      quic_response->set_response_type(QuicBackendResponse::REGULAR_RESPONSE);
+      quic_response->set_headers(std::move(response_headers));
+      quic_response->set_body(body);
+      quic_response->set_trailers(SpdyHeaderBlock());
+      quic_response->set_stop_sending_code(0);
+
+      auto push_info = std::list<QuicBackendResponse::ServerPushInfo>();
+      quic_stream->OnResponseBackendComplete(quic_response, push_info); 
     } else {
-      meta_store->FetchResponseFromBackend(request_headers, request_body, quic_stream);
+      store->FetchResponseFromBackend(request_headers, request_body, quic_stream);
     }
   } else {
-    meta_store->FetchResponseFromBackend(request_headers, request_body, quic_stream);
+    store->FetchResponseFromBackend(request_headers, request_body, quic_stream);
   }
 }
 

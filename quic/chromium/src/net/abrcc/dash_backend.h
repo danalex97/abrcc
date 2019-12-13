@@ -1,7 +1,7 @@
 #ifndef ABRCC_DASH_BACKEND_H_
 #define ABRCC_DASH_BACKEND_H_
 
-#include "net/abrcc/abr/loop.h"
+#include "net/abrcc/abr/interface.h"
 
 #include "net/abrcc/service/store_service.h"
 #include "net/abrcc/service/metrics_service.h"
@@ -31,15 +31,13 @@ class DashBackend : public QuicSimpleServerBackend {
       QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
 
  private:
-  std::unique_ptr<StoreService> meta_store;
- 
-  std::shared_ptr<StoreService> video_store;
+  std::shared_ptr<StoreService> store;
   std::shared_ptr<MetricsService> metrics_service;
   std::shared_ptr<PushService> push_service;
- 
+
   bool backend_initialized_;
   
-  std::unique_ptr<AbrLoop> abr_loop;
+  std::unique_ptr<AbrInterface> abr;
 };
 
 }  

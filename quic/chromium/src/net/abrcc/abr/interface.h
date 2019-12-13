@@ -17,6 +17,7 @@ struct Decision {
   ~Decision();
   
   std::string Id();
+  std::string serialize();
 };
 
 }

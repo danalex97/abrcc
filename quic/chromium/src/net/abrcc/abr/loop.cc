@@ -86,7 +86,9 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
 }
 
 void AbrLoop::Start() {
-  const scoped_refptr<base::SingleThreadTaskRunner> runner(
+
+
+const scoped_refptr<base::SingleThreadTaskRunner> runner(
     base::ThreadTaskRunnerHandle::Get()
   );
 

@@ -8,46 +8,54 @@ import { DataPiece, Interceptor } from './component/intercept';
 
 import { QualityController } from './controller/quality';
 import { StatsController } from './controller/stats';
-import { RequestController } from './controller/request';
 
 
 const logger = logging('App');
 const qualityStream = checking('quality');
 const metricsStream = checking('metrics');
-const POOL_SIZE = 10;
 
 
 export class App {
     constructor(player) {
         this.tracker = new StatsTracker(player);
         this.shim = new BackendShim(); 
-        this.cache = new Interceptor();
+        this.interceptor = new Interceptor();
 
         this.qualityController = new QualityController();
         this.statsController = new StatsController();
-        this.requestController = new RequestController(POOL_SIZE, this.shim);
 
-        this.cache.start();
+        this.interceptor.start();
         SetQualityController(this.qualityController);
     }
 
     start() {
-        this.requestController
-            .onSuccess((_, body) => {
-                logger.log(typeof body);
-                let piece = new DataPiece(body);
+        this.interceptor
+            .onRequest((index) => {
+                // send new piece request
+                this.shim
+                    .pieceRequest()
+                    .addIndex(index + 1)
+                    .onSuccess((body) => {
+                        let object = JSON.parse(body);
+                        let decision = new Decision(
+                            object.index,
+                            object.quality,
+                            object.timestamp
+                        );
+                        
+                        this.qualityController.addPiece(decision);
+                        qualityStream.push(decision);
 
-                logger.log("New piece", piece);
-                 
-                this.cache.insert(piece);
-                this.qualityController.addPiece(new Decision(
-                    piece.index,
-                    piece.quality,
-                    piece.timestamp,
-                ));
+                        this.qualityController.advance(decision.index);
+                        this.statsController.advance(decision.timestamp);
+                    }).onFail(() => {
+                    }).send();
+             
+                // send metrics to tracker 
+                this.tracker.getMetrics(); 
             })
             .start();
-
+        
         this.tracker.registerCallback((metrics) => {
             // Log metrics
             this.statsController.addMetrics(metrics);
@@ -63,11 +71,7 @@ export class App {
                 .metricsRequest()
                 .addStats(allMetrics.serialize())
                 .onSuccess((body) => {
-                    // this.qualityController.addPiece(decision);
-                    // qualityStream.push(decision);
-
-                    // this.qualityController.advance(decision.index);
-                    // this.statsController.advance(decision.timestamp);
+                    // [TODO] advance timestamp
                 }).onFail(() => {
                 }).send();
         });

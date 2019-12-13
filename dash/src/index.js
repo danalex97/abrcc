@@ -4,12 +4,17 @@ import { MediaPlayer } from 'dashjs';
 import readingTime from 'reading-time';
 
 
+const LARGE_BUFFER_TIME = 500;
+
+
 function updateAbrSettings(player) {
     player.updateSettings({
         'streaming': {
             'abr': {
                 'useDefaultABRRules': false
-            }
+            },
+            'stableBufferTime': LARGE_BUFFER_TIME, // we use this to request continuously
+            'bufferTimeAtTopQuality': LARGE_BUFFER_TIME // we use this to request continously
         }
     });
     player.addABRCustomRule(
