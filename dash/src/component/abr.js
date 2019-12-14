@@ -21,6 +21,7 @@ function ServerSideRuleClass() {
     let factory = getFactory();
 
     let SwitchRequest = factory.getClassFactoryByName('SwitchRequest');
+    let MetricsModel = factory.getSingletonFactoryByName('MetricsModel');
     let StreamController = factory.getSingletonFactoryByName('StreamController');
     let context = this.context;
     let instance;
@@ -32,7 +33,11 @@ function ServerSideRuleClass() {
         let streamController = StreamController(context).getInstance();
         let abrController = rulesContext.getAbrController();
         let current = abrController.getQualityFor(MEDIA_TYPE, streamController.getActiveStreamInfo());
-        
+
+        let metricsModel = MetricsModel(context).getInstance();
+        let metrics = metricsModel.getMetricsFor('video', true);
+        logger.log(metrics);
+
         logger.log("new request");
         let quality = getQualityController().getQuality();
         if (current === quality) {

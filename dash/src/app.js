@@ -16,21 +16,40 @@ const metricsStream = checking('metrics');
 
 
 export class App {
-    constructor(player) {
-        this.tracker = new StatsTracker(player);
+    constructor() {
         this.shim = new BackendShim(); 
         this.interceptor = new Interceptor();
+        this.interceptor.start();
 
         this.qualityController = new QualityController();
         this.statsController = new StatsController();
+        
+        this.current = 0;
+        this.pool = 5;
+        this.index = 0;
         SetQualityController(this.qualityController);
     }
 
-    sendPieceRequest(index) {
+    withPlayer(player) {
+        this.tracker = new StatsTracker(player);
+        return this;
+    }
+
+    sendPieceRequest() {
+        if (this.current < this.pool) {
+            this.current += 1;
+            this.index += 1;
+        } else {
+            return;
+        }
+        let index = this.index;
+
         this.shim
             .pieceRequest()
             .addIndex(index)
             .onSuccess((body) => {
+                this.sendPieceRequest();
+                
                 let object = JSON.parse(body);
                 let decision = new Decision(
                     object.index,
@@ -42,7 +61,6 @@ export class App {
                 qualityStream.push(decision);
 
                 // [TODO] check this is legit
-                // this.qualityController.advance(decision.index);
                 this.statsController.advance(decision.timestamp);
             }).onFail(() => {
             }).send();
@@ -59,19 +77,34 @@ export class App {
                     let ctx = object.ctx;
                     let makeWritable = object.makeWritable;
                     let url = object.url;
-
+                   
                     // make writable
                     makeWritable(ctx, 'responseURL', true);
                     makeWritable(ctx, 'response', true); 
                     makeWritable(ctx, 'readyState', true);
                     makeWritable(ctx, 'status', true);
                     makeWritable(ctx, 'statusText', true);
-                   
+                    
+                    const execute = (callback, event) => {
+                        try {
+                            if (callback) {
+                                if (event) {
+                                    callback(event);
+                                } else {
+                                    callback();
+                                }
+                            }
+                        } catch(ex) {
+                            logger.log('Exception in', ex, callback);
+                        }
+                    };
+
                     // starting
                     ctx.readyState = 3;
-                    if (ctx.onreadystatechange) {
-                        ctx.onreadystatechange();
-                    }
+                    execute(ctx.onprogress, {
+                        'noTrace' : true,
+                    });
+                    
 
                     // modify response
                     ctx.responseType = "arraybuffer";
@@ -81,41 +114,34 @@ export class App {
                     ctx.status = 200;
                     ctx.statusText = "OK";
 
-                    // make unwritable
-                    makeWritable(ctx, 'responseURL', false);
-                    makeWritable(ctx, 'response', false); 
-                    makeWritable(ctx, 'readyState', false);
-                    makeWritable(ctx, 'status', false);
-                    makeWritable(ctx, 'statusText', false);
-                    logger.log('Overrided', ctx.responseURL);
-                   
-                    // do callbacks
-                    if (ctx.onreadystatechange) {
-                        ctx.onreadystatechange();
-                    }
-                    if (ctx.onload) {
-                        ctx.onload();
-                    }
-                    if (ctx.onloadend) {
-                        ctx.onloadend(); 
-                    }
+                    
+                    logger.log('Overrided', ctx.responseURL, ctx);
+                    execute(ctx.onprogress, {
+                        'lengthComputable' : true,
+                        'loaded' : res.response.bytelength,
+                        'total' : res.response.bytelength,
+                        'noTrace': true,
+                    });
+                    execute(ctx.onload);
+                    execute(ctx.onloadended);
                 });
             }).onFail(() => {
             }).send();
+       this.sendPieceRequest(); 
     }
 
     start() {
-        this.sendPieceRequest(1);
-    
+        this.sendPieceRequest();
         this.interceptor
             .onRequest((index) => {
-                // send new piece request
-                this.sendPieceRequest(index + 1);
+                // only when a request is sent, this means that the next 
+                // decision of the abr component will ask for the next 
+                // index 
+                this.qualityController.advance(index + 1);
 
                 // send metrics to tracker 
                 this.tracker.getMetrics(); 
-            })
-            .start();
+            });
         
         this.tracker.registerCallback((metrics) => {
             // Log metrics

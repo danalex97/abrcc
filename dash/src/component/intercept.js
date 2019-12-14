@@ -51,6 +51,7 @@ export class Interceptor {
     }
 
     onIntercept(index, callback) {
+        logger.log('Cache updated', index);
         this._onIntercept[index] = callback;
 
         // if we already have a context on toIntercept we can call
