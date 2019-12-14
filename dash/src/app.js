@@ -23,8 +23,6 @@ export class App {
 
         this.qualityController = new QualityController();
         this.statsController = new StatsController();
-
-        this.interceptor.start();
         SetQualityController(this.qualityController);
     }
 

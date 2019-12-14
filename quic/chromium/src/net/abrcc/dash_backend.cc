@@ -22,6 +22,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 const std::string API_PATH = "/request";
+const std::string PIECE_PATH = "/piece";
 
 using spdy::SpdyHeaderBlock;
 
@@ -34,7 +35,10 @@ DashBackend::DashBackend()
   , backend_initialized_(false) 
 {
   std::unique_ptr<AbrInterface> interface(new AbrRandom());
-  this->abr = std::move(interface); 
+  std::unique_ptr<AbrLoop> loop(
+    new AbrLoop(std::move(interface), metrics, polling)
+  );
+  this->abr_loop = std::move(loop); 
 }
 DashBackend::~DashBackend() {}
 
@@ -60,6 +64,9 @@ bool DashBackend::InitializeBackend(const std::string& config_path) {
   store->MetaFromConfig(base_path, config); 
   store->VideoFromConfig(dir_path, config);
 
+  // start abr loop
+  abr_loop->Start();
+
   backend_initialized_ = true;
   return true;
 }
@@ -80,15 +87,13 @@ void DashBackend::FetchResponseFromBackend(
       // new metrics received
       metrics->AddMetrics(request_headers, request_body, quic_stream);
     } else if (path.find(API_PATH) != std::string::npos) {
+      // add a long polling request
       polling->AddRequest(request_headers, request_body, std::move(quic_stream));
-      
-      // [TODO] do this async
-      for (auto& metrics : this->metrics->GetMetrics()) {
-        abr->registerMetrics(*metrics); 
-      }
-      abr_schema::Decision decision = abr->decide();
-      polling->SendResponse(decision.path(), decision.serialize());
+    } else if (path.find(PIECE_PATH) != std::string::npos) {
+      // a request for a piece was received
+      polling->AddRequest(request_headers, request_body, std::move(quic_stream));
     } else {
+      // serving pieces
       store->FetchResponseFromBackend(request_headers, request_body, quic_stream);
     }
   } else {

@@ -54,8 +54,6 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
       continue;
     }
 
-    QUIC_LOG(INFO) << "[AbrLoop] New decision: " << decision.index << ":" << decision.quality;
-
     bool sent = false;
     while (!sent) {
       if (loop->sent.find(decision.id()) == loop->sent.end()) {

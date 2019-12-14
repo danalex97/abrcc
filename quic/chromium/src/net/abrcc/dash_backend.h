@@ -1,7 +1,7 @@
 #ifndef ABRCC_DASH_BACKEND_H_
 #define ABRCC_DASH_BACKEND_H_
 
-#include "net/abrcc/abr/interface.h"
+#include "net/abrcc/abr/loop.h"
 
 #include "net/abrcc/service/store_service.h"
 #include "net/abrcc/service/metrics_service.h"
@@ -37,7 +37,7 @@ class DashBackend : public QuicSimpleServerBackend {
 
   bool backend_initialized_;
   
-  std::unique_ptr<AbrInterface> abr;
+  std::unique_ptr<AbrLoop> abr_loop;
 };
 
 }  

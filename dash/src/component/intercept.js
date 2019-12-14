@@ -58,15 +58,15 @@ export class Interceptor {
         // override the open method
         function newXHROpen(method, url, async, user, password) {
             let ctx = this;
-            let oldSend = ctx.send;
-            
+            let oldSend = this.send;
+        
             // modify url
             if (url.includes('video') && url.endsWith('.m4s') && !url.includes('Header')) {
                 let processor = new UrlProcessor(url);
                 interceptor._onRequest(processor.index);
             }
 
-            ctx.send = () => {
+            ctx.send = function() {
                 logger.log('Request', url);
                 return oldSend.apply(this, arguments);
             };
