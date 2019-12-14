@@ -63,7 +63,25 @@ bool PollingService::SendResponse(
     return false;
   }
 }
-   
+
+
+std::unique_ptr<PollingService::CacheEntry> PollingService::GetEntry(
+  const std::string request_path
+) {  
+  auto entry = stream_cache.find(request_path);
+  if (entry != stream_cache.end()){
+    std::unique_ptr<PollingService::CacheEntry> ret(std::move(entry->second));
+    
+    QuicWriterMutexLock lock(&mutex_);
+    stream_cache.erase(request_path);
+
+    return ret;
+  } else {
+    return std::unique_ptr<PollingService::CacheEntry>(nullptr);
+  }
+}
+
+
 PollingService::CacheEntry::CacheEntry(
   const spdy::SpdyHeaderBlock& request_headers,
   const std::string request_body,

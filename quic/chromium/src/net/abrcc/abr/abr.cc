@@ -5,11 +5,12 @@
 
 #include <algorithm>
 
+// Qualities: 0 -> 5
 const int QUALITIES = 6;
 
 namespace quic {
 
-AbrRandom::AbrRandom() : last_index(1), last_timestamp(0) {}
+AbrRandom::AbrRandom() : last_index(0), last_timestamp(0) {}
 AbrRandom::~AbrRandom() {}
 
 void AbrRandom::registerMetrics(const abr_schema::Metrics &metrics) { 

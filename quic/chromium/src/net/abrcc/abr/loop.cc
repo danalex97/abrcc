@@ -12,15 +12,16 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
-const std::string RESPONSE_PATH = "/";
+using spdy::SpdyHeaderBlock;
 
 namespace quic {
 
 AbrLoop::AbrLoop(
-    std::unique_ptr<AbrInterface> interface,
-    std::shared_ptr<MetricsService> metrics,
-    std::shared_ptr<PollingService> poll
-) : interface(std::move(interface)), metrics(metrics), poll(poll) {}
+  std::unique_ptr<AbrInterface> interface,
+  std::shared_ptr<MetricsService> metrics,
+  std::shared_ptr<PollingService> poll,
+  std::shared_ptr<StoreService> store
+) : interface(std::move(interface)), metrics(metrics), poll(poll), store(store) {}
 AbrLoop::~AbrLoop() { }
 
 static void Respond(
@@ -34,7 +35,31 @@ static void Respond(
     decision.serialize());
   if (couldRespond) {
     *sent = true;
-    loop->sent.insert(decision.id());
+    loop->sent.insert(decision.path());
+  }
+  *done = true;
+}
+
+static void SendPiece(
+  AbrLoop *loop, 
+  bool* sent,
+  bool* done,
+  abr_schema::Decision decision
+) {
+  auto entry = loop->poll->GetEntry(decision.resourcePath());
+  if (entry) {
+    *sent = true;
+    loop->sent.insert(decision.resourcePath());
+      
+    // modify requeest headers to match with the Store
+    SpdyHeaderBlock request_headers(entry->base_request_headers->Clone());
+    request_headers[":path"] = decision.videoPath();
+
+    // fetch response from store
+    loop->store->FetchResponseFromBackend(
+      request_headers.Clone(),
+      entry->request_body,
+      entry->handler);
   }
   *done = true;
 }
@@ -49,21 +74,29 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
     // get decision
     auto decision = loop->interface->decide();  
 
-    // check if decision is not new
-    if (loop->sent.find(decision.id()) != loop->sent.end()) {
-      continue;
-    }
-
-    bool sent = false;
-    while (!sent) {
-      if (loop->sent.find(decision.id()) == loop->sent.end()) {
-        bool done = false;
-        runner->PostTask(FROM_HERE,
-          base::BindOnce(&Respond, loop, &sent, &done, decision));
-        while (!done);
+    if (loop->sent.find(decision.path()) == loop->sent.end()) {
+      bool sent = false;
+      while (!sent) {
+        if (loop->sent.find(decision.path()) == loop->sent.end()) {
+          bool done = false;
+          runner->PostTask(FROM_HERE,
+            base::BindOnce(&Respond, loop, &sent, &done, decision));
+          while (!done);
+        }
       }
     }
 
+    if (loop->sent.find(decision.resourcePath()) == loop->sent.end()) {
+      bool sent = false;
+      while (!sent) {
+        if (loop->sent.find(decision.resourcePath()) == loop->sent.end()) {
+          bool done = false;
+          runner->PostTask(FROM_HERE,
+            base::BindOnce(&SendPiece, loop, &sent, &done, decision));
+          while (!done);
+        }
+      }
+    }
     // [TODO] maybe sleep
   }
 }

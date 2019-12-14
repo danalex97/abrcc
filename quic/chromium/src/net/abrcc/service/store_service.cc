@@ -152,6 +152,11 @@ void StoreService::FetchResponseFromBackend(
   const std::string& string, 
   QuicSimpleServerBackend::RequestHandler* quic_stream
 ) {
+  QUIC_LOG(INFO) << "[Store] Headers";
+  for (const auto& pair : request_headers) {
+    QUIC_LOG(INFO) << pair.first << ' ' << pair.second;
+  }
+  QUIC_LOG(INFO) << "[String] " << string;
   cache->FetchResponseFromBackend(request_headers, string, quic_stream);
 }
 

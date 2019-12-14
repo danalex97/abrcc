@@ -59,7 +59,7 @@ export class Interceptor {
         function newXHROpen(method, url, async, user, password) {
             let ctx = this;
             let oldSend = this.send;
-        
+
             // modify url
             if (url.includes('video') && url.endsWith('.m4s') && !url.includes('Header')) {
                 let processor = new UrlProcessor(url);
@@ -67,9 +67,9 @@ export class Interceptor {
             }
 
             ctx.send = function() {
-                logger.log('Request', url);
                 return oldSend.apply(this, arguments);
             };
+ 
             return oldOpen.apply(this, arguments); 
         }
 

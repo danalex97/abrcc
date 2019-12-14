@@ -36,7 +36,7 @@ DashBackend::DashBackend()
 {
   std::unique_ptr<AbrInterface> interface(new AbrRandom());
   std::unique_ptr<AbrLoop> loop(
-    new AbrLoop(std::move(interface), metrics, polling)
+    new AbrLoop(std::move(interface), metrics, polling, store)
   );
   this->abr_loop = std::move(loop); 
 }

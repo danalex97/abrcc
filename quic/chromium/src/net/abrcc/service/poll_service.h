@@ -44,7 +44,10 @@ class PollingService {
   bool SendResponse(
     const std::string request_path,
     const QuicStringPiece response_body);
-   
+  
+  std::unique_ptr<PollingService::CacheEntry> GetEntry(
+    const std::string request_path);
+
  private:
   std::unordered_map<std::string, std::unique_ptr<CacheEntry>> stream_cache; 
   mutable QuicMutex mutex_;

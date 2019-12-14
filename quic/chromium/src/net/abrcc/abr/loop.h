@@ -16,7 +16,8 @@ class AbrLoop {
   AbrLoop(
     std::unique_ptr<AbrInterface> interface,
     std::shared_ptr<MetricsService> metrics,
-    std::shared_ptr<PollingService> poll);  
+    std::shared_ptr<PollingService> poll,
+    std::shared_ptr<StoreService> store);  
   AbrLoop(const AbrLoop&) = delete;
   AbrLoop& operator=(const AbrLoop&) = delete;
   ~AbrLoop();
@@ -26,7 +27,8 @@ class AbrLoop {
   std::unique_ptr<AbrInterface> interface;
   std::shared_ptr<MetricsService> metrics;
   std::shared_ptr<PollingService> poll;    
-  
+  std::shared_ptr<StoreService> store;
+
   std::unique_ptr<base::Thread> thread;
   std::unordered_set<std::string> sent;
 };

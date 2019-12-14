@@ -26,29 +26,44 @@ export class App {
         SetQualityController(this.qualityController);
     }
 
+    sendPieceRequest(index) {
+        this.shim
+            .pieceRequest()
+            .addIndex(index)
+            .onSuccess((body) => {
+                let object = JSON.parse(body);
+                let decision = new Decision(
+                    object.index,
+                    object.quality,
+                    object.timestamp
+                );
+                
+                this.qualityController.addPiece(decision);
+                qualityStream.push(decision);
+
+                // [TODO] check this is legit
+                this.qualityController.advance(decision.index);
+                this.statsController.advance(decision.timestamp);
+            }).onFail(() => {
+            }).send();
+        
+        this.shim
+            .resourceRequest()
+            .addIndex(index)
+            .onSuccessResponse((res) => {
+                console.log(res);
+            }).onFail(() => {
+            }).send();
+    }
+
     start() {
+        this.sendPieceRequest(1);
+    
         this.interceptor
             .onRequest((index) => {
                 // send new piece request
-                this.shim
-                    .pieceRequest()
-                    .addIndex(index + 1)
-                    .onSuccess((body) => {
-                        let object = JSON.parse(body);
-                        let decision = new Decision(
-                            object.index,
-                            object.quality,
-                            object.timestamp
-                        );
-                        
-                        this.qualityController.addPiece(decision);
-                        qualityStream.push(decision);
+                this.sendPieceRequest(index + 1);
 
-                        this.qualityController.advance(decision.index);
-                        this.statsController.advance(decision.timestamp);
-                    }).onFail(() => {
-                    }).send();
-             
                 // send metrics to tracker 
                 this.tracker.getMetrics(); 
             })

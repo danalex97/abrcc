@@ -37,7 +37,7 @@ function quic_server {
         --quic_config_path=$DIR/config.json \
         --port=$PORT \
         --certificate_file=$CERTS_PATH/out/leaf_cert.pem \
-        --key_file=$CERTS_PATH/out/leaf_cert.pkcs8
+        --key_file=$CERTS_PATH/out/leaf_cert.pkcs8 
 }
 
 function quic_client {

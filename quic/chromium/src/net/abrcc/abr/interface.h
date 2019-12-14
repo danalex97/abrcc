@@ -16,9 +16,10 @@ struct Decision {
   Decision& operator=(const Decision&);
   ~Decision();
   
-  std::string id();
   std::string serialize();
   std::string path();
+  std::string resourcePath();
+  std::string videoPath();
 };
 
 }
