@@ -42,7 +42,7 @@ export class App {
                 qualityStream.push(decision);
 
                 // [TODO] check this is legit
-                this.qualityController.advance(decision.index);
+                // this.qualityController.advance(decision.index);
                 this.statsController.advance(decision.timestamp);
             }).onFail(() => {
             }).send();
@@ -50,8 +50,56 @@ export class App {
         this.shim
             .resourceRequest()
             .addIndex(index)
+            .onSend((url, content) => {
+                // we intercept future requests to the backend
+                this.interceptor.intercept(index);
+            })
             .onSuccessResponse((res) => {
-                console.log(res);
+                this.interceptor.onIntercept(index, (object) => { 
+                    let ctx = object.ctx;
+                    let makeWritable = object.makeWritable;
+                    let url = object.url;
+
+                    // make writable
+                    makeWritable(ctx, 'responseURL', true);
+                    makeWritable(ctx, 'response', true); 
+                    makeWritable(ctx, 'readyState', true);
+                    makeWritable(ctx, 'status', true);
+                    makeWritable(ctx, 'statusText', true);
+                   
+                    // starting
+                    ctx.readyState = 3;
+                    if (ctx.onreadystatechange) {
+                        ctx.onreadystatechange();
+                    }
+
+                    // modify response
+                    ctx.responseType = "arraybuffer";
+                    ctx.responseURL = url;
+                    ctx.response = res.response;
+                    ctx.readyState = 4;
+                    ctx.status = 200;
+                    ctx.statusText = "OK";
+
+                    // make unwritable
+                    makeWritable(ctx, 'responseURL', false);
+                    makeWritable(ctx, 'response', false); 
+                    makeWritable(ctx, 'readyState', false);
+                    makeWritable(ctx, 'status', false);
+                    makeWritable(ctx, 'statusText', false);
+                    logger.log('Overrided', ctx.responseURL);
+                   
+                    // do callbacks
+                    if (ctx.onreadystatechange) {
+                        ctx.onreadystatechange();
+                    }
+                    if (ctx.onload) {
+                        ctx.onload();
+                    }
+                    if (ctx.onloadend) {
+                        ctx.onloadend(); 
+                    }
+                });
             }).onFail(() => {
             }).send();
     }

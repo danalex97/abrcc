@@ -34,7 +34,10 @@ abr_schema::Decision AbrRandom::decide() {
       last_timestamp
     );
   }
-  return decisions[last_index + 1];
+  int next_index = last_index + 1;
+  // [TODO] is this ok?
+  last_index = next_index;
+  return decisions[next_index];
 }
 
 }

@@ -3,7 +3,7 @@ import { Value, Segment } from '../common/data';
 import { default as stringify } from 'json-stable-stringify';
 
 
-const TICK_INTERVAL_MS = 500;
+const TICK_INTERVAL_MS = 50;
 const MEDIA_TYPE = 'video';
 
 

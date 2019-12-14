@@ -10,7 +10,7 @@ const logger = logging('QualityController');
 export class QualityController {
     constructor() {
         this._cache = new PieceCache();
-        this._index = 0;
+        this._index = 1;
     }
 
     advance(index) {

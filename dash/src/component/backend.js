@@ -11,6 +11,7 @@ class Request {
         this._onBody = (body) => {};
         this._onResponse = (response) => {};
         this._error = () => {};
+        this._onSend = (url, content) => {};
     }
 
     _nativeGet(path, resource, responseType) {
@@ -32,12 +33,14 @@ class Request {
         xhr.onerror = () => {
             this._error(); 
         };
-        
+
+        this._onSend(path + resource, undefined);
         xhr.send();
     }
 
     _request(requestFunc, path, resource, content) {
         logger.log('sending request', path + resource, content);
+        this._onSend(path + resource, content);
         requestFunc(path + resource, content, (error, res, body) => {
             if (error) {
                 logger.log(error);
@@ -57,6 +60,11 @@ class Request {
         return this;
     }
 
+    onSend(callback) {
+        this._onSend = callback;
+        return this;
+    }
+    
     onFail(callback) {
         this._error = callback;
         return this;
