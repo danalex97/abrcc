@@ -107,36 +107,40 @@ export class App {
                         return event;
                     };
 
-                    // starting
-                    let total = res.response.byteLength; 
-                    logger.log(res.response.byteength);
-                    ctx.readyState = 3;
-                    execute(ctx.onprogress, newEvent('progress', {
-                        'lengthComputable': true, 
-                        'loaded': 0, 
-                        'total': total,
-                    }));
+                    setTimeout(() => {
+                        // starting
+                        let total = res.response.byteLength; 
+                        ctx.readyState = 3;
+                        execute(ctx.onprogress, newEvent('progress', {
+                            'lengthComputable': true, 
+                            'loaded': 0, 
+                            'total': total,
+                        }));
 
-                    // modify response
-                    ctx.responseType = "arraybuffer";
-                    ctx.responseURL = url;
-                    ctx.response = res.response;
-                    ctx.readyState = 4;
-                    ctx.status = 200;
-                    ctx.statusText = "OK";
+                        // modify response
+                        ctx.responseType = "arraybuffer";
+                        ctx.responseURL = url;
+                        ctx.response = res.response;
+                        ctx.readyState = 4;
+                        ctx.status = 200;
+                        ctx.statusText = "OK";
 
-                    logger.log('Overrided', ctx.responseURL, ctx);
-                    execute(ctx.onprogress, newEvent('progress', {
-                        'lengthComputable': true, 
-                        'loaded': total, 
-                        'total': total,
-                    }));
-                    execute(ctx.onload, newEvent('load', {
-                        'lengthComputable': true, 
-                        'loaded': total, 
-                        'total': total,
-                    }));
-                    execute(ctx.onloadended);
+                        logger.log('Overrided', ctx.responseURL, ctx);
+                        execute(ctx.onprogress, newEvent('progress', {
+                            'lengthComputable': true, 
+                            'loaded': total, 
+                            'total': total,
+                        }));
+                        execute(ctx.onload, newEvent('load', {
+                            'lengthComputable': true, 
+                            'loaded': total, 
+                            'total': total,
+                        }));
+                        execute(ctx.onloadended);
+                        
+                        this.current -= 1;
+                        this.sendPieceRequest();
+                    }, 2000);
                 });
             }).onFail(() => {
             }).send();

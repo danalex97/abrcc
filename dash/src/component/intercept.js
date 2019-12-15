@@ -107,7 +107,9 @@ export class Interceptor {
                         // if the callback was set this means we already got the new response
                         if (interceptor._onIntercept[index] !== undefined) {
                             interceptor._onIntercept[index](interceptor._toIntercept[index]);
+                            return;
                         }
+                        return;
                     } else {
                         return oldSend.apply(this, arguments);
                     }

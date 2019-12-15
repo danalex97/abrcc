@@ -4,7 +4,7 @@ import { MediaPlayer } from 'dashjs';
 import readingTime from 'reading-time';
 
 
-const LARGE_BUFFER_TIME = 500;
+const LARGE_BUFFER_TIME = 100000;
 
 
 function updateAbrSettings(player) {
