@@ -16,10 +16,10 @@ const metricsStream = checking('metrics');
 
 
 export class App {
-    constructor() {
+    constructor(player) {
+        this.tracker = new StatsTracker(player);
         this.shim = new BackendShim(); 
         this.interceptor = new Interceptor();
-        this.interceptor.start();
 
         this.qualityController = new QualityController();
         this.statsController = new StatsController();
@@ -28,11 +28,6 @@ export class App {
         this.pool = 5;
         this.index = 0;
         SetQualityController(this.qualityController);
-    }
-
-    withPlayer(player) {
-        this.tracker = new StatsTracker(player);
-        return this;
     }
 
     sendPieceRequest() {
@@ -99,12 +94,28 @@ export class App {
                         }
                     };
 
+                    const newEvent = (type, dict) => {
+                        let event = new ProgressEvent(type, dict);
+                        makeWritable(event, 'currentTarget', true);
+                        makeWritable(event, 'srcElement', true);
+                        makeWritable(event, 'target', true);
+                        makeWritable(event, 'trusted', true);
+                        event.currentTarget = ctx;
+                        event.srcElement = ctx;
+                        event.target = ctx;
+                        event.trusted = true;
+                        return event;
+                    };
+
                     // starting
+                    let total = res.response.byteLength; 
+                    logger.log(res.response.byteength);
                     ctx.readyState = 3;
-                    execute(ctx.onprogress, {
-                        'noTrace' : true,
-                    });
-                    
+                    execute(ctx.onprogress, newEvent('progress', {
+                        'lengthComputable': true, 
+                        'loaded': 0, 
+                        'total': total,
+                    }));
 
                     // modify response
                     ctx.responseType = "arraybuffer";
@@ -114,15 +125,17 @@ export class App {
                     ctx.status = 200;
                     ctx.statusText = "OK";
 
-                    
                     logger.log('Overrided', ctx.responseURL, ctx);
-                    execute(ctx.onprogress, {
-                        'lengthComputable' : true,
-                        'loaded' : res.response.bytelength,
-                        'total' : res.response.bytelength,
-                        'noTrace': true,
-                    });
-                    execute(ctx.onload);
+                    execute(ctx.onprogress, newEvent('progress', {
+                        'lengthComputable': true, 
+                        'loaded': total, 
+                        'total': total,
+                    }));
+                    execute(ctx.onload, newEvent('load', {
+                        'lengthComputable': true, 
+                        'loaded': total, 
+                        'total': total,
+                    }));
                     execute(ctx.onloadended);
                 });
             }).onFail(() => {
@@ -141,7 +154,8 @@ export class App {
 
                 // send metrics to tracker 
                 this.tracker.getMetrics(); 
-            });
+            })
+            .start();
         
         this.tracker.registerCallback((metrics) => {
             // Log metrics

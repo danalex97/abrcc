@@ -1,7 +1,4 @@
 import { App } from './app';
-
-var app = new App();
-
 import { GetServerSideRule } from './component/abr';
 import { MediaPlayer } from 'dashjs';
 import readingTime from 'reading-time';
@@ -19,9 +16,6 @@ function updateAbrSettings(player) {
             'stableBufferTime': LARGE_BUFFER_TIME, // we use this to request continuously
             'bufferTimeAtTopQuality': LARGE_BUFFER_TIME // we use this to request continously
         },
-        'bufferAheadToKeep' : LARGE_BUFFER_TIME,
-        'bufferToKeep' : LARGE_BUFFER_TIME,
-        'liveDelayFragmentCount' : 50,
     });
     console.log(player.getSettings());
     player.addABRCustomRule(
@@ -36,7 +30,7 @@ function init() {
     let url = "https://www.example.org/manifest.mpd";
     let player = MediaPlayer().create();
     let video = document.querySelector('#videoPlayer'); 
-    app.withPlayer();
+    let app = new App(player);
 
     updateAbrSettings(player);
     player.initialize(video, url, true);

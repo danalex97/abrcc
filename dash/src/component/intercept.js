@@ -89,11 +89,11 @@ export class Interceptor {
                 let processor = new UrlProcessor(url);
                 interceptor._onRequest(processor.index);
             }
-
             ctx.send = function() {
                 if (url.includes('video') && url.endsWith('.m4s') && !url.includes('Header')) {
                     let processor = new UrlProcessor(url);
                     let index = processor.index;
+                    
                     if (interceptor._toIntercept[index] !== undefined) {
                         logger.log("intercepted", url);
 
