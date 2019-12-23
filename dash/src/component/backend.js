@@ -122,6 +122,23 @@ export class PieceRequest extends Request {
 }
 
 
+export class HeaderRequest extends Request {
+    constructor(shim) {
+        super(shim);
+    }
+
+    addQuality(quality) {
+        this.quality = quality;
+        return this;
+    }
+
+    send() {
+        let resource = `/video${this.quality}/Header.m4s`;
+        return this._nativeGet(this.shim.basePath, resource, "arraybuffer");
+    }
+}
+
+
 export class ResourceRequest extends Request {
     constructor(shim) {
         super(shim);
@@ -140,8 +157,13 @@ export class ResourceRequest extends Request {
 
 export class BackendShim {
     constructor() {
+        this._base_path = "https://www.example.org";
         this._path = "https://www.example.org/request";
         this._resource_path = "https://www.example.org/piece";    
+    }
+
+    headerRequest() {
+        return new HeaderRequest(this);
     }
 
     metricsRequest() {
@@ -154,6 +176,10 @@ export class BackendShim {
 
     resourceRequest() {
         return new ResourceRequest(this);
+    }
+
+    get basePath() {
+        return this._base_path;
     }
 
     get resourcePath() {

@@ -2,7 +2,12 @@ import { logging } from '../common/logger';
 
 
 const logger = logging('Intercept');
-const MAX_QUALITY = 6;
+export const MAX_QUALITY = 6;
+
+
+export function makeHeader(quality) {
+    return `HEADER${quality}`;
+}
 
 
 class UrlProcessor {
@@ -81,7 +86,7 @@ export class Interceptor extends InterceptorUtil {
         
         // map of contexts for onIntercept
         this._toIntercept = {};
-        
+
         // map of callbacks for onIntercept
         this._onIntercept = {};
     }
@@ -99,13 +104,6 @@ export class Interceptor extends InterceptorUtil {
         // the function
         if (this._toIntercept[index] !== null && this._toIntercept[index] !== undefined) {
             let ctx = this._toIntercept[index].ctx;
-            
-            this.makeWritable(ctx, 'responseURL', true);
-            this.makeWritable(ctx, 'response', true); 
-            this.makeWritable(ctx, 'readyState', true);
-            this.makeWritable(ctx, 'status', true);
-            this.makeWritable(ctx, 'statusText', true);
-                    
             callback(this._toIntercept[index]);
         }
 
@@ -116,7 +114,7 @@ export class Interceptor extends InterceptorUtil {
         this._toIntercept[index] = null;
         return this;
     }
-
+    
     start() {
         let interceptor = this;
         let oldOpen = window.XMLHttpRequest.prototype.open; 
@@ -132,10 +130,17 @@ export class Interceptor extends InterceptorUtil {
                 interceptor._onRequest(processor.index);
             }
             ctx.send = function() {
-                if (url.includes('video') && url.endsWith('.m4s') && !url.includes('Header')) {
+                if (url.includes('video') && url.endsWith('.m4s')) {
                     let processor = new UrlProcessor(url);
                     let index = processor.index;
-                    
+                    let quality = processor.quality; 
+
+                    // [TODO] refactor nicer
+                    if (url.includes('Header')) {
+                        // [TODO] refactor nicer
+                        index = makeHeader(MAX_QUALITY - quality + 1); 
+                    }
+    
                     if (interceptor._toIntercept[index] !== undefined) {
                         logger.log("intercepted", url);
 

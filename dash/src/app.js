@@ -4,7 +4,7 @@ import { SetQualityController } from './component/abr';
 import { StatsTracker } from './component/stats'; 
 import { BackendShim } from './component/backend';
 import { checking } from './component/consistency';
-import { DataPiece, Interceptor } from './component/intercept';
+import { DataPiece, Interceptor, MAX_QUALITY, makeHeader } from './component/intercept';
 
 import { RequestController } from './controller/request';
 import { QualityController } from './controller/quality';
@@ -31,6 +31,72 @@ export class App {
     }
 
     start() {
+        // Request all headers at the beginning
+        for (let quality = 1; quality <= MAX_QUALITY; quality++) {
+            let header = makeHeader(quality);
+            this.shim
+                .headerRequest() 
+                .addQuality(quality)
+                .onSend((url, content) => {
+                    logger.log("1", header, url);
+                    this.interceptor.intercept(header);
+                })
+                .onSuccessResponse((res) => {
+                    this.interceptor.onIntercept(header, (object) => {
+                        let ctx = object.ctx;
+                        let url = object.url;
+                        logger.log("2", header, url);
+                        
+                        const makeWritable = object.makeWritable;
+                        const execute = object.execute;
+                        const newEvent = (type, dict) => { 
+                            return object.newEvent(ctx, type, dict);
+                        };
+
+                       setTimeout(() => {
+                            // making response fields writable
+                            makeWritable(ctx, 'responseURL', true);
+                            makeWritable(ctx, 'response', true); 
+                            makeWritable(ctx, 'readyState', true);
+                            makeWritable(ctx, 'status', true);
+                            makeWritable(ctx, 'statusText', true);
+
+                            // starting
+                            let total = res.response.byteLength; 
+                            ctx.readyState = 3;
+                            execute(ctx.onprogress, newEvent('progress', {
+                                'lengthComputable': true, 
+                                'loaded': 0, 
+                                'total': total,
+                            }));
+
+                            // modify response
+                            ctx.responseType = "arraybuffer";
+                            ctx.responseURL = url;
+                            ctx.response = res.response;
+                            ctx.readyState = 4;
+                            ctx.status = 200;
+                            ctx.statusText = "OK";
+
+                            logger.log('Overrided', ctx.responseURL, ctx);
+                            execute(ctx.onprogress, newEvent('progress', {
+                                'lengthComputable': true, 
+                                'loaded': total, 
+                                'total': total,
+                            }));
+                            execute(ctx.onload, newEvent('load', {
+                                'lengthComputable': true, 
+                                'loaded': total, 
+                                'total': total,
+                            }));
+                            execute(ctx.onloadend);
+                        }, 0);
+                    });
+                }) 
+                .send();        
+        }
+
+        // Use long polling for the pieces
         this.requestController
             .onPieceSuccess((index, body) => {
                 let object = JSON.parse(body);
@@ -96,8 +162,8 @@ export class App {
                             'loaded': total, 
                             'total': total,
                         }));
-                        execute(ctx.onloadended);
-                    }, 2000);
+                        execute(ctx.onloadend);
+                    }, 0);
                 });
             })
             .start();
