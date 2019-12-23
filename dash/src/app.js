@@ -52,44 +52,22 @@ export class App {
             .onResourceSuccess((index, res) => {
                 this.interceptor.onIntercept(index, (object) => { 
                     let ctx = object.ctx;
-                    let makeWritable = object.makeWritable;
                     let url = object.url;
-                   
-                    // make writable
-                    makeWritable(ctx, 'responseURL', true);
-                    makeWritable(ctx, 'response', true); 
-                    makeWritable(ctx, 'readyState', true);
-                    makeWritable(ctx, 'status', true);
-                    makeWritable(ctx, 'statusText', true);
                     
-                    const execute = (callback, event) => {
-                        try {
-                            if (callback) {
-                                if (event) {
-                                    callback(event);
-                                } else {
-                                    callback();
-                                }
-                            }
-                        } catch(ex) {
-                            logger.log('Exception in', ex, callback);
-                        }
+                    const makeWritable = object.makeWritable;
+                    const execute = object.execute;
+                    const newEvent = (type, dict) => { 
+                        return object.newEvent(ctx, type, dict);
                     };
 
-                    const newEvent = (type, dict) => {
-                        let event = new ProgressEvent(type, dict);
-                        makeWritable(event, 'currentTarget', true);
-                        makeWritable(event, 'srcElement', true);
-                        makeWritable(event, 'target', true);
-                        makeWritable(event, 'trusted', true);
-                        event.currentTarget = ctx;
-                        event.srcElement = ctx;
-                        event.target = ctx;
-                        event.trusted = true;
-                        return event;
-                    };
+                   setTimeout(() => {
+                        // making response fields writable
+                        makeWritable(ctx, 'responseURL', true);
+                        makeWritable(ctx, 'response', true); 
+                        makeWritable(ctx, 'readyState', true);
+                        makeWritable(ctx, 'status', true);
+                        makeWritable(ctx, 'statusText', true);
 
-                    setTimeout(() => {
                         // starting
                         let total = res.response.byteLength; 
                         ctx.readyState = 3;

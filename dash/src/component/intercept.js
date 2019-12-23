@@ -34,8 +34,49 @@ class UrlProcessor {
 }
 
 
-export class Interceptor {
+export class InterceptorUtil {
+    makeWritable(object, property, writable) {
+        let descriptor = Object.getOwnPropertyDescriptor(object, property) || {};
+        descriptor.writable = writable;
+        Object.defineProperty(object, property, descriptor);
+    }
+
+    executeCallback(callback, event) {
+        try {
+            if (callback) {
+                if (event) {
+                    callback(event);
+                } else {
+                    callback();
+                }
+            }
+        } catch(ex) {
+            logger.log('Exception in', ex, callback);
+        }
+    }
+
+    newEvent(ctx, type, dict) {
+        let event = new ProgressEvent(type, dict);
+        
+        this.makeWritable(event, 'currentTarget', true);
+        this.makeWritable(event, 'srcElement', true);
+        this.makeWritable(event, 'target', true);
+        this.makeWritable(event, 'trusted', true);
+        
+        event.currentTarget = ctx;
+        event.srcElement = ctx;
+        event.target = ctx;
+        event.trusted = true;
+
+        return event;
+    }
+}
+
+
+export class Interceptor extends InterceptorUtil {
     constructor() {
+        super();
+
         this._onRequest = (index) => {};
         
         // map of contexts for onIntercept
@@ -57,6 +98,14 @@ export class Interceptor {
         // if we already have a context on toIntercept we can call
         // the function
         if (this._toIntercept[index] !== null && this._toIntercept[index] !== undefined) {
+            let ctx = this._toIntercept[index].ctx;
+            
+            this.makeWritable(ctx, 'responseURL', true);
+            this.makeWritable(ctx, 'response', true); 
+            this.makeWritable(ctx, 'readyState', true);
+            this.makeWritable(ctx, 'status', true);
+            this.makeWritable(ctx, 'statusText', true);
+                    
             callback(this._toIntercept[index]);
         }
 
@@ -69,13 +118,6 @@ export class Interceptor {
     }
 
     start() {
-         // make properties writable
-         let makeWritable = (object, property, writable) => {
-            let descriptor = Object.getOwnPropertyDescriptor(object, property) || {};
-            descriptor.writable = writable;
-            Object.defineProperty(object, property, descriptor);
-         };
-
         let interceptor = this;
         let oldOpen = window.XMLHttpRequest.prototype.open; 
 
@@ -101,7 +143,10 @@ export class Interceptor {
                         interceptor._toIntercept[index] = {
                             'ctx': ctx,
                             'url': url,
-                            'makeWritable': makeWritable,
+                            
+                            'makeWritable': interceptor.makeWritable,
+                            'execute': interceptor.executeCallback,
+                            'newEvent': interceptor.newEvent, 
                         };
 
                         // if the callback was set this means we already got the new response
