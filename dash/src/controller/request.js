@@ -2,46 +2,72 @@ import { logging } from '../common/logger';
 import { BackendShim } from '../component/backend';
 
 
-const logger = logging('RequestControler');
+const logger = logging('RequestController');
 
 
-// [TODO] Should we still use this?
 export class RequestController {
-    constructor(poolSize, shim) {
-        this._currentSize = 0;
-        this._poolSize = poolSize;
+    constructor(shim, pool) {
+        this._current = 0;
+        this._pool = pool;
         this._shim = shim;
-        this._index = 1;
-        this._success = (index, body) => {};
+        this._index = 0;
+        
+        this._resourceSend = (index, url, content) => {};
+        this._resourceSuccess = (index, res) => {};
+        this._pieceSuccess = (index, body) => {};
     }
 
     _request() {
-        if (this._currentSize < this._poolSize) {
-            let index = this._index; 
-            this._shim
-                .pieceRequest()
-                .addIndex(index)
-                .onSuccess((body) => {
-                    logger.log(`Piece downloaded successfully ${index}`);
-                    this._success(index, body);
-                    this._currentSize -= 1;
-                    this._request();
-                }).onFail(() => {
-                    logger.log(`Failed to get piece ${index}`);
-                }).send();
+        if (this._current < this._pool) {
+            this._current += 1;
             this._index += 1;
-            this._currentSize += 1;
+        } else {
+            return;
         }
-        return this._currentSize >= this._poolSize;
+        let index = this._index;
+
+        this._shim
+            .pieceRequest()
+            .addIndex(index)
+            .onSuccess((body) => {
+                this._pieceSuccess(index, body);
+            }).onFail(() => {
+            }).send();
+        
+        this._shim
+            .resourceRequest()
+            .addIndex(index)
+            .onSend((url, content) => {
+                this._resourceSend(index, url, content);    
+            })
+            .onSuccessResponse((res) => {    
+                this._resourceSuccess(index, res);
+            
+                this._current -= 1;
+                this._request();
+            }).onFail(() => {
+            }).send();
+        
+        this._request(); 
     }
 
     start() {
-        while (!this._request());
+        this._request();
         return this;
     }
 
-    onSuccess(callback) {
-        this._success = callback;
+    onResourceSend(callback) {
+        this._resourceSend = callback;
+        return this;
+    }
+
+    onResourceSuccess(callback) {
+        this._resourceSuccess = callback;
+        return this;
+    }
+
+    onPieceSuccess(callback) {
+        this._pieceSuccess = callback;
         return this;
     }
 }

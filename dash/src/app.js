@@ -6,6 +6,7 @@ import { BackendShim } from './component/backend';
 import { checking } from './component/consistency';
 import { DataPiece, Interceptor } from './component/intercept';
 
+import { RequestController } from './controller/request';
 import { QualityController } from './controller/quality';
 import { StatsController } from './controller/stats';
 
@@ -13,6 +14,7 @@ import { StatsController } from './controller/stats';
 const logger = logging('App');
 const qualityStream = checking('quality');
 const metricsStream = checking('metrics');
+const POOL_SIZE = 5;
 
 
 export class App {
@@ -20,31 +22,17 @@ export class App {
         this.tracker = new StatsTracker(player);
         this.shim = new BackendShim(); 
         this.interceptor = new Interceptor();
-
+        
+        this.requestController = new RequestController(this.shim, POOL_SIZE);
         this.qualityController = new QualityController();
         this.statsController = new StatsController();
         
-        this.current = 0;
-        this.pool = 5;
-        this.index = 0;
         SetQualityController(this.qualityController);
     }
 
-    sendPieceRequest() {
-        if (this.current < this.pool) {
-            this.current += 1;
-            this.index += 1;
-        } else {
-            return;
-        }
-        let index = this.index;
-
-        this.shim
-            .pieceRequest()
-            .addIndex(index)
-            .onSuccess((body) => {
-                this.sendPieceRequest();
-                
+    start() {
+        this.requestController
+            .onPieceSuccess((index, body) => {
                 let object = JSON.parse(body);
                 let decision = new Decision(
                     object.index,
@@ -57,17 +45,11 @@ export class App {
 
                 // [TODO] check this is legit
                 this.statsController.advance(decision.timestamp);
-            }).onFail(() => {
-            }).send();
-        
-        this.shim
-            .resourceRequest()
-            .addIndex(index)
-            .onSend((url, content) => {
-                // we intercept future requests to the backend
+            })
+            .onResourceSend((index, url, content) => {
                 this.interceptor.intercept(index);
             })
-            .onSuccessResponse((res) => {
+            .onResourceSuccess((index, res) => {
                 this.interceptor.onIntercept(index, (object) => { 
                     let ctx = object.ctx;
                     let makeWritable = object.makeWritable;
@@ -137,18 +119,11 @@ export class App {
                             'total': total,
                         }));
                         execute(ctx.onloadended);
-                        
-                        this.current -= 1;
-                        this.sendPieceRequest();
                     }, 2000);
                 });
-            }).onFail(() => {
-            }).send();
-       this.sendPieceRequest(); 
-    }
+            })
+            .start();
 
-    start() {
-        this.sendPieceRequest();
         this.interceptor
             .onRequest((index) => {
                 // only when a request is sent, this means that the next 
