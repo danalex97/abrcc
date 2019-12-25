@@ -3,7 +3,7 @@ import { Value, Segment } from '../common/data';
 import { default as stringify } from 'json-stable-stringify';
 
 
-const TICK_INTERVAL_MS = 50;
+const TICK_INTERVAL_MS = 1000;
 const MEDIA_TYPE = 'video';
 
 
@@ -23,13 +23,12 @@ export class Metrics {
         this._segments = [];
         if (raw_metrics !== undefined) {
             this.withSegment(new Segment()
-                .withIndex(raw_metrics.scheduling.startTime, raw_metrics.scheduling.duration)
+                .withStartTime(
+                    raw_metrics.scheduling.startTime, 
+                    raw_metrics.scheduling.duration)
                 .withState(raw_metrics.scheduling.state)
                 .withTimestamp(timestamp(raw_metrics.scheduling.t))
                 .withQuality(raw_metrics.scheduling.quality)
-            ).withSegment(new Segment() 
-                .withUrl(raw_metrics.http_request.url)
-                .withTimestamp(timestamp(raw_metrics.http_request.tresponse))
             ).withDroppedFrames(new Value(raw_metrics.dropped.droppedFrames)
                 .withTimestamp(timestamp(raw_metrics.dropped.time))
             ).withPlayerTime(new Value(Math.round(raw_metrics.info.time * 1000))
@@ -122,10 +121,14 @@ export class StatsTracker {
     constructor(player) {
         this.player = player;
         this.callbacks = [];
+        console.log(this.callbacks);
     }
 
     start() {
-        setInterval(this.getMetrics, TICK_INTERVAL_MS);
+        this.getMetrics();
+        setInterval(() => {
+            this.getMetrics();
+        }, TICK_INTERVAL_MS);
     }
 
     getMetrics() {
@@ -134,7 +137,7 @@ export class StatsTracker {
             metrics_wrapper = this.player.getDashMetrics();
             metrics = this.tick(metrics_wrapper);
         } catch(err) {
-            return; 
+            metrics = new Metrics();
         }
         for (let callback of this.callbacks) {
             callback(metrics);
@@ -142,16 +145,23 @@ export class StatsTracker {
     }
 
     tick(metrics_wrapper) {
-        let getBufferInfo = (info) => metrics_wrapper.getLatestBufferInfoVO(
+        const getBufferInfo = (info) => metrics_wrapper.getLatestBufferInfoVO(
             MEDIA_TYPE, true, info
         );
+        const execute = (func, ...args) => {
+            try {
+                return func(...args);
+            } catch (err) {
+                return null;
+            }
+        };
+
         let raw_metrics = {
-            'info' : metrics_wrapper.getCurrentDVRInfo(MEDIA_TYPE),
-            'dropped' : metrics_wrapper.getCurrentDroppedFrames(),
-            'http_request' : metrics_wrapper.getCurrentHttpRequest(MEDIA_TYPE, true),
-            'switch' : metrics_wrapper.getCurrentRepresentationSwitch(MEDIA_TYPE, true),
-            'scheduling' : metrics_wrapper.getCurrentSchedulingInfo(MEDIA_TYPE),
-            'buffer_level' : getBufferInfo('BufferLevel'),
+            'info' : execute(metrics_wrapper.getCurrentDVRInfo, MEDIA_TYPE),
+            'dropped' : execute(metrics_wrapper.getCurrentDroppedFrames),
+            'switch' : execute(metrics_wrapper.getCurrentRepresentationSwitch, MEDIA_TYPE, true),
+            'scheduling' : execute(metrics_wrapper.getCurrentSchedulingInfo, MEDIA_TYPE),
+            'buffer_level' : execute(getBufferInfo, 'BufferLevel'),
         };
 
         let metrics = new Metrics(raw_metrics);

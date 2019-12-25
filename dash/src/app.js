@@ -1,7 +1,7 @@
-import { Decision } from './common/data';
+import { Decision, Segment } from './common/data';
 import { logging } from './common/logger';
 import { SetQualityController } from './component/abr';
-import { StatsTracker } from './component/stats'; 
+import { Metrics, StatsTracker } from './component/stats'; 
 import { BackendShim } from './component/backend';
 import { checking } from './component/consistency';
 import { DataPiece, Interceptor, MAX_QUALITY, makeHeader } from './component/intercept';
@@ -112,13 +112,23 @@ export class App {
                 this.qualityController.addPiece(decision);
                 qualityStream.push(decision);
 
-                // [TODO] check this is legit
+                // [TODO] for now we advance the timestamp at each new decision
                 this.statsController.advance(decision.timestamp);
             })
             .onResourceSend((index, url, content) => {
                 this.interceptor.intercept(index);
             })
             .onResourceSuccess((index, res) => {
+                // register metrics when a new resource arrives
+                let segment = new Segment()
+                    .withQuality(this.qualityController.getQuality(index))
+                    .withState('downloaded')
+                    .withIndex(index);
+                let metrics = new Metrics()
+                    .withSegment(segment);
+                this.statsController.addMetrics(metrics);
+
+                // add the resource to the cache
                 this.interceptor.onIntercept(index, (object) => { 
                     cacheHit(object, res);
                 });
@@ -152,7 +162,7 @@ export class App {
                 .metricsRequest()
                 .addStats(allMetrics.serialize())
                 .onSuccess((body) => {
-                    // [TODO] advance timestamp
+                    // [TODO] ideally we would like to advance the metrics timestamp here
                 }).onFail(() => {
                 }).send();
         });

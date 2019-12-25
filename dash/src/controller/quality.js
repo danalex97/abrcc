@@ -26,7 +26,10 @@ export class QualityController {
         logger.log('addPiece', piece);
     }
     
-    getQuality() {
+    getQuality(index) {
+        if (index === undefined) {
+            index = this._index;
+        }
         let decision = this._cache.piece(this._index);
         if (decision !== undefined) {
             logger.log('new decision', decision);

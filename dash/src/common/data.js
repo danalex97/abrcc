@@ -89,27 +89,15 @@ export class Segment extends Piece {
         this._state = state;
         return this;
     }
-   
-    withIndex(startTime, duration) {
-        // segments start from 1
-        this._index = Math.round(startTime / duration) + 1;
+
+    withIndex(index) {
+        this._index = index;
         return this;
     }
-
-    // assumes format [domain]/video[quality]/[segment].[type]
-    withUrl(url) {
-        let split = url.split('/');
-        
-        let raw_quality = split[split.length - 2];
-        let quality = parseInt(raw_quality.substring(5), 10); 
-        
-        let raw_segment = split[split.length - 1];
-        let segment = parseInt(raw_segment.split('.')[0], 10);
-    
-        this._quality = MAX_QUALITY - quality + 1;
-        this._index = segment;
-        this._state = 'downloaded';
-        
+   
+    withStartTime(startTime, duration) {
+        // segments start from 1
+        this._index = Math.round(startTime / duration) + 1;
         return this;
     }
 
