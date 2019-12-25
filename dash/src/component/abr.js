@@ -34,9 +34,11 @@ function ServerSideRuleClass() {
         let abrController = rulesContext.getAbrController();
         let current = abrController.getQualityFor(MEDIA_TYPE, streamController.getActiveStreamInfo());
 
+        /*
         let metricsModel = MetricsModel(context).getInstance();
         let metrics = metricsModel.getMetricsFor('video', true);
         logger.log(metrics);
+        */
 
         logger.log("new request");
         let quality = getQualityController().getQuality();
