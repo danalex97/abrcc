@@ -17,7 +17,22 @@ function log {
 
 function run_cmd {
     echo "[running] $@"
-    $@
+    if [[ -v SUDO_USER ]]; then
+        sudo -u $SUDO_USER $@
+    else
+        $@
+    fi
+}
+
+function priv_run_cmd {
+    echo "[sudo running] $@"
+    if [[ -v SUDO_USER ]]; then
+        $@
+    else 
+        echo "[sudo needed] $@"
+        echo "Stopping script"
+        exit 1
+    fi
 }
 
 function build_chromium {
@@ -37,4 +52,25 @@ function build_chromium {
 
     popd > /dev/null
     log "Build finished."
+}
+
+function generate_certs {
+    log "Generating certs..."
+    pushd $CERTS_PATH > /dev/null
+    run_cmd ./generate-certs.sh
+    popd > /dev/null
+    log "Certs generated."
+}
+
+function install_certs {
+    log "Installing certs..."
+    pushd $CERTS_PATH/out > /dev/null
+
+    run_cmd certutil -d sql:$HOME/.pki/nssdb -D -n cert
+    run_cmd certutil -d sql:$HOME/.pki/nssdb -A -n cert -i 2048-sha256-root.pem -t "C,,"
+    
+    run_cmd certutil -d sql:$HOME/.pki/nssdb -L
+
+    popd > /dev/null
+    log "Certs installed."
 }
