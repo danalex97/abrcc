@@ -156,12 +156,13 @@ export class ServerSideApp extends App {
             this.statsController.addMetrics(metrics);
             logger.log("metrics", this.statsController.metrics);
 
-            // Request a new peice from the backend
+            // Push segments to the metrics stream for consistency checks
             let allMetrics = this.statsController.metrics;
             for (let segment of metrics.segments) {
                 metricsStream.push(segment);
             }
 
+            // Send metrics to backend
             this.shim
                 .metricsRequest()
                 .addStats(allMetrics.serialize())

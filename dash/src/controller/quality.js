@@ -11,6 +11,8 @@ export class QualityController {
     constructor() {
         this._cache = new PieceCache();
         this._index = 1;
+        
+        this._onGetQuality = (index) => {};
     }
 
     advance(index) {
@@ -25,11 +27,17 @@ export class QualityController {
         this._cache.insert(piece);
         logger.log('addPiece', piece);
     }
-    
+ 
+    onGetQuality(callback) {
+        this._onGetQuality = callback;
+        return this;
+    }
+
     getQuality(index) {
         if (index === undefined) {
             index = this._index;
         }
+        this._onGetQuality(index);
         let decision = this._cache.piece(this._index);
         if (decision !== undefined) {
             logger.log('new decision', decision);

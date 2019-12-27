@@ -89,6 +89,10 @@ export class Interceptor extends InterceptorUtil {
 
         // map of callbacks for onIntercept
         this._onIntercept = {};
+        
+        // map of done requests
+        // the retries will not be requested, but only logged
+        this._done = {};
     }
    
     onRequest(callback) {
@@ -127,14 +131,21 @@ export class Interceptor extends InterceptorUtil {
             // modify url
             if (url.includes('video') && url.endsWith('.m4s') && !url.includes('Header')) {
                 let processor = new UrlProcessor(url);
-                interceptor._onRequest(processor.index);
+                let index = processor.index;
+                
+                if (interceptor._done[index] === undefined) {
+                    interceptor._onRequest(index);
+                    interceptor._done[index] = url;
+                } else {
+                    logger.log("Retry on request", index, url);
+                }
             }
             ctx.send = function() {
                 if (url.includes('video') && url.endsWith('.m4s')) {
                     let processor = new UrlProcessor(url);
                     let index = processor.index;
                     let quality = processor.quality; 
-
+                    
                     // [TODO] refactor nicer
                     if (url.includes('Header')) {
                         // [TODO] refactor nicer
