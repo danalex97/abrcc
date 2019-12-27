@@ -13,6 +13,7 @@ BW=""
 DELAY=""
 BURST="20000"
 CERTS=""
+DASH_ARGS=""
 
 function build {
     log "Building $1"
@@ -64,7 +65,7 @@ function build_dash_client_npm {
     log "Building dash client..."
     pushd $DIR/../dash > /dev/null
 
-    run_cmd npm run build 
+    run_cmd npm run build $DASH_ARGS 
     
     SRC=$DIR/../dash
     DST=$DIR/sites/$SITE
@@ -126,12 +127,13 @@ function usage() {
     printf "\t %- 30s %s\n" "-c | --client" "Run a quic client."
     printf "\t %- 30s %s\n" "-b | --build" "Build quic client and server."
     printf "\t %- 30s %s\n" "--chrome" "Run a quic client in Chrome."
-    printf "\t %- 30s %s\n" "--port" "Change the port. (default 6121)"
-    printf "\t %- 30s %s\n" "--site" "Change the site. (default www.example.org)"
-    printf "\t %- 30s %s\n" "--bw" "Change connection bandwidth in mbit."
-    printf "\t %- 30s %s\n" "--latency | --delay" "Change connection latency in ms."
-    printf "\t %- 30s %s\n" "--burst" "Change the burst. (default 20000)"
+    printf "\t %- 30s %s\n" "--port [int]" "Change the port. (default 6121)"
+    printf "\t %- 30s %s\n" "--site [url]" "Change the site. (default www.example.org)"
+    printf "\t %- 30s %s\n" "--bw [int]" "Change connection bandwidth in mbit."
+    printf "\t %- 30s %s\n" "(--latency | --delay) [int]" "Change connection latency in ms."
+    printf "\t %- 30s %s\n" "--burst [int]" "Change the burst. (default 20000)"
     printf "\t %- 30s %s\n" "--certs" "Regenerate and install server certificates."
+    printf "\t %- 30s %s\n" "-d | --dash" "Pass a command line argument to dash."
 
     echo -e "\nExamples: "
     printf "\t %- 30s %s\n" "sudo run.sh --bw 2 --latency 100 -s --site www.example.org"
@@ -144,18 +146,15 @@ function parse_command_line_options() {
     while [ "${1:-}" != "" ]; do
         case $1 in
             -b | --build)
-                shift
                 build net
                 build quic_client
                 build dash_server
                 exit 0
                 ;;
             -c | --client)
-                shift
                 FUNC=quic_client
                 ;;
             -s | --server)
-                shift
                 FUNC=quic_server
                 ;;
             --chrome)
@@ -171,7 +170,7 @@ function parse_command_line_options() {
                 PORT=$1
                 ;;
             --site)
-                shift 
+                shift
                 SITE=$1
                 ;;
             --bw)
@@ -188,6 +187,10 @@ function parse_command_line_options() {
                 ;;
             --certs)
                 CERTS="yes"
+                ;;
+            -d | --dash)
+                shift
+                DASH_ARGS="${DASH_ARGS} $1"
                 ;;
             -h | --help )
                 usage

@@ -1,14 +1,16 @@
-import { Decision, Segment } from './common/data';
-import { logging } from './common/logger';
-import { SetQualityController } from './component/abr';
-import { Metrics, StatsTracker } from './component/stats'; 
-import { BackendShim } from './component/backend';
-import { checking } from './component/consistency';
-import { DataPiece, Interceptor, MAX_QUALITY, makeHeader } from './component/intercept';
+import { App } from '../apps/app';
 
-import { RequestController } from './controller/request';
-import { QualityController } from './controller/quality';
-import { StatsController } from './controller/stats';
+import { Decision, Segment } from '../common/data';
+import { logging } from '../common/logger';
+import { SetQualityController } from '../component/abr';
+import { Metrics, StatsTracker } from '../component/stats'; 
+import { BackendShim } from '../component/backend';
+import { checking } from '../component/consistency';
+import { DataPiece, Interceptor, MAX_QUALITY, makeHeader } from '../component/intercept';
+
+import { RequestController } from '../controller/request';
+import { QualityController } from '../controller/quality';
+import { StatsController } from '../controller/stats';
 
 
 const logger = logging('App');
@@ -68,8 +70,10 @@ function cacheHit(object, res) {
 }
 
 
-export class App {
+export class ServerSideApp extends App {
     constructor(player) {
+        super(player);
+
         this.tracker = new StatsTracker(player);
         this.shim = new BackendShim(); 
         this.interceptor = new Interceptor();
