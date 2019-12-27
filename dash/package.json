@@ -6,6 +6,7 @@
     "lint": "eslint src",
     "build": "node build.js",
     "build:run": "browserify dist/config.json src/index.js src/apps/* src/common/* src/component/* src/controller/* > dist/bundle.js",
+    "build:compress" : "uglifyjs -c -m -o dist/bundle.js -- dist/bundle.js",
     "watch": "watchify src/* -o dist/bundle.js -v"
   },
   "browserify": {
@@ -19,8 +20,8 @@
         }
       ]
     ],
-    "ignoreMissing" : [
-        "dist/config.json"
+    "ignoreMissing": [
+      "dist/config.json"
     ]
   },
   "dependencies": {
@@ -30,13 +31,13 @@
     "json-stable-stringify": "^1.0.1",
     "reading-time": "^1.1.3",
     "request": "^2.88.0",
-    "series": "^0.3.3",
     "watchify": "^3.11.0"
   },
   "devDependencies": {
     "babel-core": "^6.26.3",
     "babel-preset-es2015": "^6.24.1",
     "babelify": "^8.0.0",
+    "uglify-js": "^3.7.3",
     "eslint": "^6.7.2"
   }
 }

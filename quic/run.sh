@@ -14,6 +14,7 @@ DELAY=""
 BURST="20000"
 CERTS=""
 DASH_ARGS=""
+DASH_COMPRESS=""
 
 function build {
     log "Building $1"
@@ -66,7 +67,11 @@ function build_dash_client_npm {
     pushd $DIR/../dash > /dev/null
 
     run_cmd npm run build $DASH_ARGS 
-    
+    if [ ! -z $DASH_COMPRESS ]; then 
+        run_cmd npm run build:compress
+        run_cmd ls -lh dist
+    fi
+
     SRC=$DIR/../dash
     DST=$DIR/sites/$SITE
     run_cmd rm -rf $DST/dist
@@ -134,7 +139,8 @@ function usage() {
     printf "\t %- 30s %s\n" "--burst [int]" "Change the burst. (default 20000)"
     printf "\t %- 30s %s\n" "--certs" "Regenerate and install server certificates."
     printf "\t %- 30s %s\n" "-d | --dash" "Pass a command line argument to dash."
-
+    printf "\t %- 30s %s\n" "-dc | --dash-compress" "Compress the dash js bundle."
+    
     echo -e "\nExamples: "
     printf "\t %- 30s %s\n" "sudo run.sh --bw 2 --latency 100 -s --site www.example.org"
     printf "\t %- 30s %s\n" "run.sh -s"
@@ -191,6 +197,9 @@ function parse_command_line_options() {
             -d | --dash)
                 shift
                 DASH_ARGS="${DASH_ARGS} $1"
+                ;;
+            -dc | --dash-compress)
+                DASH_COMPRESS="yes"
                 ;;
             -h | --help )
                 usage
