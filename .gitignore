@@ -14,6 +14,7 @@ quic/sites/www.example.org/dist/
 
 depot_tools
 *.swp
+*.swn
 *.swo
 *.crt
 *.crl
