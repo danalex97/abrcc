@@ -1,4 +1,5 @@
 import { App } from '../apps/app';
+import { BB } from '../algo/bb';
 
 import { Decision } from '../common/data';
 import { logging } from '../common/logger';
@@ -22,7 +23,8 @@ export class FrontEndApp extends App {
         
         this.statsController = new StatsController();
         this.qualityController = new QualityController();
-    
+        this.algorithm = new BB(); 
+
         SetQualityController(this.qualityController);
     }
 
@@ -31,20 +33,17 @@ export class FrontEndApp extends App {
 
         this.qualityController
             .onGetQuality((index) => {
+                this.tracker.getMetrics();
                 let controller = this.qualityController;
                 
                 let metrics = this.statsController.metrics;
                 let timestamp = (metrics.playerTime.slice(-1)[0] || {'timestamp' : 0}).timestamp;
                 this.statsController.advance(timestamp);
-
-                logger.log("new metrics", timestamp, metrics);
                 
-                // [TODO] put an actual algorithm here
-                let quality = 0;
-                let decision = new Decision(
+                let decision = this.algorithm.getDecision(
+                    metrics,
                     index,
-                    quality,
-                    timestamp
+                    timestamp,
                 );
                 controller.addPiece(decision);
             });

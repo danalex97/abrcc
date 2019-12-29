@@ -5,7 +5,7 @@
   "scripts": {
     "lint": "eslint src",
     "build": "node build.js",
-    "build:run": "browserify dist/config.json src/index.js src/apps/* src/common/* src/component/* src/controller/* > dist/bundle.js",
+    "build:run": "browserify dist/config.json src/index.js src/apps/* src/algo/* src/common/* src/component/* src/controller/* > dist/bundle.js",
     "build:compress" : "uglifyjs -c -m -o dist/bundle.js -- dist/bundle.js",
     "watch": "watchify src/* -o dist/bundle.js -v"
   },
