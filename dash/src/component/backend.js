@@ -106,6 +106,19 @@ export class MetricsRequest extends Request {
 }
 
 
+export class MetricsLoggingRequest extends MetricsRequest {
+    constructor(shim) {
+        super(shim);
+    }
+
+    send() {
+        return this._request(request.post, this.shim.experimentPath, "/metrics", {
+            json : this._json,
+        });
+    }
+}
+
+
 export class PieceRequest extends Request {
     constructor(shim) {
         super(shim);
@@ -157,9 +170,13 @@ export class ResourceRequest extends Request {
 
 export class BackendShim {
     constructor() {
+        // the base path refers to the backend server
         this._base_path = "https://www.example.org";
         this._path = "https://www.example.org/request";
         this._resource_path = "https://www.example.org/piece";    
+
+        // the experiment path is used as a logging and control service
+        this._experiment_path = "https://www.example.org:8080";
     }
 
     headerRequest() {
@@ -168,6 +185,10 @@ export class BackendShim {
 
     metricsRequest() {
         return new MetricsRequest(this);
+    }
+
+    metricsLoggingRequest() {
+        return new MetricsLoggingRequest(this);
     }
 
     pieceRequest() {
@@ -189,4 +210,8 @@ export class BackendShim {
     get path() {
         return this._path;
     }
+
+    get experimentPath() {
+        return this._experiment_path;
+    }   
 }

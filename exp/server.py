@@ -1,8 +1,11 @@
+import json
+
 from abc import ABC, abstractmethod
 from functools import wraps
 from typing import Any, Awaitable, Callable, List, Mapping, Union
 
 from quart import Quart, request
+from quart_cors import cors
 
 
 JSONType = Union[str, int, float, bool, None, Mapping[str, 'JSONType'], List['JSONType']]
@@ -19,6 +22,14 @@ class Component(ABC):
 
     async def receive(self) -> str:
         req = await request.get_json()
+        if req is None:
+            data = await request.get_data()
+            if type(data) == bytes:
+                data = data.decode('ascii')
+            try:
+                req  = json.loads(data) 
+            except: 
+                req = data
         out = await self.process(req)
         return str(out) 
 
@@ -49,7 +60,7 @@ class Server:
     components: List[Component]
 
     def __init__(self, name: str, port: int) -> None:
-        self.__app = Quart(name)
+        self.__app = cors(Quart(name))
         self.__name = name
         self.__port = port
         self.components = []
@@ -77,4 +88,9 @@ class Server:
         return self.__add_method(route, component, 'POST')
 
     def run(self):
-        self.__app.run(host='0.0.0.0', port=int(self.__port))
+        self.__app.run(
+            host='0.0.0.0', 
+            port=int(self.__port), 
+            certfile='certs/cert.pem', 
+            keyfile='certs/key.pem',    
+        )

@@ -4,6 +4,7 @@ import { BB } from '../algo/bb';
 import { Decision } from '../common/data';
 import { logging } from '../common/logger';
 import { Metrics, StatsTracker } from '../component/stats'; 
+import { BackendShim } from '../component/backend';
 import { SetQualityController } from '../component/abr';
 import { Interceptor } from '../component/intercept';
 
@@ -20,6 +21,7 @@ export class FrontEndApp extends App {
     
         this.tracker = new StatsTracker(player);
         this.interceptor = new Interceptor();
+        this.shim = new BackendShim(); 
         
         this.statsController = new StatsController();
         this.qualityController = new QualityController();
@@ -39,6 +41,11 @@ export class FrontEndApp extends App {
                 let metrics = this.statsController.metrics;
                 let timestamp = (metrics.playerTime.slice(-1)[0] || {'timestamp' : 0}).timestamp;
                 this.statsController.advance(timestamp);
+                
+                this.shim
+                    .metricsLoggingRequest()
+                    .addStats(metrics)
+                    .send();
                 
                 let decision = this.algorithm.getDecision(
                     metrics,

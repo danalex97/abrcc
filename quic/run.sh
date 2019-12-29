@@ -119,7 +119,7 @@ function quic_chrome {
         --allow-running-insecure-content \
         --enable-features=NetworkService \
         --incognito \
-        --host-resolver-rules='MAP www.example.org:443 127.0.0.1:6121' \
+        --host-resolver-rules='MAP www.example.org:443 127.0.0.1:6121, MAP www.example.org:8080 127.0.0.1:8080' \
         https://$SITE
 }
 
