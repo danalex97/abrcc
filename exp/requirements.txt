@@ -1,2 +1,3 @@
+aiohttp
 quart
 Quart-CORS

@@ -1,3 +1,5 @@
+import asyncio
+import copy
 import json
 
 from abc import ABC, abstractmethod
@@ -41,6 +43,18 @@ def component(f: Callable[[JSONType], Awaitable[JSONType]]) -> Component:
     class __comp(Component):
         async def process(self, json: JSONType) -> JSONType:
             return await f(json)
+    return __comp()
+
+
+def multiple(components: List[Component]) -> Component:
+    """
+    Run multiple components and return OK.
+    """
+    class __comp(Component):
+        async def process(self, json: JSONType) -> JSONType:
+            await asyncio.gather(*[c.process(copy.deepcopy(json)) for c in components])
+            return 'OK'
+
     return __comp()
 
 

@@ -44,7 +44,7 @@ export class FrontEndApp extends App {
                 
                 this.shim
                     .metricsLoggingRequest()
-                    .addStats(metrics)
+                    .addStats(metrics.serialize())
                     .send();
                 
                 let decision = this.algorithm.getDecision(
