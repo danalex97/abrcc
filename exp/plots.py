@@ -72,7 +72,6 @@ class LivePlot(Component):
         self.axes.set_title(figure_name)
 
     def update(self, x: int, y: float) -> None:
-        print(x, y)
         while len(self.x) < x - 1:
             self.x.append(len(self.x))
             self.y.append(0)

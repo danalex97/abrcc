@@ -1,8 +1,10 @@
 import { timestamp } from '../common/time';
 import { Value, Segment } from '../common/data';
 import { default as stringify } from 'json-stable-stringify';
+import { logging } from '../common/logger'; 
 
 
+const logger = logging('Metrics');
 const TICK_INTERVAL_MS = 1000;
 const MEDIA_TYPE = 'video';
 

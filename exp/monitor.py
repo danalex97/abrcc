@@ -26,7 +26,7 @@ class Monitor(Component):
         self.metrics = []
         self.timestamps = [0]
         self.segments = []
-        self.index = 2 # [TODO] modify
+        self.index = 1
 
         # [TODO] remove hardcoding
         self.qualities = [300, 750, 1200, 1850, 2850, 4300]
@@ -62,8 +62,13 @@ class Monitor(Component):
             player_time2 = time2.value
             player_time1 = time1.value
             
-            # We assume the user did not stop the player
-            rebuffer += max(0, (real_time2 - real_time1) - (player_time2 - player_time1)) / 1000.
+            player_diffence = (real_time2 - real_time1) - (player_time2 - player_time1)
+            rebuffer += max(0, player_diffence) / 1000.
+
+        # if buffer_levels are all much bigger then the player difference, we only encounter variance
+        if len(buffer_levels) > 0 and min([l.value for l in buffer_levels]) >= rebuffer * 1500:
+            rebuffer = 0
+
         quality = self.qualities[segment.quality]
         switch = (abs(self.qualities[self.segments[-1].quality] - self.qualities[self.segments[-2].quality])
             if len(self.segments) > 1 else 0)
