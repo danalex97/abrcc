@@ -133,7 +133,10 @@ export class StatsTracker {
         }, TICK_INTERVAL_MS);
     }
 
-    getMetrics() {
+    getMetrics(withCallbacks) {
+        if (withCallbacks === undefined) {
+            withCallbacks = true;
+        }
         let metrics_wrapper, metrics;
         try { 
             metrics_wrapper = this.player.getDashMetrics();
@@ -141,8 +144,10 @@ export class StatsTracker {
         } catch(err) {
             metrics = new Metrics();
         }
-        for (let callback of this.callbacks) {
-            callback(metrics);
+        if (withCallbacks) {
+            for (let callback of this.callbacks) {
+                callback(metrics);
+            }
         }
     }
 

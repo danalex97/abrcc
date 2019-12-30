@@ -97,8 +97,3 @@ class LivePlot(Component):
         await self.plot(value.timestamp, value.value)
 
         return 'OK'
-
-
-if __name__ == "__main__":
-    plot = LivePlot() 
-    plot.run()

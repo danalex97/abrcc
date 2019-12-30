@@ -30,20 +30,25 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
     QuicPacketCount initial_congestion_window) {
   QuicPacketCount max_congestion_window =
       GetQuicFlag(FLAGS_quic_max_congestion_window);
+  congestion_control_type = kBBR;
+  QUIC_LOG(WARNING) << "CC " << congestion_control_type;
   switch (congestion_control_type) {
     case kDummy:
-      QUIC_LOG(INFO) << "Using dummy CC\n";
+      QUIC_LOG(WARNING) << "Using dummy CC";
       return new DummySender();
     case kGoogCC:  // GoogCC is not supported by quic/core, fall back to BBR.
     case kBBR:
+      QUIC_LOG(WARNING) << "Using BBR";
       return new BbrSender(clock->ApproximateNow(), rtt_stats, unacked_packets,
                            initial_congestion_window, max_congestion_window,
                            random, stats);
     case kBBRv2:
+      QUIC_LOG(WARNING) << "Using BBRv2";
       return new QuicBbr2Sender(clock->ApproximateNow(), rtt_stats,
                                 unacked_packets, initial_congestion_window,
                                 max_congestion_window, random, stats);
     case kPCC:
+      QUIC_LOG(WARNING) << "Using PCC";
       if (GetQuicReloadableFlag(quic_enable_pcc3)) {
         return CreatePccSender(clock, rtt_stats, unacked_packets, random, stats,
                                initial_congestion_window,
@@ -52,10 +57,12 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
       // Fall back to CUBIC if PCC is disabled.
       QUIC_FALLTHROUGH_INTENDED;
     case kCubicBytes:
+      QUIC_LOG(WARNING) << "Using Cubic";
       return new TcpCubicSenderBytes(
           clock, rtt_stats, false /* don't use Reno */,
           initial_congestion_window, max_congestion_window, stats);
     case kRenoBytes:
+      QUIC_LOG(WARNING) << "Using Reno";
       return new TcpCubicSenderBytes(clock, rtt_stats, true /* use Reno */,
                                      initial_congestion_window,
                                      max_congestion_window, stats);

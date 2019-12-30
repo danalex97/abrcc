@@ -83,6 +83,8 @@ void DashBackend::FetchResponseFromBackend(
   auto pathWrapper = request_headers.find(":path");
   if (pathWrapper != request_headers.end()) {
     auto path = pathWrapper->second;
+    QUIC_LOG(WARNING) << "SERVING " << path;
+    
     if (path == API_PATH) {
       // new metrics received
       metrics->AddMetrics(request_headers, request_body, quic_stream);
@@ -96,6 +98,7 @@ void DashBackend::FetchResponseFromBackend(
       // serving pieces
       store->FetchResponseFromBackend(request_headers, request_body, quic_stream);
     }
+    QUIC_LOG(WARNING) << "SERVED " << path;
   } else {
     store->FetchResponseFromBackend(request_headers, request_body, quic_stream);
   }

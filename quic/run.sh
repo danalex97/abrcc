@@ -15,6 +15,7 @@ BURST="20000"
 CERTS=""
 DASH_ARGS=""
 DASH_COMPRESS=""
+VERBOSE=""
 
 function build {
     log "Building $1"
@@ -91,7 +92,7 @@ function quic_server {
     set_network_conditions
 
     run_cmd $OUT_DIR/dash_server \
-        --v=1 \
+        $VERBOSE \
         --quic_config_path=$DIR/config.json \
         --port=$PORT \
         --certificate_file=$CERTS_PATH/out/leaf_cert.pem \
@@ -200,6 +201,9 @@ function parse_command_line_options() {
                 ;;
             -dc | --dash-compress)
                 DASH_COMPRESS="yes"
+                ;;
+            -v | --verbose)
+                VERBOSE="--v=1"
                 ;;
             -h | --help )
                 usage

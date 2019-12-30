@@ -115,9 +115,6 @@ export class ServerSideApp extends App {
                 
                 this.qualityController.addPiece(decision);
                 qualityStream.push(decision);
-
-                // [TODO] for now we advance the timestamp at each new decision
-                this.statsController.advance(decision.timestamp);
             })
             .onResourceSend((index, url, content) => {
                 this.interceptor.intercept(index);
@@ -162,14 +159,23 @@ export class ServerSideApp extends App {
                 metricsStream.push(segment);
             }
 
+            // [TODO] Send metrics to monitor
+            /*this.shim
+                .metricsLoggingRequest()
+                .addStats(allMetrics.serialize())
+                .send();*/
+
             // Send metrics to backend
             this.shim
                 .metricsRequest()
                 .addStats(allMetrics.serialize())
                 .onSuccess((body) => {
-                    // [TODO] ideally we would like to advance the metrics timestamp here
                 }).onFail(() => {
                 }).send();
+            
+            // Advance timestamp
+            let timestamp = (allMetrics.playerTime.slice(-1)[0] || {'timestamp' : 0}).timestamp;
+            this.statsController.advance(timestamp);
         });
         this.tracker.start();
     }

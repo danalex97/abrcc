@@ -17,23 +17,19 @@ export class RequestController {
         this._pieceSuccess = (index, body) => {};
     }
 
-    _request() {
-        if (this._current < this._pool) {
-            this._current += 1;
-            this._index += 1;
-        } else {
-            return;
-        }
-        let index = this._index;
-
+    _pieceRequest(index) {
         this._shim
             .pieceRequest()
             .addIndex(index)
             .onSuccess((body) => {
                 this._pieceSuccess(index, body);
             }).onFail(() => {
+                // [TODO] handle failure properly
+                this._pieceRequest(index);
             }).send();
-        
+    }
+
+    _resourceRequest(index) {
         this._shim
             .resourceRequest()
             .addIndex(index)
@@ -46,8 +42,24 @@ export class RequestController {
                 this._current -= 1;
                 this._request();
             }).onFail(() => {
+                // [TODO] handle failure properly
+                this._resourceRequest(index);
             }).send();
+    }
+
+    _request() {
+        if (this._current < this._pool) {
+            this._current += 1;
+            this._index += 1;
+        } else {
+            return;
+        }
+        let index = this._index;
+
+        this._pieceRequest(index);
+        this._resourceRequest(index);
         
+               
         this._request(); 
     }
 

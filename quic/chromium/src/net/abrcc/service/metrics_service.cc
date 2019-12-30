@@ -37,6 +37,8 @@ void MetricsService::AddMetricsImpl(Metrics* metrics) {
 
   std::unique_ptr<Metrics> to_push(metrics);
   this->metrics.push_back(std::move(to_push)); 
+
+  QUIC_LOG(WARNING) << "metrics added";
 }
   
 std::vector<std::unique_ptr<Metrics>> MetricsService::GetMetrics() {

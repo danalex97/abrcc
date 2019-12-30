@@ -17,8 +17,9 @@ void AbrRandom::registerMetrics(const abr_schema::Metrics &metrics) {
   for (auto& segment : metrics.segments) {
     last_index = std::max(last_index, segment->index); 
     last_timestamp = std::max(last_timestamp, segment->timestamp);
-    QUIC_LOG(INFO) << "[AbrRandom] " << segment->timestamp << ' ' << segment->index << '\n';
+    QUIC_LOG(WARNING) << "[AbrRandom] " << segment->timestamp << ' ' << segment->index << '\n';
   }
+  QUIC_LOG(WARNING) << last_index << ' ' << last_timestamp << '\n';
 }
 
 abr_schema::Decision AbrRandom::decide() { 
@@ -35,8 +36,10 @@ abr_schema::Decision AbrRandom::decide() {
     );
   }
   int next_index = last_index + 1;
-  // [TODO] is this ok?
-  last_index = next_index;
+  // [TODO] remove
+  if (last_index <= 3) {
+    last_index += 1;
+  }
   return decisions[next_index];
 }
 

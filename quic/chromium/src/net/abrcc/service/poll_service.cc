@@ -29,7 +29,9 @@ void PollingService::AddRequest(
       std::unique_ptr<CacheEntry> entry(
         new CacheEntry(request_headers, request_body, quic_server_stream)
       );
-    
+  
+      QUIC_LOG(WARNING) << "NEW ENTRY " << path;
+      
       QuicWriterMutexLock lock(&mutex_);
       stream_cache[path] = std::move(entry);
     }

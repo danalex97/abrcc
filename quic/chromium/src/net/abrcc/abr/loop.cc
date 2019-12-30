@@ -1,6 +1,8 @@
 #include "net/abrcc/abr/loop.h"
 
 #include <string>
+#include <chrono>
+#include <thread>
 
 #include "base/bind.h"
 #include "base/run_loop.h"
@@ -66,14 +68,17 @@ static void SendPiece(
 
 static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner> runner) {
   while (true) {
+    QUIC_LOG(WARNING) << "LOOP STEP";
+
     // regsiter metrics
     for (auto& metrics : loop->metrics->GetMetrics()) {
       loop->interface->registerMetrics(*metrics);
     }
 
     // get decision
-    auto decision = loop->interface->decide();  
-
+    auto decision = loop->interface->decide(); 
+    QUIC_LOG(WARNING) << "NEW DECISION " << decision.index;
+  
     if (loop->sent.find(decision.path()) == loop->sent.end()) {
       bool sent = false;
       while (!sent) {
@@ -83,6 +88,9 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
             base::BindOnce(&Respond, loop, &sent, &done, decision));
           while (!done);
         }
+
+        // sleep 50 ms since there is nothing to long poll on 
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
       }
     }
 
@@ -95,9 +103,12 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
             base::BindOnce(&SendPiece, loop, &sent, &done, decision));
           while (!done);
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
       }
     }
-    // [TODO] maybe sleep
+    
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
   }
 }
 

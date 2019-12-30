@@ -89,7 +89,7 @@ class Monitor(Component):
     async def compute_qoe(self, metrics: Metrics) -> None: 
         self.metrics.append(metrics)
         for segment in metrics.segments:
-            if segment.index == self.index + 1 and segment.loading:
+            if segment.index >= self.index + 1 and segment.loading:
                 print(segment)
                 await self.advance(segment)
                 

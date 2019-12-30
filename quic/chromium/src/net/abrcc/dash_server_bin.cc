@@ -14,6 +14,14 @@ class QuicSimpleServerFactory : public quic::QuicDashServer::ServerFactory {
       quic::QuicSimpleServerBackend* backend,
       std::unique_ptr<quic::ProofSource> proof_source,
       const quic::ParsedQuicVersionVector& supported_versions) override {
+   
+    /*
+    // Set smaller idle network timeout
+    config_.SetIdleNetworkTimeout(
+      quic::QuicTime::Delta::FromMilliseconds(1000),
+      quic::QuicTime::Delta::FromMilliseconds(1000));
+    */
+
     return std::make_unique<net::QuicSimpleServer>(
         std::move(proof_source), config_,
         quic::QuicCryptoServerConfig::ConfigOptions(), supported_versions,

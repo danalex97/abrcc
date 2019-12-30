@@ -127,6 +127,7 @@ void StoreService::VideoFromConfig(
   for (auto &thread: threads) {
      thread->Stop();
   }
+  QUIC_LOG(WARNING) << "Finished storing videos";
 }
 
 void StoreService::MetaFromConfig(
@@ -145,6 +146,8 @@ void StoreService::MetaFromConfig(
     config->domain, base_path + config->player_config.manifest, config->player_config.manifest);
   registerResource(
     config->domain, base_path + config->player_config.player, config->player_config.player);
+  
+  QUIC_LOG(WARNING) << "Finished storing metadata";
 }
 
 void StoreService::FetchResponseFromBackend(
