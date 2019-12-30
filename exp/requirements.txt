@@ -1,3 +1,6 @@
 aiohttp
 quart
 Quart-CORS
+matplotlib
+numpy
+pillow
