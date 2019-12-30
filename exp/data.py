@@ -26,6 +26,8 @@ class Value:
 
 
 class Segment:
+    LOADING = "loading"
+
     def __init__(self, index: int, state: str, quality: int, timestamp: int) -> None:
         self.index = index
         self.state = state
@@ -44,6 +46,10 @@ class Segment:
             'quality' : self.quality,
             'timestamp' : self.timestamp,
         }
+
+    @property
+    def loading(self) -> bool:
+        return self.state == self.LOADING
 
     def __str__(self) -> str:
         return f"Segment(index: {self.index}, quality: {self.quality}, {self.state}; {self.timestamp})" 

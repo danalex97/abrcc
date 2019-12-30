@@ -1,21 +1,21 @@
-import aiohttp
 import asyncio
 import json
 
 from argparse import ArgumentParser
 from typing import List
 
+from server import post_after
 from data import Metrics 
 
 
 async def send_after(metrics: Metrics, port: int, timestamp: int) -> None:
-    await asyncio.sleep(timestamp / 1000)
-    data = {'stats' : metrics.json}
-    url  = f"https://127.0.0.1:{port}/metrics"
-    async with aiohttp.ClientSession() as client:
-        async with client.post(url, data=json.dumps(data), verify_ssl=False):
-            pass
-   
+    await post_after(
+        data     = {'stats' : metrics.json},
+        wait     = timestamp,
+        resource = "/metrics",
+        port     = port,
+    )
+
 
 async def consume(metrics: List[Metrics], port: int, real_time: bool) -> None:
     if real_time:

@@ -1,3 +1,4 @@
+import aiohttp
 import asyncio
 import copy
 import json
@@ -12,6 +13,17 @@ from quart_cors import cors
 
 JSONType = Union[str, int, float, bool, None, Mapping[str, 'JSONType'], List['JSONType']]
 
+
+async def post_after(data: JSONType, wait: int, resource: str, port: int = 8080) -> None:
+    """
+    Send a JSON after wait ms.
+    """
+    await asyncio.sleep(wait / 1000)
+    url = f"https://127.0.0.1:{port}/{resource}"
+    async with aiohttp.ClientSession() as client:
+        async with client.post(url, data=json.dumps(data), verify_ssl=False):
+            pass
+ 
 
 class Component(ABC):
     """
