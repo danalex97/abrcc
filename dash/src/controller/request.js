@@ -15,10 +15,16 @@ export class RequestController {
         this._resourceSend = (index, url, content) => {};
         this._resourceSuccess = (index, res) => {};
         this._pieceSuccess = (index, body) => {};
+    
+        this._pieceRequests = {};
+    }
+
+    getPieceRequest(index) {
+        return this._pieceRequests[index];
     }
 
     _pieceRequest(index) {
-        this._shim
+        this._pieceRequests[index] = this._shim
             .pieceRequest()
             .addIndex(index)
             .onSuccess((body) => {
@@ -59,7 +65,6 @@ export class RequestController {
         this._pieceRequest(index);
         this._resourceRequest(index);
         
-               
         this._request(); 
     }
 

@@ -12,6 +12,9 @@ class Request {
         this._onResponse = (response) => {};
         this._error = () => {};
         this._onSend = (url, content) => {};
+        
+        // underlying request object
+        this.request = undefined;
     }
 
     _nativeGet(path, resource, responseType) {
@@ -36,12 +39,14 @@ class Request {
 
         this._onSend(path + resource, undefined);
         xhr.send();
+    
+        this.request = xhr;
     }
 
     _request(requestFunc, path, resource, content) {
         logger.log('sending request', path + resource, content);
         this._onSend(path + resource, content);
-        requestFunc(path + resource, content, (error, res, body) => {
+        this.request = requestFunc(path + resource, content, (error, res, body) => {
             if (error) {
                 logger.log(error);
                 this._error();

@@ -7,14 +7,14 @@ import * as config from '../dist/config.json';
 
 import { ArgsParser } from './common/args';
 import { GetServerSideRule } from './component/abr';
-import { MediaPlayer } from 'dashjs';
+import { MediaPlayer, Debug } from 'dashjs';
 import readingTime from 'reading-time';
 
 
 const logger = logging('index');
 const LARGE_BUFFER_TIME = 100000;
 
-
+    
 function updateAbrSettings(player) {
     player.updateSettings({
         'streaming': {
@@ -22,14 +22,17 @@ function updateAbrSettings(player) {
                 'useDefaultABRRules': false
             },
             'stableBufferTime': LARGE_BUFFER_TIME, // we use this to request continuously
-            'bufferTimeAtTopQuality': LARGE_BUFFER_TIME // we use this to request continously
+            'bufferTimeAtTopQuality': LARGE_BUFFER_TIME, // we use this to request continously
+        },  
+        'debug': { 
+            'logLevel': Debug.LOG_LEVEL_INFO,
         },
     });
     console.log(player.getSettings());
     player.addABRCustomRule(
         'qualitySwitchRules', 
         'ServerSideRule', 
-        GetServerSideRule()
+        GetServerSideRule(player)
     );
 }
 

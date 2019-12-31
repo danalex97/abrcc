@@ -2,7 +2,7 @@ import { App } from '../apps/app';
 
 import { Decision, Segment } from '../common/data';
 import { logging } from '../common/logger';
-import { SetQualityController } from '../component/abr';
+import { SetQualityController, onEvent } from '../component/abr';
 import { Metrics, StatsTracker } from '../component/stats'; 
 import { BackendShim } from '../component/backend';
 import { checking } from '../component/consistency';
@@ -103,18 +103,22 @@ export class ServerSideApp extends App {
                 .send();        
         }
 
+        let onPieceSuccess = (index, body) => {
+            let object = JSON.parse(body);
+            let decision = new Decision(
+                object.index,
+                object.quality,
+                object.timestamp
+            );
+            
+            this.qualityController.addPiece(decision);
+            qualityStream.push(decision);
+        };
+
         // Use long polling for the pieces
         this.requestController
             .onPieceSuccess((index, body) => {
-                let object = JSON.parse(body);
-                let decision = new Decision(
-                    object.index,
-                    object.quality,
-                    object.timestamp
-                );
-                
-                this.qualityController.addPiece(decision);
-                qualityStream.push(decision);
+                onPieceSuccess(index, body);
             })
             .onResourceSend((index, url, content) => {
                 this.interceptor.intercept(index);
@@ -142,7 +146,40 @@ export class ServerSideApp extends App {
                 // decision of the abr component will ask for the next 
                 // index 
                 this.qualityController.advance(index + 1);
+                
+                // we wait for an event that is going to schedule a new 
+                // piece
+                let first = false;
+                onEvent("OnFragmentLoadingCompleted", (context) => {
+                    if (!first) {
+                        first = true;
+                        
+                        // Stop the player until we receive the decision for piece
+                        // index + 1
+                        let controller = context.scheduleController;
+                        let request    = this.requestController.getPieceRequest(index + 1); 
 
+                        logger.log("Scheduling", index + 1);
+                        if (!request.request._ended) {
+                            let startAfterEnded = () => {
+                                if (!request.request._ended) {
+                                    setTimeout(startAfterEnded, 10);
+                                } else {
+                                    controller.start();
+                                    logger.log("SchedulingController started.")
+                                    onPieceSuccess(index + 1, request.request.response.body);
+                                }
+                            };
+                            
+                            logger.log("SchedulingController stopped.")
+                            controller.stop();
+                            startAfterEnded(); 
+                        } else {
+                            onPieceSuccess(index + 1, request.request.response.body);
+                        }
+                    }
+                });
+                
                 // send metrics to tracker 
                 this.tracker.getMetrics(); 
             })
