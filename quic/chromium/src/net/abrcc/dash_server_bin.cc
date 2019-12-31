@@ -9,18 +9,17 @@
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
 #include "net/tools/quic/quic_simple_server.h"
 
+const int MAX_STREAMS = 5000;
+
 class QuicSimpleServerFactory : public quic::QuicDashServer::ServerFactory {
   std::unique_ptr<quic::QuicSpdyServerBase> CreateServer(
       quic::QuicSimpleServerBackend* backend,
       std::unique_ptr<quic::ProofSource> proof_source,
       const quic::ParsedQuicVersionVector& supported_versions) override {
    
-    /*
-    // Set smaller idle network timeout
-    config_.SetIdleNetworkTimeout(
-      quic::QuicTime::Delta::FromMilliseconds(1000),
-      quic::QuicTime::Delta::FromMilliseconds(1000));
-    */
+    // Allow more streams
+    config_.SetMaxIncomingBidirectionalStreamsToSend(MAX_STREAMS);
+    config_.SetMaxIncomingUnidirectionalStreamsToSend(MAX_STREAMS);
 
     return std::make_unique<net::QuicSimpleServer>(
         std::move(proof_source), config_,
