@@ -5,6 +5,8 @@
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 
 #include "net/abrcc/cc/dummycc.h"
+#include "net/abrcc/cc/cc_wrapper.h"
+
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/tcp_cubic_sender_bytes.h"
 #include "net/third_party/quiche/src/quic/core/quic_packets.h"
@@ -35,37 +37,37 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
   switch (congestion_control_type) {
     case kDummy:
       QUIC_LOG(WARNING) << "Using dummy CC";
-      return new DummySender();
+      return new CCWrapper(new DummySender());
     case kGoogCC:  // GoogCC is not supported by quic/core, fall back to BBR.
     case kBBR:
       QUIC_LOG(WARNING) << "Using BBR";
-      return new BbrSender(clock->ApproximateNow(), rtt_stats, unacked_packets,
+      return new CCWrapper(new BbrSender(clock->ApproximateNow(), rtt_stats, unacked_packets,
                            initial_congestion_window, max_congestion_window,
-                           random, stats);
+                           random, stats));
     case kBBRv2:
       QUIC_LOG(WARNING) << "Using BBRv2";
-      return new QuicBbr2Sender(clock->ApproximateNow(), rtt_stats,
+      return new CCWrapper(new QuicBbr2Sender(clock->ApproximateNow(), rtt_stats,
                                 unacked_packets, initial_congestion_window,
-                                max_congestion_window, random, stats);
+                                max_congestion_window, random, stats));
     case kPCC:
       QUIC_LOG(WARNING) << "Using PCC";
       if (GetQuicReloadableFlag(quic_enable_pcc3)) {
-        return CreatePccSender(clock, rtt_stats, unacked_packets, random, stats,
+        return new CCWrapper(CreatePccSender(clock, rtt_stats, unacked_packets, random, stats,
                                initial_congestion_window,
-                               max_congestion_window);
+                               max_congestion_window));
       }
       // Fall back to CUBIC if PCC is disabled.
       QUIC_FALLTHROUGH_INTENDED;
     case kCubicBytes:
       QUIC_LOG(WARNING) << "Using Cubic";
-      return new TcpCubicSenderBytes(
+      return new CCWrapper(new TcpCubicSenderBytes(
           clock, rtt_stats, false /* don't use Reno */,
-          initial_congestion_window, max_congestion_window, stats);
+          initial_congestion_window, max_congestion_window, stats));
     case kRenoBytes:
       QUIC_LOG(WARNING) << "Using Reno";
-      return new TcpCubicSenderBytes(clock, rtt_stats, true /* use Reno */,
+      return new CCWrapper(new TcpCubicSenderBytes(clock, rtt_stats, true /* use Reno */,
                                      initial_congestion_window,
-                                     max_congestion_window, stats);
+                                     max_congestion_window, stats));
   }
   return nullptr;
 }
