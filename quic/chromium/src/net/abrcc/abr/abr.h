@@ -17,11 +17,15 @@ class AbrRandom : public AbrInterface {
   abr_schema::Decision decide() override;
  
  private:
-  int last_index;
+  void update_segment(abr_schema::Segment segment);
+  bool should_send(int index);
+
+  std::unordered_map<int, abr_schema::Segment> last_segment;  
+  
+  int decision_index;
   int last_timestamp;
   std::unordered_map<int, abr_schema::Decision> decisions; 
 };
-
 }
 
 #endif

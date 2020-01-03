@@ -3621,10 +3621,10 @@ if (!is_ios) {
       "abrcc/abr/loop.cc",
       "abrcc/abr/loop.h",
 
-      "abrcc/abr/cc_wrapper.cc",
-      "abrcc/abr/cc_wrapper.h",
-      "abrcc/abr/dummycc.cc",
-      "abrcc/abr/dummycc.h",
+      "abrcc/cc/cc_wrapper.cc",
+      "abrcc/cc/cc_wrapper.h",
+      "abrcc/cc/dummycc.cc",
+      "abrcc/cc/dummycc.h",
       
       "abrcc/service/schema.cc",
       "abrcc/service/schema.h",

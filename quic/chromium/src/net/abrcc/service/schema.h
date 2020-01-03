@@ -2,8 +2,11 @@
 #define ABRCC_SERVICE_SCHEMA_H_
 
 #include "base/json/json_value_converter.h"
+#include <optional>
 
 namespace abr_schema {
+
+const int NOT_PRESENT = -1;
 
 struct Value {
   int value;
@@ -21,20 +24,44 @@ struct Value {
 };
 
 struct Segment {
+  enum State {
+    LOADING, DOWNLOADED, PROGRESS,
+  };
+ 
   int index;
-  int quality;
   int timestamp;
-  std::string state;
+  int loaded;
+  int total;
+  State state;
 
   Segment();
   Segment(const Segment&);
   Segment& operator=(const Segment&);
   ~Segment();
 
+  static bool ParseState(base::StringPiece value, State* field) {
+    if (value == "loading") {
+      *field = LOADING;
+      return true;
+    }
+    if (value == "downloaded") {
+      *field = DOWNLOADED;
+      return true;
+    }
+    if (value == "progress") {
+      *field = PROGRESS;
+      return true;
+    }
+    return false;
+  }
+
   static void RegisterJSONConverter(base::JSONValueConverter<Segment>* converter) {
+    converter->RegisterIntField("loaded", &Segment::loaded);
+    converter->RegisterIntField("total", &Segment::total);
     converter->RegisterIntField("index", &Segment::index);
     converter->RegisterIntField("timestamp", &Segment::timestamp);
-    converter->RegisterStringField("state", &Segment::state);
+    converter->RegisterCustomField<State>(
+      "state", &Segment::state, &ParseState);
   }
 };
 

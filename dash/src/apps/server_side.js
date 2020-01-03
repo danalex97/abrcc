@@ -205,7 +205,9 @@ export class ServerSideApp extends App {
             // Push segments to the metrics stream for consistency checks
             let allMetrics = this.statsController.metrics;
             for (let segment of metrics.segments) {
-                metricsStream.push(segment);
+                if (segment.state != SEGMENT_STATE.PROGRESS) {
+                    metricsStream.push(segment);
+                }
             }
             let toSend = allMetrics.serialize();
             logger.log("metrics", toSend);

@@ -124,7 +124,7 @@ export class Metrics {
     }
 
     withSegment(segment) {
-        if (!isNaN(segment.index) && !isNaN(segment.quality)) {
+        if (!isNaN(segment.index)) {
             this._segments.push(segment);
         }
         return this;

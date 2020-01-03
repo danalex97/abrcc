@@ -141,6 +141,7 @@ export class Segment extends Piece {
     }
 
     serialize() {
+        // We don't export the quality since the backend knows what decision it took
         if (this.state == SEGMENT_STATE.LOADING || this.state == SEGMENT_STATE.DOWNLOADED) {
             return {
                 "index" : this.index,
