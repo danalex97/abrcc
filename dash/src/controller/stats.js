@@ -1,4 +1,8 @@
 import { Metrics } from '../component/stats';
+import { logging } from '../common/logger'; 
+
+
+const logger = logging('StatsController');
 
 
 export class StatsController {

@@ -17,7 +17,6 @@ Segment::Segment(const Segment& rhs) : index(rhs.index), quality(rhs.quality),
                                        timestamp(rhs.timestamp), state(rhs.state) {}
 Segment& Segment::operator =(const Segment& rhs) {
   this->index = rhs.index; 
-  this->quality = rhs.quality;
   this->state = rhs.state;
   this->timestamp = rhs.timestamp;
   return *this;

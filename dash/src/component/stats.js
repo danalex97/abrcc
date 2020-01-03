@@ -1,5 +1,5 @@
 import { timestamp } from '../common/time';
-import { Value, Segment } from '../common/data';
+import { Value, Segment, SEGMENT_STATE } from '../common/data';
 import { default as stringify } from 'json-stable-stringify';
 import { logging } from '../common/logger'; 
 
@@ -19,16 +19,13 @@ function pushDefault(context, value) {
 
 export class Metrics {
     constructor(raw_metrics) {
-        this._droppedFrames = [];
-        this._bufferLevel = [];
-        this._playerTime = [];
-        this._segments = [];
+        this.clear();
         if (raw_metrics !== undefined) {
             this.withSegment(new Segment()
                 .withStartTime(
                     raw_metrics.scheduling.startTime, 
                     raw_metrics.scheduling.duration)
-                .withState(raw_metrics.scheduling.state)
+                .withState(SEGMENT_STATE.LOADING)
                 .withTimestamp(timestamp(raw_metrics.scheduling.t))
                 .withQuality(raw_metrics.scheduling.quality)
             ).withDroppedFrames(new Value(raw_metrics.dropped.droppedFrames)
@@ -57,16 +54,48 @@ export class Metrics {
             ._apply('withBufferLevel', metrics.bufferLevel, filter)
             ._apply('withSegment', metrics.segments, filter);
     }
+  
+    clear() {
+        this._droppedFrames = [];
+        this._bufferLevel = [];
+        this._playerTime = [];
+        this._segments = [];
+        return this;
+    }
 
     serialize() {
-        let unique = arr => [...new Set(arr.map(stringify))].map(JSON.parse); 
-        let transform = arr => unique(arr.map(x => x.serialize()));
-        let cmp = (a, b) => a.timestamp - b.timestamp;
+        const unique = arr => [...new Set(arr.map(stringify))].map(JSON.parse); 
+        const transform = arr => unique(arr.map(x => x.serialize()));
+        const cmp = (a, b) => a.timestamp - b.timestamp;
+        const prepareSegments = (segments) => {
+            const groupBy = (xs, map) => xs.reduce((rv, x) => {
+                (rv[map(x)] = rv[map(x)] || []).push(x);
+                return rv;
+            }, {});
+            const statelessFilter = (array, filter) => array.reduce((acc, v) => {
+                if (filter(v)) acc.push(v);
+                return acc;
+            }, []);
+            const prepareLoading = (segments) => {
+                let out = [];
+                let grouped = groupBy(segments, segment => segment.index);
+                Object.keys(grouped).forEach(index => {
+                    let segment = grouped[index].sort(cmp).slice(-1)[0];
+                    out.push(segment);
+                });
+                return out;
+            };
+            return transform(
+                statelessFilter(segments, s => s.state != SEGMENT_STATE.PROGRESS).concat(
+                    prepareLoading(statelessFilter(segments, s => s.state == SEGMENT_STATE.PROGRESS))
+                )
+            ).sort(cmp);
+        };
         return {
             "droppedFrames" : transform(this._droppedFrames).sort(cmp),
             "playerTime" : transform(this._playerTime).sort(cmp),
             "bufferLevel" : transform(this._bufferLevel).sort(cmp),
-            "segments" : transform(this._segments).sort(cmp),
+            "segments" : prepareSegments(this._segments),
         };
     }
 

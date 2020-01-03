@@ -12,7 +12,8 @@ class Request {
         this._onResponse = (response) => {};
         this._error = () => {};
         this._onSend = (url, content) => {};
-        
+        this._progress = (event) => {}; 
+
         // underlying request object
         this.request = undefined;
     }
@@ -35,6 +36,9 @@ class Request {
         };
         xhr.onerror = () => {
             this._error(); 
+        };
+        xhr.onprogress = (event) => {
+            this._progress(event);
         };
 
         this._onSend(path + resource, undefined);
@@ -62,6 +66,12 @@ class Request {
             this._onBody(body);
             this._onResponse(res);
         });
+        return this;
+    }
+
+    onProgress(callback) {
+        // only works for native requests
+        this._progress = callback;
         return this;
     }
 

@@ -13,9 +13,10 @@ export class RequestController {
         this._index = 0;
         
         this._resourceSend = (index, url, content) => {};
+        this._resourceProgress = (index, event) => {}; 
         this._resourceSuccess = (index, res) => {};
         this._pieceSuccess = (index, body) => {};
-    
+
         this._pieceRequests = {};
     }
 
@@ -30,8 +31,7 @@ export class RequestController {
             .onSuccess((body) => {
                 this._pieceSuccess(index, body);
             }).onFail(() => {
-                // [TODO] handle failure properly
-                this._pieceRequest(index);
+                throw new Error(`Piece request ${index} failed`)
             }).send();
     }
 
@@ -42,14 +42,16 @@ export class RequestController {
             .onSend((url, content) => {
                 this._resourceSend(index, url, content);    
             })
+            .onProgress((event) => {
+                this._resourceProgress(index, event);
+            })
             .onSuccessResponse((res) => {    
                 this._resourceSuccess(index, res);
             
                 this._current -= 1;
                 this._request();
             }).onFail(() => {
-                // [TODO] handle failure properly
-                this._resourceRequest(index);
+                throw new Error(`Resource request ${index} failed`)
             }).send();
     }
 
@@ -75,6 +77,11 @@ export class RequestController {
 
     onResourceSend(callback) {
         this._resourceSend = callback;
+        return this;
+    }
+
+    onResourceProgress(callback) {
+        this._resourceProgress = callback;
         return this;
     }
 

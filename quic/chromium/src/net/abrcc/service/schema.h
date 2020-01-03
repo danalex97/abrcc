@@ -33,7 +33,6 @@ struct Segment {
 
   static void RegisterJSONConverter(base::JSONValueConverter<Segment>* converter) {
     converter->RegisterIntField("index", &Segment::index);
-    converter->RegisterIntField("quality", &Segment::quality);
     converter->RegisterIntField("timestamp", &Segment::timestamp);
     converter->RegisterStringField("state", &Segment::state);
   }

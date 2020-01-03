@@ -1,6 +1,6 @@
 import { App } from '../apps/app';
 
-import { Decision, Segment } from '../common/data';
+import { Decision, Segment, SEGMENT_STATE } from '../common/data';
 import { logging } from '../common/logger';
 import { SetQualityController, onEvent } from '../component/abr';
 import { Metrics, StatsTracker } from '../component/stats'; 
@@ -123,11 +123,24 @@ export class ServerSideApp extends App {
             .onResourceSend((index, url, content) => {
                 this.interceptor.intercept(index);
             })
+            .onResourceProgress((index, event) => {
+                // register metrics on progress
+                if (event.loaded !== undefined && event.total !== undefined) {
+                    let segment = new Segment()
+                        .withState(SEGMENT_STATE.PROGRESS)
+                        .withLoaded(event.loaded)
+                        .withTotal(event.total)
+                        .withIndex(index);
+                    let metrics = new Metrics()
+                        .withSegment(segment);
+                    this.statsController.addMetrics(metrics);
+                }
+            })
             .onResourceSuccess((index, res) => {
                 // register metrics when a new resource arrives
                 let segment = new Segment()
                     .withQuality(this.qualityController.getQuality(index))
-                    .withState('downloaded')
+                    .withState(SEGMENT_STATE.DOWNLOADED)
                     .withIndex(index);
                 let metrics = new Metrics()
                     .withSegment(segment);
@@ -188,13 +201,14 @@ export class ServerSideApp extends App {
         this.tracker.registerCallback((metrics) => {
             // Log metrics
             this.statsController.addMetrics(metrics);
-            logger.log("metrics", this.statsController.metrics);
 
             // Push segments to the metrics stream for consistency checks
             let allMetrics = this.statsController.metrics;
             for (let segment of metrics.segments) {
                 metricsStream.push(segment);
             }
+            let toSend = allMetrics.serialize();
+            logger.log("metrics", toSend);
 
             // [TODO] Send metrics to monitor
             /*this.shim
@@ -205,13 +219,16 @@ export class ServerSideApp extends App {
             // Send metrics to backend
             this.shim
                 .metricsRequest()
-                .addStats(allMetrics.serialize())
+                .addStats(toSend)
                 .onSuccess((body) => {
                 }).onFail(() => {
                 }).send();
             
             // Advance timestamp
             let timestamp = (allMetrics.playerTime.slice(-1)[0] || {'timestamp' : 0}).timestamp;
+            allMetrics.segments.forEach((segment) => {
+                timestamp = Math.max(segment.timestamp, timestamp);
+            });
             this.statsController.advance(timestamp);
         });
         this.tracker.start();

@@ -2,6 +2,11 @@ import { timestamp as create_timestamp } from '../common/time';
 
 
 const MAX_QUALITY = 5; // 0 -> 5
+export const SEGMENT_STATE = {
+    'DOWNLOADED': 'downloaded',
+    'PROGRESS': 'progress',
+    'LOADING': 'loading',
+};
 
 
 // @abstract
@@ -75,6 +80,16 @@ export class Segment extends Piece {
         this._timestamp = create_timestamp(new Date());
     }
 
+    withLoaded(loaded) {
+        this._loaded = loaded;
+        return this;
+    }
+
+    withTotal(total) {
+        this._total = total;
+        return this;
+    }
+
     withTimestamp(timestamp) {
         this._timestamp = timestamp;
         return this;
@@ -101,6 +116,14 @@ export class Segment extends Piece {
         return this;
     }
 
+    get total() {
+        return this._total;
+    }
+
+    get loaded() {
+        return this._loaded;
+    }
+
     get timestamp() {
         return this._timestamp;
     }
@@ -118,12 +141,23 @@ export class Segment extends Piece {
     }
 
     serialize() {
-        return {
-            "index" : this.index,
-            "quality" : this.quality,
-            "state" : this.state,
-            "timestamp" : this.timestamp,
-        };
+        if (this.state == SEGMENT_STATE.LOADING || this.state == SEGMENT_STATE.DOWNLOADED) {
+            return {
+                "index" : this.index,
+                "state" : this.state,
+                "timestamp" : this.timestamp,
+            };
+        } else if (this.state == SEGMENT_STATE.PROGRESS) {
+            return {
+                "index" : this.index,
+                "state" : this.state,
+                "timestamp" : this.timestamp,
+                "loaded" : this.loaded,
+                "total" : this.total,
+            };
+        } else {
+            throw new RangeError(`Unrecognized segment state ${this.state}`);
+        }
     }
 }
 

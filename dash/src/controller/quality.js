@@ -40,10 +40,9 @@ export class QualityController {
         this._onGetQuality(index);
         let decision = this._cache.piece(this._index);
         if (decision !== undefined) {
-            logger.log('new decision', decision);
             return decision.quality;
         } 
-        logger.log('default decision');
+        logger.log("No decision", index, "default decision", 0);
         return 0;
     }
 }
