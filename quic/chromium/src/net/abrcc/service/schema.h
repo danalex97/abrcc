@@ -13,6 +13,7 @@ struct Value {
   int timestamp;
 
   Value();
+  Value(int value, int timestamp);
   Value(const Value&);
   Value& operator=(const Value&);
   ~Value();

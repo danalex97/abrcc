@@ -5,6 +5,7 @@
 namespace abr_schema {
 
 Value::Value() {}
+Value::Value(int value, int timestamp) : value(value), timestamp(timestamp) {}
 Value::Value(const Value& rhs) : value(rhs.value), timestamp(rhs.timestamp) {}
 Value& Value::operator =(const Value& rhs) {
   this->value = rhs.value;

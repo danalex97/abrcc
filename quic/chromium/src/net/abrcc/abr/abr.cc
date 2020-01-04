@@ -5,13 +5,19 @@
 
 #include <algorithm>
 
-// Qualities: 0 -> 5
 const int QUALITIES = 6;
+const int SECOND = 1000; 
+const std::vector<int> bitrateArray = {300, 750, 1200, 1850, 2850, 4300}; // in Kbps
+
+const int RESERVOIR = 5 * SECOND;
+const int CUSHION = 10 * SECOND;
+//const int SEGMENT_TIME = 3594;
 
 namespace quic {
 
-AbrRandom::AbrRandom() : decision_index(1), last_timestamp(0) {}
-AbrRandom::~AbrRandom() {}
+SegmentProgressAbr::SegmentProgressAbr() : decision_index(1), last_timestamp(0) {}
+SegmentProgressAbr::~SegmentProgressAbr() {}
+
 
 static void log_segment(abr_schema::Segment &segment) {
   switch (segment.state) {
@@ -28,22 +34,20 @@ static void log_segment(abr_schema::Segment &segment) {
   }
 }
 
-void AbrRandom::update_segment(abr_schema::Segment segment) {
+
+void SegmentProgressAbr::update_segment(abr_schema::Segment segment) {
   last_segment[segment.index] = segment;
   
   QUIC_LOG(WARNING) << "[segment update @ " << segment.index << "]";
   log_segment(segment);
 }
 
-void AbrRandom::registerMetrics(const abr_schema::Metrics &metrics) {
-  QUIC_LOG(WARNING) << "Register metrics";
-  for (auto& segment : metrics.segments) {
-    log_segment(*segment);
+void SegmentProgressAbr::registerMetrics(const abr_schema::Metrics &metrics) {
+  for (const auto& segment : metrics.segments) {
     last_timestamp = std::max(last_timestamp, segment->timestamp);
 
     switch(segment->state) {
       case abr_schema::Segment::LOADING:
-        update_segment(*segment);
         break;
       case abr_schema::Segment::DOWNLOADED:
         if (last_segment.find(segment->index) == last_segment.end() ||
@@ -62,7 +66,7 @@ void AbrRandom::registerMetrics(const abr_schema::Metrics &metrics) {
   }
 }
 
-bool AbrRandom::should_send(int index) {
+bool SegmentProgressAbr::should_send(int index) {
   if (index == 1) {
     return true;
   }
@@ -86,28 +90,84 @@ bool AbrRandom::should_send(int index) {
   return false;
 }
 
-abr_schema::Decision AbrRandom::decide() { 
-  int random_quality = rand() % QUALITIES;
+abr_schema::Decision SegmentProgressAbr::decide() { 
   int to_decide = decision_index;
-  if (to_decide == 1) {
-    random_quality = 1;
-  }
-  
   if (decisions.find(to_decide) == decisions.end() && should_send(to_decide)) {
     // decisions should be idempotent
     decisions[to_decide] = abr_schema::Decision(
       to_decide, 
-      random_quality, 
+      decideQuality(to_decide), 
       last_timestamp
     );
     decision_index += 1;
 
-    QUIC_LOG(WARNING) << "[AbrRandom] new decision: [index] " << decisions[to_decide].index
+    QUIC_LOG(WARNING) << "[SegmentProgressAbr] new decision: [index] " << decisions[to_decide].index
                       << " [quality] " << decisions[to_decide].quality;
     return decisions[to_decide];
   } else {
     return decisions[to_decide - 1];
   }
+}
+
+RandomAbr::RandomAbr() : SegmentProgressAbr() {}
+RandomAbr::~RandomAbr() {}
+
+int RandomAbr::decideQuality(int index) {
+  int random_quality = rand() % QUALITIES;
+  if (index == 1) {
+    random_quality = 0;
+  }
+  return random_quality;
+}
+
+BBAbr::BBAbr() : SegmentProgressAbr()
+               , last_player_time(abr_schema::Value(0, 0)) 
+               , last_buffer_level(abr_schema::Value(0, 0)) {} 
+BBAbr::~BBAbr() {}
+
+void BBAbr::registerMetrics(const abr_schema::Metrics &metrics) {
+  SegmentProgressAbr::registerMetrics(metrics);
+  for (auto const& player_time : metrics.playerTime) {
+    if (player_time->timestamp > last_player_time.timestamp) {
+      last_player_time = *player_time;
+    }
+  }
+  
+  for (auto const& buffer_level : metrics.bufferLevel) {
+    if (buffer_level->timestamp > last_buffer_level.timestamp) {
+      last_buffer_level = *buffer_level;
+    }
+  }
+}
+
+int BBAbr::decideQuality(int index) {
+  double bitrate = 0;
+  int quality = 0;
+  int n = bitrateArray.size();
+  
+  if (index == 1) {
+    return 0;
+  }
+ 
+  int buffer_level = last_buffer_level.value; 
+  QUIC_LOG(WARNING) << " [last buffer level] " << last_buffer_level.value;
+
+  if (buffer_level <= RESERVOIR) {
+    bitrate = bitrateArray[0];
+  } else if (buffer_level >= RESERVOIR + CUSHION) {
+    bitrate = bitrateArray[n - 1];
+  } else {
+    bitrate = bitrateArray[0] + 1.0 * (bitrateArray[n - 1] - bitrateArray[0]) 
+                                * (buffer_level - RESERVOIR) / CUSHION;
+  }
+
+  for (int i = n - 1; i >= 0; --i) {
+    quality = i;
+    if (bitrate >= bitrateArray[i]) {
+      break;
+    }
+  }
+  return quality;
 }
 
 }

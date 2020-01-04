@@ -212,11 +212,11 @@ export class ServerSideApp extends App {
             let toSend = allMetrics.serialize();
             logger.log("metrics", toSend);
 
-            // [TODO] Send metrics to monitor
-            /*this.shim
+            // Send metrics without progress segments
+            this.shim
                 .metricsLoggingRequest()
-                .addStats(allMetrics.serialize())
-                .send();*/
+                .addStats(allMetrics.serialize(true))
+                .send();
 
             // Send metrics to backend
             this.shim

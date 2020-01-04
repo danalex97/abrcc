@@ -5,7 +5,7 @@ import { logging } from '../common/logger';
 
 
 const logger = logging('Metrics');
-const TICK_INTERVAL_MS = 1000;
+const TICK_INTERVAL_MS = 200;
 const MEDIA_TYPE = 'video';
 
 
@@ -63,9 +63,9 @@ export class Metrics {
         return this;
     }
 
-    serialize() {
+    serialize(noProgress) {
         const unique = arr => [...new Set(arr.map(stringify))].map(JSON.parse); 
-        const transform = arr => unique(arr.map(x => x.serialize()));
+        const transform = arr => unique(arr.map(x => x.serialize(noProgress)));
         const cmp = (a, b) => a.timestamp - b.timestamp;
         const prepareSegments = (segments) => {
             const groupBy = (xs, map) => xs.reduce((rv, x) => {
@@ -78,6 +78,9 @@ export class Metrics {
             }, []);
             const prepareLoading = (segments) => {
                 let out = [];
+                if (noProgress === true) {
+                    return out;
+                }
                 let grouped = groupBy(segments, segment => segment.index);
                 Object.keys(grouped).forEach(index => {
                     let segment = grouped[index].sort(cmp).slice(-1)[0];

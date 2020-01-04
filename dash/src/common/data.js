@@ -140,16 +140,16 @@ export class Segment extends Piece {
         return this._state;
     }
 
-    serialize() {
-        // We don't export the quality since the backend knows what decision it took
+    serialize(full) {
+        let ret = {};
         if (this.state == SEGMENT_STATE.LOADING || this.state == SEGMENT_STATE.DOWNLOADED) {
-            return {
+            ret = {
                 "index" : this.index,
                 "state" : this.state,
                 "timestamp" : this.timestamp,
             };
         } else if (this.state == SEGMENT_STATE.PROGRESS) {
-            return {
+            ret = {
                 "index" : this.index,
                 "state" : this.state,
                 "timestamp" : this.timestamp,
@@ -159,6 +159,12 @@ export class Segment extends Piece {
         } else {
             throw new RangeError(`Unrecognized segment state ${this.state}`);
         }
+        if (full) {
+            ret = Object.assign(ret, {
+                "quality" : this.quality,
+            });
+        }
+        return ret;
     }
 }
 
