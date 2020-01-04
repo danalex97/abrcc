@@ -11,7 +11,7 @@ const std::vector<int> bitrateArray = {300, 750, 1200, 1850, 2850, 4300}; // in 
 
 const int RESERVOIR = 5 * SECOND;
 const int CUSHION = 10 * SECOND;
-//const int SEGMENT_TIME = 3594;
+const int SEGMENT_TIME = 3594;
 
 namespace quic {
 
@@ -150,7 +150,17 @@ int BBAbr::decideQuality(int index) {
   }
  
   int buffer_level = last_buffer_level.value; 
-  QUIC_LOG(WARNING) << " [last buffer level] " << last_buffer_level.value;
+  if (last_segment[index - 1].state == abr_schema::Segment::PROGRESS) { 
+    int start_time = index > 2 ? last_segment[index - 2].timestamp : 0;
+    int current_time = last_segment[index - 1].timestamp;
+
+    double proportion = 1.0 * last_segment[index - 1].loaded / last_segment[index - 1].total;
+    int download_time = 1.0 * (current_time - start_time) * (1 - proportion) / proportion;
+    int bonus = SEGMENT_TIME - download_time; 
+  
+    buffer_level += bonus;  
+  } 
+  QUIC_LOG(WARNING) << " [last buffer level] " << buffer_level;
 
   if (buffer_level <= RESERVOIR) {
     bitrate = bitrateArray[0];
