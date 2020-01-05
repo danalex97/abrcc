@@ -2,6 +2,7 @@ import { logging } from '../common/logger';
 
 
 const logger = logging('abr');
+const dash_logger = logging('DashLog');
 const MEDIA_TYPE = 'video';
 
 
@@ -32,7 +33,7 @@ function getPlayer() {
 
     console.info = function() {
         window._onText(Array.from(arguments));
-        originallog.apply(console, arguments);
+        dash_logger.log(...arguments);
     }
 })();
 
