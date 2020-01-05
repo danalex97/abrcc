@@ -138,6 +138,16 @@ export class MetricsLoggingRequest extends MetricsRequest {
         super(shim);
     }
 
+    addLogs(logs) {
+        this._json['logs'] = logs;
+        return this; 
+    }
+
+    addComplete() {
+        this._json['complete'] = true;
+        return this;
+    }
+
     send() {
         return this._request(request.post, this.shim.experimentPath, "/metrics", {
             json : this._json,

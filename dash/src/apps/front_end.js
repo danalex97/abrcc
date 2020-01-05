@@ -2,10 +2,10 @@ import { App } from '../apps/app';
 import { BB } from '../algo/bb';
 
 import { Decision } from '../common/data';
-import { logging } from '../common/logger';
+import { logging, exportLogs } from '../common/logger';
 import { Metrics, StatsTracker } from '../component/stats'; 
 import { BackendShim } from '../component/backend';
-import { SetQualityController } from '../component/abr';
+import { SetQualityController, onEvent } from '../component/abr';
 import { Interceptor } from '../component/intercept';
 
 import { QualityController } from '../controller/quality';
@@ -58,6 +58,18 @@ export class FrontEndApp extends App {
                 );
                 controller.addPiece(decision);
             });
+
+        onEvent("endOfStream", (context) => {
+            logger.log('End of stream');
+            if (this.recordMetrics) {
+                let logs = exportLogs();  
+                this.shim
+                    .metricsLoggingRequest()
+                    .addLogs(logs)
+                    .addComplete()
+                    .send();
+            }
+        });
 
         this.interceptor
             .onRequest((index) => {

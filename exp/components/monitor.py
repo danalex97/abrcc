@@ -1,5 +1,7 @@
 import asyncio
 import json
+import os
+
 from pathlib import Path
 from typing import List
 
@@ -22,7 +24,7 @@ class Monitor(Component):
     index: int 
 
     def __init__(self, path: Path) -> None:
-        self.path = path 
+        self.path = path / 'metrics.log' 
         self.metrics = []
         self.timestamps = [0]
         self.segments = []
@@ -94,9 +96,12 @@ class Monitor(Component):
                 await self.advance(segment)
                 
     async def process(self, json: JSONType) -> JSONType:
-        metrics = Metrics.from_json(json['stats'])
-        asyncio.gather(*[
-            self.log_path(metrics),
-            self.compute_qoe(metrics),
-        ])
+        if 'stats' in json:
+            metrics = Metrics.from_json(json['stats'])
+            asyncio.gather(*[
+                self.log_path(metrics),
+                self.compute_qoe(metrics),
+            ])
+        if 'complete' in json:
+            await post_after(json, 0, "/complete") 
         return 'OK'

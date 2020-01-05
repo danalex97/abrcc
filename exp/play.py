@@ -43,3 +43,10 @@ if __name__ == "__main__":
         loop = asyncio.get_event_loop()
         loop.run_until_complete(consume(metrics, args.port, args.real_time))
         print('Log played.')
+
+        loop.run_until_complete(post_after(
+            data = {'complete' : True },
+            wait = 2000,
+            resource = '/metrics',
+            port = args.port,
+        ))

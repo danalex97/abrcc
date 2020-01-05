@@ -1,6 +1,7 @@
 #!/bin/bash
 LOG=runner
-source ./env.sh
+BASEDIR=$(dirname "$0")
+source $BASEDIR/env.sh
 
 OUT_DIR=$CHROMIUM_DIR/src/$TARGET
 
@@ -110,18 +111,33 @@ function quic_client {
 
 function quic_chrome {
     RED_PORT=443
-    google-chrome-stable \
-        --v=1 \
-        --user-data-dir=/tmp/chrome-profile \
-        --no-proxy-server \
-        --enable-quic \
-        --origin-to-force-quic-on=$SITE:$RED_PORT \
-        --ignore-certificate-errors \
-        --allow-running-insecure-content \
-        --enable-features=NetworkService \
-        --incognito \
-        --host-resolver-rules='MAP www.example.org:443 127.0.0.1:6121, MAP www.example.org:8080 127.0.0.1:8080' \
-        https://$SITE
+    if [[ -v SUDO_USER ]]; then
+        sudo -u $SUDO_USER google-chrome-stable \
+            --v=1 \
+            --user-data-dir=/tmp/chrome-profile \
+            --no-proxy-server \
+            --enable-quic \
+            --origin-to-force-quic-on=$SITE:$RED_PORT \
+            --ignore-certificate-errors \
+            --allow-running-insecure-content \
+            --enable-features=NetworkService \
+            --incognito \
+            --host-resolver-rules='MAP www.example.org:443 127.0.0.1:6121, MAP www.example.org:8080 127.0.0.1:8080' \
+            https://$SITE
+    else
+        google-chrome-stable \
+            --v=1 \
+            --user-data-dir=/tmp/chrome-profile \
+            --no-proxy-server \
+            --enable-quic \
+            --origin-to-force-quic-on=$SITE:$RED_PORT \
+            --ignore-certificate-errors \
+            --allow-running-insecure-content \
+            --enable-features=NetworkService \
+            --incognito \
+            --host-resolver-rules='MAP www.example.org:443 127.0.0.1:6121, MAP www.example.org:8080 127.0.0.1:8080' \
+            https://$SITE
+    fi
 }
 
 function usage() {

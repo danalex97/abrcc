@@ -1,8 +1,9 @@
-import { logging } from '../common/logger';
+import { logging, exportLogs } from '../common/logger';
 import { BackendShim } from '../component/backend';
 
 
 const logger = logging('RequestController');
+const MAX_INDEX = 49;
 
 
 export class RequestController {
@@ -18,6 +19,7 @@ export class RequestController {
         this._pieceSuccess = (index, body) => {};
 
         this._pieceRequests = {};
+        this._max_index = MAX_INDEX;
     }
 
     getPieceRequest(index) {
@@ -56,7 +58,7 @@ export class RequestController {
     }
 
     _request() {
-        if (this._current < this._pool) {
+        if (this._current < this._pool && this._index < this._max_index) {
             this._current += 1;
             this._index += 1;
         } else {

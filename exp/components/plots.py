@@ -40,7 +40,7 @@ def make_canvases() -> Tuple[Figure, List[Axes]]:
 class LivePlot(Component):
     FIGURE: Optional[Figure] = None
     AXES: List[Axes] = []
-    
+
     @classmethod
     def get_canvas(cls) -> Axes:
         if cls.FIGURE == None:

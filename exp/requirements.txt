@@ -4,3 +4,4 @@ Quart-CORS
 matplotlib
 numpy
 pillow
+psutil

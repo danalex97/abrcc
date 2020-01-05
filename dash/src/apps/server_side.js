@@ -1,7 +1,7 @@
 import { App } from '../apps/app';
 
 import { Decision, Segment, SEGMENT_STATE } from '../common/data';
-import { logging } from '../common/logger';
+import { logging, exportLogs } from '../common/logger';
 import { SetQualityController, onEvent } from '../component/abr';
 import { Metrics, StatsTracker } from '../component/stats'; 
 import { BackendShim } from '../component/backend';
@@ -173,24 +173,27 @@ export class ServerSideApp extends App {
                         // index + 1
                         let controller = context.scheduleController;
                         let request    = this.requestController.getPieceRequest(index + 1); 
-
-                        logger.log("Scheduling", index + 1);
-                        if (!request.request._ended) {
-                            let startAfterEnded = () => {
-                                if (!request.request._ended) {
-                                    setTimeout(startAfterEnded, 10);
-                                } else {
-                                    controller.start();
-                                    logger.log("SchedulingController started.")
-                                    onPieceSuccess(index + 1, request.request.response.body);
-                                }
-                            };
-                            
-                            logger.log("SchedulingController stopped.")
-                            controller.stop();
-                            startAfterEnded(); 
-                        } else {
-                            onPieceSuccess(index + 1, request.request.response.body);
+                        
+                        if (request) {
+                            // the request is undefined after we pass all the pieces 
+                            logger.log("Scheduling", index + 1);
+                            if (!request.request._ended) {
+                                let startAfterEnded = () => {
+                                    if (!request.request._ended) {
+                                        setTimeout(startAfterEnded, 10);
+                                    } else {
+                                        controller.start();
+                                        logger.log("SchedulingController started.")
+                                        onPieceSuccess(index + 1, request.request.response.body);
+                                    }
+                                };
+                                
+                                logger.log("SchedulingController stopped.")
+                                controller.stop();
+                                startAfterEnded(); 
+                            } else {
+                                onPieceSuccess(index + 1, request.request.response.body);
+                            }
                         }
                     }
                 });
@@ -200,6 +203,19 @@ export class ServerSideApp extends App {
             })
             .start();
         
+        // Listen for stream finishing
+        onEvent("endOfStream", (context) => {
+            logger.log('End of stream');
+            if (this.recordMetrics) {
+                let logs = exportLogs();  
+                this.shim
+                    .metricsLoggingRequest()
+                    .addLogs(logs)
+                    .addComplete()
+                    .send();
+            }
+        });
+
         this.tracker.registerCallback((metrics) => {
             // Log metrics
             this.statsController.addMetrics(metrics);

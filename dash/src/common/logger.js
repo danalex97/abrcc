@@ -22,7 +22,7 @@ const central_log = new class {
     }
 
     getLogs() {
-        return this._log;
+        return [...this._log];
     }
 }();
 

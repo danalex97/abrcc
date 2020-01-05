@@ -58,13 +58,26 @@ def component(f: Callable[[JSONType], Awaitable[JSONType]]) -> Component:
     return __comp()
 
 
-def multiple(components: List[Component]) -> Component:
+def multiple(*components: Component) -> Component:
     """
     Run multiple components and return OK.
     """
     class __comp(Component):
         async def process(self, json: JSONType) -> JSONType:
             await asyncio.gather(*[c.process(copy.deepcopy(json)) for c in components])
+            return 'OK'
+
+    return __comp()
+
+
+def multiple_sync(*components: Component) -> Component:
+    """
+    Run multiple components and return OK.
+    """
+    class __comp(Component):
+        async def process(self, json: JSONType) -> JSONType:
+            for c in components:
+                await c.process(copy.deepcopy(json))
             return 'OK'
 
     return __comp()
