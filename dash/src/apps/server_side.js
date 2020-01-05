@@ -71,7 +71,7 @@ function cacheHit(object, res) {
 
 
 export class ServerSideApp extends App {
-    constructor(player) {
+    constructor(player, recordMetrics) {
         super(player);
 
         this.tracker = new StatsTracker(player);
@@ -82,6 +82,8 @@ export class ServerSideApp extends App {
         this.qualityController = new QualityController();
         this.statsController = new StatsController();
         
+        this.recordMetrics = recordMetrics;
+
         SetQualityController(this.qualityController);
     }
 
@@ -209,19 +211,19 @@ export class ServerSideApp extends App {
                     metricsStream.push(segment);
                 }
             }
-            let toSend = allMetrics.serialize();
-            logger.log("metrics", toSend);
 
-            // Send metrics without progress segments
-            this.shim
-                .metricsLoggingRequest()
-                .addStats(allMetrics.serialize(true))
-                .send();
+            if (this.recordMetrics) {
+                // Send metrics without progress segments
+                this.shim
+                    .metricsLoggingRequest()
+                    .addStats(allMetrics.serialize(true))
+                    .send();
+            }
 
             // Send metrics to backend
             this.shim
                 .metricsRequest()
-                .addStats(toSend)
+                .addStats(allMetrics.serialize())
                 .onSuccess((body) => {
                 }).onFail(() => {
                 }).send();

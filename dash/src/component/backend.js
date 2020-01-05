@@ -13,14 +13,17 @@ class Request {
         this._error = () => {};
         this._onSend = (url, content) => {};
         this._progress = (event) => {}; 
+        this._log = false;
 
         // underlying request object
         this.request = undefined;
     }
 
     _nativeGet(path, resource, responseType) {
-        logger.log('sending native GET request', path + resource);
-        
+        if (this._log) {
+            logger.log('sending native GET request', path + resource);
+        }
+
         let xhr = new XMLHttpRequest();
         xhr.open('GET', path + resource);
         if (responseType !== undefined) {
@@ -48,7 +51,9 @@ class Request {
     }
 
     _request(requestFunc, path, resource, content) {
-        logger.log('sending request', path + resource, content);
+        if (this._log) {
+            logger.log('sending request', path + resource, content);
+        }
         this._onSend(path + resource, content);
         this.request = requestFunc(path + resource, content, (error, res, body) => {
             if (error) {
@@ -62,7 +67,9 @@ class Request {
                 this._error();
                 return;
             }
-            logger.log('successful request');
+            if (this._log) {
+                logger.log('successful request');
+            }
             this._onBody(body);
             this._onResponse(res);
         });
@@ -97,6 +104,11 @@ class Request {
 
     get shim() {
         return this._shim;
+    }
+
+    log() {
+        this._log = true;
+        return this;
     }
 }
 

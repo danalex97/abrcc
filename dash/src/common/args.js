@@ -11,4 +11,9 @@ export class ArgsParser {
         return this.args.includes('fe')
             || this.args.includes('front-end');
     }
+
+    get recordMetrics() {
+        return this.args.includes('record')
+            || this.args.includes('record-metrics');
+    }
 }

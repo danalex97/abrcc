@@ -16,7 +16,7 @@ const logger = logging('App');
 
 
 export class FrontEndApp extends App {
-    constructor(player) {
+    constructor(player, recordMetrics) {
         super(player);
     
         this.tracker = new StatsTracker(player);
@@ -25,7 +25,9 @@ export class FrontEndApp extends App {
         
         this.statsController = new StatsController();
         this.qualityController = new QualityController();
-        this.algorithm = new BB(); 
+        this.algorithm = new BB();
+
+        this.recordMetrics = recordMetrics;
 
         SetQualityController(this.qualityController);
     }
@@ -42,10 +44,12 @@ export class FrontEndApp extends App {
                 let timestamp = (metrics.playerTime.slice(-1)[0] || {'timestamp' : 0}).timestamp;
                 this.statsController.advance(timestamp);
                 
-                this.shim
-                    .metricsLoggingRequest()
-                    .addStats(metrics.serialize(true))
-                    .send();
+                if (this.recordMetrics) {
+                    this.shim
+                        .metricsLoggingRequest()
+                        .addStats(metrics.serialize(true))
+                        .send();
+                }
                 
                 let decision = this.algorithm.getDecision(
                     metrics,

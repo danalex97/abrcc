@@ -46,10 +46,10 @@ function init() {
     let app;
 
     if (parser.serverSide) {
-        app = new ServerSideApp(player);
+        app = new ServerSideApp(player, parser.recordMetrics);
     }
     if (parser.frontEnd) {
-        app = new FrontEndApp(player);
+        app = new FrontEndApp(player, parser.recordMetrics);
     }
 
     updateAbrSettings(player);
