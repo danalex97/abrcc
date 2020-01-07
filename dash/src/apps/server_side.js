@@ -83,11 +83,17 @@ export class ServerSideApp extends App {
         this.statsController = new StatsController();
         
         this.recordMetrics = recordMetrics;
-
         SetQualityController(this.qualityController);
     }
 
     start() {
+        // Mark start of stream
+        if (this.recordMetrics) {
+            this.shim
+                .startLoggingRequest()
+                .send();
+        }
+
         // Request all headers at the beginning
         for (let quality = 1; quality <= MAX_QUALITY; quality++) {
             let header = makeHeader(quality);

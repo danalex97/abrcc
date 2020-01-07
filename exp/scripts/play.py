@@ -1,11 +1,14 @@
+import os.path, sys
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir))
+
 import asyncio
 import json
 
 from argparse import ArgumentParser
 from typing import List
 
-from server import post_after
-from data import Metrics 
+from server.server import post_after
+from server.data import Metrics 
 
 
 async def send_after(metrics: Metrics, port: int, timestamp: int) -> None:
@@ -29,7 +32,7 @@ async def consume(metrics: List[Metrics], port: int, real_time: bool) -> None:
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description='')
+    parser = ArgumentParser(description='Play a metrics log.')
     parser.add_argument('path', type=str, help='Path of the log trace to play.')
     parser.add_argument('--port', type=int, default=8080, help='Port of running server(default 8008).')
     parser.add_argument('--real-time', action='store_true', dest='real_time', help='Play in real time.')

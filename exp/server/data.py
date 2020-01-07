@@ -1,5 +1,7 @@
-from server import JSONType
-from typing import List
+from typing import List, Mapping, Union
+
+
+JSONType = Union[str, int, float, bool, None, Mapping[str, 'JSONType'], List['JSONType']]
 
 
 class Value:

@@ -8,8 +8,8 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from typing import Optional, Tuple, List 
 
-from server import Component, JSONType
-from data import Value
+from server.server import Component, JSONType
+from server.data import Value
 
 
 plt.style.use('ggplot')

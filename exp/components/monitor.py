@@ -5,8 +5,8 @@ import os
 from pathlib import Path
 from typing import List
 
-from data import Metrics, Segment, Value
-from server import post_after, Component, JSONType
+from server.data import Metrics, Segment, Value
+from server.server import post_after, Component, JSONType
 
 
 PENALTY_REBUF = 4.3

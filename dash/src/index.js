@@ -55,6 +55,7 @@ function init() {
     updateAbrSettings(player);
     player.initialize(video, url, true);
     app.start();
+    player.play();
 }
 
 

@@ -1,14 +1,15 @@
 import shutil
 import os
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 from components.monitor import Monitor 
 from components.plots import LivePlot
 from components.complete import OnComplete
 from controller import Controller
-from server import Server, multiple_sync
+from server.server import Server, multiple_sync
+from scripts.network import Network
 
 
 if __name__ == "__main__":
@@ -16,8 +17,9 @@ if __name__ == "__main__":
     parser.add_argument('--port', type=int, default=8080, help='Port(default 8080).')
     parser.add_argument('--path', type=str, default='logs/default', help='Experiment folder path.')
     parser.add_argument('--only-server', dest='only_server', action='store_true', help='Use only as metrics server.')
-    parser.add_argument('--delay', type=int,  help='Delay of the link.')
-    parser.add_argument('--bandwidth', type=int, help='Bandwidth of the link.')
+    parser.add_argument('-l', '--delay', type=int,  help='Delay of the link.')
+    parser.add_argument('-b', '--bandwidth', type=int, help='Bandwidth of the link.')
+    parser.add_argument('-t', '--trace', type=str, help='Trace of bandwidth.')
     parser.add_argument('-d','--dash', action='append', help='Add arguments to dash player.')
     args = parser.parse_args()
     path = Path(args.path)
@@ -26,8 +28,11 @@ if __name__ == "__main__":
     os.system(f"mkdir -p {path}")
 
     controller = Controller(
-        bw = getattr(args, 'bw', None),
-        delay = getattr(args, 'delay', None),
+        network = Network(
+            bandwidth=getattr(args, 'bandwidth', None),
+            delay=getattr(args, 'delay', None),
+            trace_path=getattr(args, 'trace', None),
+        ),
         dash = args.dash,
         only_server = args.only_server,
         port = args.port,

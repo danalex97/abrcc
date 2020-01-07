@@ -12,6 +12,7 @@ SITE=www.example.org
 TC=/sbin/tc
 BW=""
 DELAY=""
+RESET=""
 BURST="20000"
 CERTS=""
 DASH_ARGS=""
@@ -35,15 +36,15 @@ function setup_certs {
 }
 
 function set_network_conditions {
-    log "Setting network conditions.."
-    
-    log "Resetting qdiscs..."
-    priv_run_cmd $TC qdisc del dev lo root
-
+    if [ ! -z "$RESET" ] ; then
+        log "Resetting qdiscs..."
+        priv_run_cmd $TC qdisc del dev lo root
+    fi
     if [ -z "$BW" ] && [ -z "$DELAY" ] ; then 
         return    
     fi 
-    
+
+    log "Setting network conditions.."
     local cmd="${TC} qdisc add dev lo parent 1:3 handle 30: tbf"
     if [ ! -z "$BW" ] ; then  
         cmd="${cmd} rate ${BW}mbit" 
@@ -118,6 +119,7 @@ function quic_chrome {
             --no-proxy-server \
             --enable-quic \
             --origin-to-force-quic-on=$SITE:$RED_PORT \
+            --autoplay-policy=no-user-gesture-required \
             --ignore-certificate-errors \
             --allow-running-insecure-content \
             --enable-features=NetworkService \
@@ -131,6 +133,7 @@ function quic_chrome {
             --no-proxy-server \
             --enable-quic \
             --origin-to-force-quic-on=$SITE:$RED_PORT \
+            --autoplay-policy=no-user-gesture-required \
             --ignore-certificate-errors \
             --allow-running-insecure-content \
             --enable-features=NetworkService \
@@ -207,6 +210,9 @@ function parse_command_line_options() {
             --latency | --delay)
                 shift 
                 DELAY=$1
+                ;;
+            --reset)
+                RESET="yes"
                 ;;
             --certs)
                 CERTS="yes"

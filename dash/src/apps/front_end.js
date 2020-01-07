@@ -34,6 +34,11 @@ export class FrontEndApp extends App {
 
     start() {
         logger.log("Starting App.")
+        if (this.recordMetrics) {
+            this.shim
+                .startLoggingRequest()
+                .send();
+        }
 
         this.qualityController
             .onGetQuality((index) => {

@@ -133,6 +133,19 @@ export class MetricsRequest extends Request {
 }
 
 
+export class StartLoggingRequest extends Request {
+    constructor(shim) {
+        super(shim);
+    }
+
+    send() {
+        return this._request(request.post, this.shim.experimentPath, "/start", {
+            'start' : true,
+        });
+    }
+}
+
+
 export class MetricsLoggingRequest extends MetricsRequest {
     constructor(shim) {
         super(shim);
@@ -222,6 +235,10 @@ export class BackendShim {
 
     metricsRequest() {
         return new MetricsRequest(this);
+    }
+
+    startLoggingRequest() {
+        return new StartLoggingRequest(this);
     }
 
     metricsLoggingRequest() {

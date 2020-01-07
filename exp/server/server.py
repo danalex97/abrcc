@@ -5,13 +5,11 @@ import json
 
 from abc import ABC, abstractmethod
 from functools import wraps
-from typing import Any, Awaitable, Callable, List, Mapping, Union
-
+from typing import Awaitable, Callable, List
 from quart import Quart, request
 from quart_cors import cors
 
-
-JSONType = Union[str, int, float, bool, None, Mapping[str, 'JSONType'], List['JSONType']]
+from .data import JSONType
 
 
 async def post_after(data: JSONType, wait: int, resource: str, port: int = 8080) -> None:

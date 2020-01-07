@@ -1,10 +1,10 @@
 import json
 
-from server import Component, JSONType
 from pathlib import Path
 from typing import List, Dict
 
-from components.plots import LivePlot
+from server.server import Component, JSONType
+from .plots import LivePlot
 
 
 class OnComplete(Component):
