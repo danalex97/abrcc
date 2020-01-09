@@ -12,16 +12,7 @@ from server.server import Server, multiple_sync
 from scripts.network import Network
 
 
-if __name__ == "__main__":
-    parser = ArgumentParser(description='Run an experiment.')
-    parser.add_argument('--port', type=int, default=8080, help='Port(default 8080).')
-    parser.add_argument('--path', type=str, default='logs/default', help='Experiment folder path.')
-    parser.add_argument('--only-server', dest='only_server', action='store_true', help='Use only as metrics server.')
-    parser.add_argument('-l', '--delay', type=int,  help='Delay of the link.')
-    parser.add_argument('-b', '--bandwidth', type=int, help='Bandwidth of the link.')
-    parser.add_argument('-t', '--trace', type=str, help='Trace of bandwidth.')
-    parser.add_argument('-d','--dash', action='append', help='Add arguments to dash player.')
-    args = parser.parse_args()
+def run(args: Namespace) -> None:
     path = Path(args.path)
 
     shutil.rmtree(path, ignore_errors=True)
@@ -58,3 +49,15 @@ if __name__ == "__main__":
         )) 
         .add_post('/destroy', controller.on_destroy())
         .run())
+
+
+if __name__ == "__main__":
+    parser = ArgumentParser(description='Run an experiment.')
+    parser.add_argument('--port', type=int, default=8080, help='Port(default 8080).')
+    parser.add_argument('--path', type=str, default='logs/default', help='Experiment folder path.')
+    parser.add_argument('--only-server', dest='only_server', action='store_true', help='Use only as metrics server.')
+    parser.add_argument('-l', '--delay', type=float,  help='Delay of the link.')
+    parser.add_argument('-b', '--bandwidth', type=float, help='Bandwidth of the link.')
+    parser.add_argument('-t', '--trace', type=str, help='Trace of bandwidth.')
+    parser.add_argument('-d','--dash', action='append', help='Add arguments to dash player.')
+    run(parser.parse_args())   

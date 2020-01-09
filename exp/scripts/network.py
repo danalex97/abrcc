@@ -20,8 +20,8 @@ def run_cmd(cmd: str) -> None:
 
 class Network:
     def __init__(self, 
-        delay: Optional[int] = None,
-        bandwidth: Optional[int] = None,
+        delay: Optional[float] = None,
+        bandwidth: Optional[float] = None,
         trace_path: Optional[str] = None,
         burst: int = 20000,
         port: int = 6121,

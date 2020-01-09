@@ -9,7 +9,7 @@
 #include "net/third_party/quiche/src/quic/tools/quic_simple_server_backend.h"
 #include "net/tools/quic/quic_simple_server.h"
 
-const int MAX_STREAMS = 5000;
+const int MAX_STREAMS = 10000;
 
 class QuicSimpleServerFactory : public quic::QuicDashServer::ServerFactory {
   std::unique_ptr<quic::QuicSpdyServerBase> CreateServer(
