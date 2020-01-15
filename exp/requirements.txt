@@ -5,3 +5,5 @@ matplotlib
 numpy
 pillow
 psutil
+sanic
+sanic-cors

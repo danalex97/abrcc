@@ -4,12 +4,26 @@ import copy
 import json
 
 from abc import ABC, abstractmethod
+from enum import Enum
 from functools import wraps
 from typing import Awaitable, Callable, List
-from quart import Quart, request
-from quart_cors import cors
+
+from quart import Quart, request as quart_request
+from quart_cors import cors as quart_cors
+
+from sanic import Sanic, request as sanic_request, response as sanic_response
+from sanic_cors import CORS as sanic_cors
 
 from .data import JSONType
+
+
+class UncompatibleBackendError(NotImplementedError):
+    pass
+
+
+class Backend(Enum):
+    SANIC = 0
+    QUART = 1
 
 
 async def post_after(data: JSONType, wait: int, resource: str, port: int = 8080) -> None:
@@ -17,25 +31,32 @@ async def post_after(data: JSONType, wait: int, resource: str, port: int = 8080)
     Send a JSON after wait ms.
     """
     await asyncio.sleep(wait / 1000)
+    if resource[0] == '/':
+        resource = resource[1:]
     url = f"https://127.0.0.1:{port}/{resource}"
     async with aiohttp.ClientSession() as client:
         async with client.post(url, data=json.dumps(data), verify_ssl=False):
             pass
- 
+
 
 class Component(ABC):
     """
     A component class that receives JSON requests and returns stringyfied jsons.
     To implement a new component, extend this class.
+    
+    Example usage:
+    class MyComp(Component):
+        async def process(self, json: JSONType) -> JSONType:
+            return 'OK'
     """
     @abstractmethod
     async def process(self, json: JSONType) -> JSONType:
         pass
 
-    async def receive(self) -> str:
-        req = await request.get_json()
+    async def receive_quart(self) -> str:
+        req = await quart_request.get_json()
         if req is None:
-            data = await request.get_data()
+            data = await quart_request.get_data()
             if type(data) == bytes:
                 data = data.decode('ascii')
             try:
@@ -44,6 +65,13 @@ class Component(ABC):
                 req = data
         out = await self.process(req)
         return str(out) 
+
+    async def receive_sanic(self, request: sanic_request) -> sanic_response.json:
+        req = request.json
+        if req is None:
+            raise NotImplementedError()
+        out = await self.process(req)
+        return sanic_response.json(out) 
 
 
 def component(f: Callable[[JSONType], Awaitable[JSONType]]) -> Component:
@@ -86,18 +114,24 @@ class Server:
     A server builder class.
 
     Each server is extendable via adding restful components.
-    The underlying server is Quart.
+    The underlying server can be either Quart or Sanic.
     
     Example usage:
-    (Server('example', 8008)
+    (Server('example', 8008, Backend.QUART)
         .add_get('/double', component(lambda x: int(x) * 2))
         .add_get('/ok', component(lambda x: 'OK'))
         .run())
     """
     components: List[Component]
 
-    def __init__(self, name: str, port: int) -> None:
-        self.__app = cors(Quart(name))
+    def __init__(self, name: str, port: int, backend: Backend = Backend.SANIC) -> None:
+        if backend is Backend.SANIC:
+            self.__app = Sanic(name)
+            # sanic_cors(self.__app)
+        elif backend is Backend.QUART:
+            self.__app = quart_cors(Quart(name))
+
+        self.__backend = backend
         self.__name = name
         self.__port = port
         self.components = []
@@ -110,11 +144,18 @@ class Server:
         self.components.append(component)
 
         def binder():
-            def binded():
-                return component.receive()
-            binded.__name__ = self.__name + route.replace("/", "_")
-            return binded
-
+            if self.__backend is Backend.SANIC:
+                def binded(request):
+                    return component.receive_sanic(request)
+                binded.__name__ = self.__name + route.replace("/", "_")
+                return binded
+            elif self.__backend is Backend.QUART:
+                def binded():
+                    return component.receive_quart()
+                binded.__name__ = self.__name + route.replace("/", "_")
+                return binded
+            else:
+                raise UncompatibleBackendError()
         self.__app.route(route, methods=[method])(binder())
         return self
 
@@ -125,9 +166,21 @@ class Server:
         return self.__add_method(route, component, 'POST')
 
     def run(self):
-        self.__app.run(
-            host='0.0.0.0', 
-            port=int(self.__port), 
-            certfile='certs/cert.pem', 
-            keyfile='certs/key.pem',    
-        )
+        if self.__backend is Backend.SANIC:
+            self.__app.run(
+                host='0.0.0.0', 
+                port=int(self.__port),
+                ssl={
+                    'cert' : 'certs/cert.pem',
+                    'key' : 'certs/key.pem',
+                },
+            )
+        elif self.__backend is Backend.QUART:
+            self.__app.run(
+                host='0.0.0.0', 
+                port=int(self.__port),
+                certfile='certs/cert.pem',
+                keyfile='certs/key.pem',
+            )
+        else:
+            raise UncompatibleBackendError()
