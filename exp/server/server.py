@@ -2,6 +2,7 @@ import aiohttp
 import asyncio
 import copy
 import json
+import uvloop
 
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -127,7 +128,7 @@ class Server:
     def __init__(self, name: str, port: int, backend: Backend = Backend.SANIC) -> None:
         if backend is Backend.SANIC:
             self.__app = Sanic(name)
-            # sanic_cors(self.__app)
+            sanic_cors(self.__app, automatic_options=True)
         elif backend is Backend.QUART:
             self.__app = quart_cors(Quart(name))
 
@@ -156,7 +157,7 @@ class Server:
                 return binded
             else:
                 raise UncompatibleBackendError()
-        self.__app.route(route, methods=[method])(binder())
+        self.__app.route(route, methods=[method, 'OPTIONS'])(binder())
         return self
 
     def add_get(self, route: str, component: Component) -> 'Server':
@@ -167,6 +168,8 @@ class Server:
 
     def run(self):
         if self.__backend is Backend.SANIC:
+            # Create an event loop so that Sanic uses it
+            asyncio.get_event_loop()
             self.__app.run(
                 host='0.0.0.0', 
                 port=int(self.__port),

@@ -3,7 +3,7 @@ import json
 import os
 
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from server.data import Metrics, Segment, Value
 from server.server import post_after, Component, JSONType
@@ -23,12 +23,19 @@ class Monitor(Component):
     segments: List[Segment] 
     index: int 
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, 
+        path: Path, 
+        plot: bool = False,
+        request_port: Optional[int] = None,
+    ) -> None:
         self.path = path / 'metrics.log' 
         self.metrics = []
         self.timestamps = [0]
         self.segments = []
         self.index = 1
+        
+        self.plot = plot
+        self.request_port = request_port
 
         # [TODO] remove hardcoding
         self.qualities = [300, 750, 1200, 1850, 2850, 4300]
@@ -80,21 +87,23 @@ class Monitor(Component):
             - PENALTY_REBUF * rebuffer 
             - PENALTY_QSWITCH * switch / K_in_M)
        
-        await asyncio.gather(*[
-            post_after(Value(rebuffer, self.index).json, 0, "/rebuffer"),
-            post_after(Value(switch, self.index).json, 0, "/switch"),
-            post_after(Value(quality, self.index).json, 0, "/quality"),
-            post_after(Value(qoe, self.index).json, 0, "/qoe"),
-        ])
-       
-
+        if self.plot:
+            idx  = self.index
+            port = self.request_port
+            await asyncio.gather(*[
+                post_after(Value(rebuffer, idx).json, 0, "/rebuffer", port=port),
+                post_after(Value(switch, idx).json, 0, "/switch", port=port),
+                post_after(Value(quality, idx).json, 0, "/quality", port=port),
+                post_after(Value(qoe, idx).json, 0, "/qoe", port=port),
+            ])
+    
     async def compute_qoe(self, metrics: Metrics) -> None: 
         self.metrics.append(metrics)
         for segment in metrics.segments:
             if segment.index >= self.index + 1 and segment.loading:
                 print(segment)
                 await self.advance(segment)
-                
+    
     async def process(self, json: JSONType) -> JSONType:
         if 'stats' in json:
             metrics = Metrics.from_json(json['stats'])

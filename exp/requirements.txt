@@ -5,5 +5,5 @@ matplotlib
 numpy
 pillow
 psutil
-sanic
+sanic==19.9.0
 sanic-cors

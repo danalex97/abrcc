@@ -15,10 +15,11 @@ class BackendProcessor(SubprocessStream):
     def __init__(self, 
         cmd: List[str], 
         path: Path,
+        name: str,
         frontend: SubprocessStream,
     ) -> None:
         super().__init__(cmd)
-        self.quic_log = open(path / 'quic.log', 'a') 
+        self.quic_log = open(path / f'{name}_quic.log', 'a') 
         self.frontend = frontend
 
     async def on_stdout(self, line: str) -> None:
@@ -35,11 +36,13 @@ class BackendProcessor(SubprocessStream):
 
 class Controller:
     def __init__(self,
+        name: str,
         network: Network,
         dash: List[str],
         only_server: bool,
         port: int,
         path: Path,
+        leader_port: Optional[int] = None,
     ) -> None:
         self.dash = dash
         self.only_server = only_server
@@ -54,9 +57,11 @@ class Controller:
         self.backend = BackendProcessor( 
             cmd=[script, '-s', '-d', 'record', '--certs'],
             path=path,
+            name=name,
             frontend=self.chrome,
         )
         self.network = network
+        self.leader_port = leader_port
 
         if not self.only_server:
             Thread(target = self.start).start() 
@@ -92,8 +97,15 @@ class Controller:
             return self.do_nothing()
         @component
         async def on_start(json: JSONType) -> JSONType:
-            await self.network.run(same_process=True) 
-            return 'OK'
+            if not self.leader_port:
+                # Start the network simulation
+                await self.network.run(same_process=True)
+                return 'OK'
+            else:
+                # Let the leader starts the network and wait for it to 
+                # tell us it's all ok
+                await post_after({'port' : self.port}, 0, "/", port=self.leader_port)
+                return 'OK'
         return on_start
 
     def on_complete(self) -> Component:
@@ -104,16 +116,19 @@ class Controller:
             # killing child subprocesses
             self.chrome.stop()
             self.backend.stop()
-            os.system("kill $(pgrep chrome)")
             
             # kill myself later 
-            await post_after({}, 5000, '/destroy', self.port)
+            if not self.leader_port:
+                await post_after({}, 0, '/destroy', self.port)
+            else:
+                await post_after({'pid' : os.getpid()}, 0, '/destroy', self.leader_port)
             return 'OK'
         return on_complete
 
     def on_destroy(self) -> Component:
         @component
         async def on_destroy(json: JSONType) -> JSONType:
+            os.system("kill $(pgrep chrome)")
             kill_subprocess(os.getpid())
             return 'OK'
         return on_destroy
