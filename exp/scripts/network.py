@@ -6,7 +6,7 @@ import sys
 import os
 
 from argparse import ArgumentParser, Namespace
-from typing import Optional
+from typing import List, Optional
 from server.process import SubprocessStream
 
 
@@ -24,22 +24,23 @@ class Network:
         bandwidth: Optional[float] = None,
         trace_path: Optional[str] = None,
         burst: int = 20000,
-        port: int = 6121,
+        ports: List[int] = [6121],
         skip: bool = False,
     ) -> None:
         self.delay = delay
         self.bandwidth = bandwidth
         self.trace_path = trace_path
         self.burst = burst
-        self.port = port
+        self.ports = ports
         self.first = not skip
         self.trace = None
+        self.reset_conditions()
     
+    def initialize(self):
         if self.delay and (self.bandwidth or self.trace_path):
-            self.reset_conditions()
             self.set_trace()
             self.set_conditions()
-   
+
     def set_trace(self):
         if self.trace_path is None:
             return
@@ -67,8 +68,9 @@ class Network:
             return
         run_cmd(f'{TC} qdisc add dev lo root handle 1: prio')    
         run_cmd(f'{cmd} tbf rate {bw}mbit latency {self.delay}ms burst {self.burst}')
-        run_cmd(f'{TC} filter add dev lo protocol ip parent 1:0 prio 3 u32 ' +  
-                f'match ip sport {self.port} 0xffff flowid 1:3')
+        for port in self.ports:
+            run_cmd(f'{TC} filter add dev lo protocol ip parent 1:0 prio 3 u32 ' +  
+                    f'match ip sport {port} 0xffff flowid 1:3')
         self.first = False
 
     async def process(self) -> None:
@@ -83,6 +85,7 @@ class Network:
    
     async def run(self, same_process: bool = True) -> None:
         if same_process:
+            self.initialize()
             await self.process()
         else:
             script = str(os.path.realpath(__file__))
@@ -91,7 +94,7 @@ class Network:
                 (['-b', str(self.bandwidth)] if self.bandwidth else []) + 
                 (['-t', str(self.trace_path)] if self.trace_path else []) + 
                 (['--burst', str(self.burst)] if self.burst else []) + 
-                (['-p', str(self.port)] if self.port else []) 
+                sum([['-p', str(p)] for p in self.ports], []) 
             )
             await SubprocessStream(cmd).start()
 
@@ -102,9 +105,12 @@ if __name__ == "__main__":
     parser.add_argument('-b', '--bandwidth', type=int, help='Bandwidth of the link.')
     parser.add_argument('--burst', type=int, default=20000, help='Burst.')
     parser.add_argument('-t', '--trace', dest='trace_path', type=str, help='Trace for bandwidth.')
-    parser.add_argument('-p', '--port', type=int, default=6212, help='Port to limit traffic on.')
+    parser.add_argument('-p', '--port', type=int, action='append', dest='ports', help='Port to limit traffic on.')
     parser.add_argument('-s', '--skip', action='store_true', help='Skip setup and run trace.') 
     args = parser.parse_args()
+
+    if args.ports == []:
+        args.ports.append(6212)
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(Network(**vars(args)).run())

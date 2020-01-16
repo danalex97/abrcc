@@ -7,7 +7,7 @@ from threading import Thread
 from typing import List, Optional
 
 from server.process import SubprocessStream, kill_subprocess 
-from server.server import component, Component, JSONType, post_after
+from server.server import ctx_component, Component, JSONType, post_after
 from scripts.network import Network
 
 
@@ -39,6 +39,7 @@ class Controller:
         name: str,
         network: Network,
         dash: List[str],
+        quic_port: int, 
         only_server: bool,
         port: int,
         path: Path,
@@ -51,11 +52,13 @@ class Controller:
         directory = Path(os.path.dirname(os.path.realpath(__file__)))
         script = str(directory / '..' / 'quic' / 'run.sh')
         
+        ports = ['--port', f"{quic_port}", '-mp', f"{port}"]
         self.chrome  = SubprocessStream(
-            [script, '--chrome']
+            [script] + ports + ['--chrome']
         ) 
         self.backend = BackendProcessor( 
-            cmd=[script, '-s', '-d', 'record', '--certs'],
+            cmd=[script, '--port', f"{quic_port}", '-d', 'record', '--certs'] +
+                sum([['-d', str(d)] for d in dash] if dash else [], ['-s']),
             path=path,
             name=name,
             frontend=self.chrome,
@@ -64,71 +67,50 @@ class Controller:
         self.leader_port = leader_port
 
         if not self.only_server:
-            Thread(target = self.start).start() 
+            Thread(target=self.start).start()
 
     def start(self):
         loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(post_after(
-            data = {},
-            wait = 1000,
-            resource = '/init',
-            port = self.port,
-        ))
+        loop.run_until_complete(post_after({}, 1000, '/init', self.port))
 
-    async def init(self):
+    @ctx_component
+    async def on_init(self, json: JSONType) -> JSONType:
         await self.backend.start()
+        return 'OK'
 
-    def do_nothing(self) -> Component:
-        @component
-        async def do_nothing(json: JSONType) -> JSONType:
-            return 'OK'
-        return do_nothing
-
-    def on_init(self) -> Component:
-        @component
-        async def init(json: JSONType) -> JSONType:
-            await self.init()
-            return 'OK'
-        return init  
-
-    def on_start(self) -> Component:
+    @ctx_component
+    async def on_start(self, json: JSONType) -> JSONType:
         if self.only_server:
-            return self.do_nothing()
-        @component
-        async def on_start(json: JSONType) -> JSONType:
-            if not self.leader_port:
-                # Start the network simulation
-                await self.network.run(same_process=True)
-                return 'OK'
-            else:
-                # Let the leader starts the network and wait for it to 
-                # tell us it's all ok
-                await post_after({'port' : self.port}, 0, "/", port=self.leader_port)
-                return 'OK'
-        return on_start
+            return 'OK'
+        elif not self.leader_port:
+            # Start the network simulation
+            await self.network.run(same_process=True)
+            return 'OK'
+        elif self.leader_port:
+            # Let the leader starts the network and wait for it to 
+            # tell us it's all ok
+            await post_after({'port' : self.port}, 0, "/start", port=self.leader_port)
+            return 'OK'
 
-    def on_complete(self) -> Component:
-        if self.only_server:
-            return self.do_nothing()
-        @component
-        async def on_complete(json: JSONType) -> JSONType:
-            # killing child subprocesses
+    @ctx_component
+    async def on_complete(self, json: JSONType) -> JSONType:
+        if not self.leader_port:
+            # destroy myself
+            await post_after({}, 10000, '/destroy', self.port)
+        else:
+            # wait for others then, destroy myself
+            await post_after({'port' : self.port}, 0, '/destroy', self.leader_port)
+            await post_after({'port' : self.port}, 0, '/destroy', self.port)
+        return 'OK'
+
+    @ctx_component
+    async def on_destroy(self, json: JSONType) -> JSONType:
+        # killing child subprocesses
+        if not self.only_server:
             self.chrome.stop()
             self.backend.stop()
             
-            # kill myself later 
-            if not self.leader_port:
-                await post_after({}, 0, '/destroy', self.port)
-            else:
-                await post_after({'pid' : os.getpid()}, 0, '/destroy', self.leader_port)
-            return 'OK'
-        return on_complete
-
-    def on_destroy(self) -> Component:
-        @component
-        async def on_destroy(json: JSONType) -> JSONType:
-            os.system("kill $(pgrep chrome)")
-            kill_subprocess(os.getpid())
-            return 'OK'
-        return on_destroy
+        if not self.only_server:
+            os.system("pkill -9 chrome")
+        kill_subprocess(os.getpid())
+        return 'OK'

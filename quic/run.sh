@@ -7,6 +7,7 @@ OUT_DIR=$CHROMIUM_DIR/src/$TARGET
 
 HOST=127.0.0.1
 PORT=6121
+METRICS_PORT=8080
 SITE=www.example.org
 
 TC=/sbin/tc
@@ -124,7 +125,7 @@ function quic_chrome {
             --allow-running-insecure-content \
             --enable-features=NetworkService \
             --incognito \
-            --host-resolver-rules='MAP www.example.org:443 127.0.0.1:6121, MAP www.example.org:8080 127.0.0.1:8080' \
+            --host-resolver-rules="MAP www.example.org:443 127.0.0.1:$PORT, MAP www.example.org:8080 127.0.0.1:$METRICS_PORT" \
             https://$SITE
     else
         google-chrome-stable \
@@ -138,7 +139,7 @@ function quic_chrome {
             --allow-running-insecure-content \
             --enable-features=NetworkService \
             --incognito \
-            --host-resolver-rules='MAP www.example.org:443 127.0.0.1:6121, MAP www.example.org:8080 127.0.0.1:8080' \
+            --host-resolver-rules="MAP www.example.org:443 127.0.0.1:$PORT, MAP www.example.org:8080 127.0.0.1:$METRICS_PORT" \
             https://$SITE
     fi
 }
@@ -153,6 +154,7 @@ function usage() {
     printf "\t %- 30s %s\n" "-b | --build" "Build quic client and server."
     printf "\t %- 30s %s\n" "--chrome" "Run a quic client in Chrome."
     printf "\t %- 30s %s\n" "--port [int]" "Change the port. (default 6121)"
+    printf "\t %- 30s %s\n" "(-mp | --metrics-port) [int]" "Change the to which chrome talks to. (default 8080)"
     printf "\t %- 30s %s\n" "--site [url]" "Change the site. (default www.example.org)"
     printf "\t %- 30s %s\n" "--bw [int]" "Change connection bandwidth in mbit."
     printf "\t %- 30s %s\n" "(--latency | --delay) [int]" "Change connection latency in ms."
@@ -194,6 +196,10 @@ function parse_command_line_options() {
             --port)
                 shift
                 PORT=$1
+                ;;
+            -mp | --metrics-port)
+                shift
+                METRICS_PORT=$1
                 ;;
             --site)
                 shift

@@ -27,12 +27,14 @@ class Monitor(Component):
         path: Path, 
         plot: bool = False,
         request_port: Optional[int] = None,
+        port: Optional[int] = None,
     ) -> None:
         self.path = path / 'metrics.log' 
         self.metrics = []
         self.timestamps = [0]
         self.segments = []
         self.index = 1
+        self.port = port
         
         self.plot = plot
         self.request_port = request_port
@@ -112,5 +114,5 @@ class Monitor(Component):
                 self.compute_qoe(metrics),
             ])
         if 'complete' in json:
-            await post_after(json, 0, "/complete") 
+            await post_after(json, 0, "/complete", port=self.port) 
         return 'OK'

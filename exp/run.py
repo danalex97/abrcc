@@ -28,6 +28,7 @@ def run(args: Namespace) -> None:
             trace_path=getattr(args, 'trace', None),
         ),
         dash = args.dash,
+        quic_port = args.quic_port,
         only_server = args.only_server,
         port = args.port,
         path = path,
@@ -40,7 +41,12 @@ def run(args: Namespace) -> None:
     (server
         .add_post('/init', controller.on_init())
         .add_post('/start', controller.on_start())
-        .add_post('/metrics', Monitor(path, args.plot, request_port))
+        .add_post('/metrics', Monitor(
+            path = path, 
+            plot = args.plot or (args.leader_port != None), 
+            request_port = request_port,
+            port = args.port,
+        ))
         .add_post('/destroy', controller.on_destroy()))
 
     plots = {}
@@ -65,8 +71,9 @@ def run(args: Namespace) -> None:
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description='Run an experiment.')
+    parser = ArgumentParser(description='Run a single video instance.')
     parser.add_argument('--name', type=str, default='default', help='Instance name. Must be specified when running with a leader.')
+    parser.add_argument('--quic-port', type=int, default=6000, help="Port for QUIC server.")
     parser.add_argument('--port', type=int, default=8080, help='Port(default 8080).')
     parser.add_argument('--path', type=str, default='logs/default', help='Experiment folder path.')
     parser.add_argument('--only-server', dest='only_server', action='store_true', help='Use only as metrics server.')

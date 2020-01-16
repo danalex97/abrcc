@@ -2,12 +2,11 @@ import aiohttp
 import asyncio
 import copy
 import json
-import uvloop
 
 from abc import ABC, abstractmethod
 from enum import Enum
 from functools import wraps
-from typing import Awaitable, Callable, List
+from typing import Any, Awaitable, Callable, List, Union
 
 from quart import Quart, request as quart_request
 from quart_cors import cors as quart_cors
@@ -54,23 +53,29 @@ class Component(ABC):
     async def process(self, json: JSONType) -> JSONType:
         pass
 
+    @staticmethod
+    def get_req(data: Union[bytes, str]) -> JSONType:
+        if type(data) == bytes:
+            data = data.decode('ascii')
+        try:
+            req = json.loads(data) 
+        except: 
+            req = data
+        return req
+
     async def receive_quart(self) -> str:
         req = await quart_request.get_json()
         if req is None:
             data = await quart_request.get_data()
-            if type(data) == bytes:
-                data = data.decode('ascii')
-            try:
-                req  = json.loads(data) 
-            except: 
-                req = data
+            req  = self.get_req(data)
         out = await self.process(req)
         return str(out) 
 
     async def receive_sanic(self, request: sanic_request) -> sanic_response.json:
         req = request.json
         if req is None:
-            raise NotImplementedError()
+            data = request.body
+            req  = self.get_req(data)
         out = await self.process(req)
         return sanic_response.json(out) 
 
@@ -83,6 +88,23 @@ def component(f: Callable[[JSONType], Awaitable[JSONType]]) -> Component:
         async def process(self, json: JSONType) -> JSONType:
             return await f(json)
     return __comp()
+
+
+@component
+async def do_nothing(json: JSONType) -> JSONType:
+    return 'OK'
+
+
+def ctx_component(f: Callable[[Any, JSONType], Awaitable[JSONType]]) -> Component:
+    """
+    Create a component from a class function.
+    """
+    def wrapper(ctx: Any) -> Component:
+        class __comp(Component):
+            async def process(self, json: JSONType) -> JSONType:
+                return await f(ctx, json)
+        return __comp()
+    return wrapper
 
 
 def multiple(*components: Component) -> Component:
@@ -168,8 +190,6 @@ class Server:
 
     def run(self):
         if self.__backend is Backend.SANIC:
-            # Create an event loop so that Sanic uses it
-            asyncio.get_event_loop()
             self.__app.run(
                 host='0.0.0.0', 
                 port=int(self.__port),
