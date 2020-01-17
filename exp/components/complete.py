@@ -23,6 +23,9 @@ class OnComplete(Component):
   
     async def export_plots(self) -> None:
         if len(self.plots) > 0:
+            for plot in self.plots.values():
+                await plot.draw()
+            
             ref_plot = list(self.plots.values())[1]
             ref_dataset = list(ref_plot.datasets.values())[0]
             with open(self.plots_path, 'a') as f:

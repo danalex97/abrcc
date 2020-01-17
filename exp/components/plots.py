@@ -3,10 +3,12 @@ import matplotlib.animation as animation
 
 import numpy as np
 import time
+import asyncio
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from typing import Optional, Dict, Tuple, List 
+from timeit import default_timer as timer
 
 from server.server import Component, JSONType
 from server.data import Value
@@ -47,16 +49,14 @@ class Dataset:
        
         self.data, = self.axes.plot(self.x, self.y, label=name)
 
-    def __update(self, x: int, y: float) -> None: 
+    def update(self, x: int, y: float) -> None: 
         while len(self.x) < x - 1:
             self.x.append(len(self.x))
             self.y.append(0)
         self.x[x - 1] = x
         self.y[x - 1] = y
     
-    def plot(self, x: int, y: float) -> None:
-        self.__update(x, y)
-        
+    def draw(self) -> None:
         self.data.set_xdata(self.x)
         self.data.set_ydata(self.y)
 
@@ -87,9 +87,11 @@ class LivePlot(Component):
         self.axes.set_xlabel("time(segment)")
         self.axes.set_ylabel(y_label)
         self.axes.set_title(figure_name)
-    
 
-    def plot(self, name: str, x: int, y: float) -> None:
+        self.first_call = True
+        self.last_referesh = timer()
+
+    async def update(self, name: str, x: int, y: float) -> None:
         if name not in self.datasets:
             self.datasets[name] = Dataset(
                 axes=self.axes,
@@ -99,20 +101,35 @@ class LivePlot(Component):
             self.axes.legend(loc="upper left")
 
         dataset = self.datasets[name]
-        dataset.plot(x, y)
+        dataset.update(x, y)
 
+        if self.first_call:
+            asyncio.ensure_future(
+                self.draw(auto=True)
+            )
+            self.first_call = False
+
+    async def draw(self, auto: bool = False) -> None:
+        for dataset in self.datasets.values():
+            dataset.draw()
         ys = sum([d.y for d in self.datasets.values()], [])
         self.axes.set_ylim([min(ys) * 1.15, max(ys) * 1.15])
         
-        self.draw()
-
-    def draw(self):
         self.figure.canvas.draw()
+        self.last_referesh = timer()
+
+        if auto:
+            await asyncio.sleep(1)
+            asyncio.ensure_future(
+                self.draw(auto=True)
+            )
 
     async def process(self, json: JSONType) -> JSONType:
         name  = json['name']
         value = Value.from_json(json['value'])
         
-        self.plot(name, value.timestamp, value.value)
+        await self.update(name, value.timestamp, value.value)
+        if timer() - self.last_referesh > 3:
+            await self.draw(auto=False)
 
         return 'OK'

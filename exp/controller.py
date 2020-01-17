@@ -28,7 +28,6 @@ class BackendProcessor(SubprocessStream):
         # we want to flush all the time to keep the log
         self.quic_log = open(path / f'{name}_quic.log', 'a', buffering=1) 
         self.frontend = frontend
-        atexit.register(self.on_exit)
 
     def on_exit(self) -> None:
         self.quic_log.close()

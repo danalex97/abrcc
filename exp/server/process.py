@@ -13,11 +13,11 @@ def kill_subprocess(pid: int) -> None:
         parent = psutil.Process(pid)
         for child in parent.children(recursive=True):
             try: 
-                child.kill()
+                os.kill(child.pid, signal.SIGUSR1)
             except:
                 pass
         try:
-            parent.kill()
+            os.kill(parent.pid, signal.SIGUSR1)
         except:
             pass
     except:
