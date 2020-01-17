@@ -4,7 +4,6 @@ import { BB } from '../algo/bb';
 import { Decision } from '../common/data';
 import { logging, exportLogs } from '../common/logger';
 import { Metrics, StatsTracker } from '../component/stats'; 
-import { BackendShim } from '../component/backend';
 import { SetQualityController, onEvent } from '../component/abr';
 import { Interceptor } from '../component/intercept';
 
@@ -16,12 +15,12 @@ const logger = logging('App');
 
 
 export class FrontEndApp extends App {
-    constructor(player, recordMetrics) {
+    constructor(player, recordMetrics, shim) {
         super(player);
     
         this.tracker = new StatsTracker(player);
         this.interceptor = new Interceptor();
-        this.shim = new BackendShim(); 
+        this.shim = shim; 
         
         this.statsController = new StatsController();
         this.qualityController = new QualityController();
@@ -34,12 +33,6 @@ export class FrontEndApp extends App {
 
     start() {
         logger.log("Starting App.")
-        if (this.recordMetrics) {
-            this.shim
-                .startLoggingRequest()
-                .send();
-        }
-
         this.qualityController
             .onGetQuality((index) => {
                 this.tracker.getMetrics();

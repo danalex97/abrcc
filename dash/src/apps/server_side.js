@@ -71,11 +71,11 @@ function cacheHit(object, res) {
 
 
 export class ServerSideApp extends App {
-    constructor(player, recordMetrics) {
+    constructor(player, recordMetrics, shim) {
         super(player);
 
+        this.shim = shim;
         this.tracker = new StatsTracker(player);
-        this.shim = new BackendShim(); 
         this.interceptor = new Interceptor();
         
         this.requestController = new RequestController(this.shim, POOL_SIZE);
@@ -87,13 +87,6 @@ export class ServerSideApp extends App {
     }
 
     start() {
-        // Mark start of stream
-        if (this.recordMetrics) {
-            this.shim
-                .startLoggingRequest()
-                .send();
-        }
-
         // Request all headers at the beginning
         for (let quality = 1; quality <= MAX_QUALITY; quality++) {
             let header = makeHeader(quality);

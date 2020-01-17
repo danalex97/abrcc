@@ -7,6 +7,7 @@ import * as config from '../dist/config.json';
 
 import { ArgsParser } from './common/args';
 import { GetServerSideRule } from './component/abr';
+import { BackendShim } from './component/backend';
 import { MediaPlayer, Debug } from 'dashjs';
 import readingTime from 'reading-time';
 
@@ -37,25 +38,38 @@ function updateAbrSettings(player) {
 }
 
 
-function init() {
-    let parser = new ArgsParser(config.args);
-
-    let url = "https://www.example.org/manifest.mpd";
-    let player = MediaPlayer().create();
-    let video = document.querySelector('#videoPlayer'); 
-    let app;
-
-    if (parser.serverSide) {
-        app = new ServerSideApp(player, parser.recordMetrics);
-    }
-    if (parser.frontEnd) {
-        app = new FrontEndApp(player, parser.recordMetrics);
-    }
-
+function startPlayer(app, player, video, url) {
     updateAbrSettings(player);
     player.initialize(video, url, true);
     app.start();
     player.play();
+}
+
+function init() {
+    let parser = new ArgsParser(config.args);
+
+    let url = `https://${parser.site}:${parser.quicPort}/manifest.mpd`;
+    let player = MediaPlayer().create();
+    let video = document.querySelector('#videoPlayer'); 
+    let app;
+
+    let shim = new BackendShim(parser.site, parser.metricsPort, parser.quicPort);
+    if (parser.serverSide) {
+        app = new ServerSideApp(player, parser.recordMetrics, shim);
+    }
+    if (parser.frontEnd) {
+        app = new FrontEndApp(player, parser.recordMetrics, shim);
+    }
+    if (parser.recordMetrics) {
+        shim
+            .startLoggingRequest()
+            .onSuccess((body) => {
+                startPlayer(app, player, video, url);
+            })
+            .send();
+    } else {
+        startPlayer(app, player, video, url);
+    }
 }
 
 

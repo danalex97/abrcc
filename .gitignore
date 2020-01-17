@@ -9,8 +9,12 @@ quic/chromium/src/net/data/**
 quic/chromium/src/net/tools/quic/certs/out/
 quic/chromium/src/net/tools/quic/certs/out/*
 
-quic/sites/www.example.org/index.html
-quic/sites/www.example.org/dist/
+!quic/sites/common
+quic/sites/
+
+quic/certs/leaf
+quic/certs/leaf.cnf
+quic/certs/out
 
 depot_tools
 *.swp

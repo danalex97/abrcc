@@ -41,6 +41,10 @@ DashBackend::DashBackend()
 }
 DashBackend::~DashBackend() {}
 
+void DashBackend::SetExtra(const std::string& site) {
+  this->site = site;
+}
+
 bool DashBackend::InitializeBackend(const std::string& config_path) {
   QUIC_LOG(INFO) << "Starting DASH backend from config: " << config_path;
   
@@ -54,6 +58,9 @@ bool DashBackend::InitializeBackend(const std::string& config_path) {
   std::shared_ptr<DashBackendConfig> config(new DashBackendConfig());
   base::JSONValueConverter<DashBackendConfig> converter;
   converter.Convert(*value, config.get());
+  
+  config->domain = this->site;
+  config->base_path = config->base_path + this->site;
 
   // paths
   std::string dir_path = config_path.substr(0, config_path.find_last_of("/"));

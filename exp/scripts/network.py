@@ -34,14 +34,19 @@ class Network:
         self.ports = ports
         self.first = not skip
         self.trace = None
-        self.reset_conditions()
     
-    def initialize(self):
+    def add_port(self, port: int) -> None:
+        if port not in self.ports:
+            self.ports.append(port)
+            self.add_port_filters(ports=[port])
+
+    def initialize(self) -> None:
         if self.delay and (self.bandwidth or self.trace_path):
-            self.set_trace()
+            self.setup_traffic_class()
+            self.add_port_filters()
             self.set_conditions()
 
-    def set_trace(self):
+    def set_trace(self) -> None:
         if self.trace_path is None:
             return
         to_timestamp = lambda x: tuple(map(float, x))
@@ -54,24 +59,26 @@ class Network:
                 if line != ''
             ]
 
-    def reset_conditions(self):
-        run_cmd(f'{TC} qdisc del dev lo root')    
-    
+    def setup_traffic_class(self) -> None:
+        run_cmd(f'{TC} qdisc del dev lo root')   
+        run_cmd(f'{TC} qdisc add dev lo root handle 1: prio')   
+        run_cmd(f'{TC} qdisc add dev lo parent 1:3 handle 30: tbf ' + 
+                f'rate 10mbit latency 10ms burst {self.burst}')
+        
+    def add_port_filters(self, ports: Optional[List[int]] = None) -> None:
+        if ports is None:
+            ports = self.ports 
+        for port in ports:
+            run_cmd(f'{TC} filter add dev lo protocol ip parent 1: prio 3 u32 ' +  
+                    f'match ip sport {port} 0xffff flowid 1:3')
+
     def set_conditions(self, bw: Optional[float] = None):
         if bw is None:
             bw = self.bandwidth if not self.trace else self.trace[0][1] 
         bw = format(bw, '.3f')
-        change = 'add' if self.first else 'change'
-        cmd    = f'{TC} qdisc {change} dev lo parent 1:3 handle 30:'
-        if not self.first:
-            run_cmd(f'{cmd} tbf rate {bw}mbit latency {self.delay}ms burst {self.burst}')
-            return
-        run_cmd(f'{TC} qdisc add dev lo root handle 1: prio')    
+        
+        cmd    = f'{TC} qdisc change dev lo handle 30:'
         run_cmd(f'{cmd} tbf rate {bw}mbit latency {self.delay}ms burst {self.burst}')
-        for port in self.ports:
-            run_cmd(f'{TC} filter add dev lo protocol ip parent 1:0 prio 3 u32 ' +  
-                    f'match ip sport {port} 0xffff flowid 1:3')
-        self.first = False
 
     async def process(self) -> None:
         async def process_timestamp(wait: float, bw_value: float) -> None: 
@@ -109,8 +116,8 @@ if __name__ == "__main__":
     parser.add_argument('-s', '--skip', action='store_true', help='Skip setup and run trace.') 
     args = parser.parse_args()
 
-    if args.ports == []:
-        args.ports.append(6212)
+    if args.ports == None:
+        args.ports = [6212]
 
     loop = asyncio.get_event_loop()
     loop.run_until_complete(Network(**vars(args)).run())

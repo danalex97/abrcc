@@ -2,6 +2,8 @@ import aiohttp
 import asyncio
 import copy
 import json
+import random
+import string
 
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -165,17 +167,22 @@ class Server:
         method: str,
     ) -> 'Server':
         self.components.append(component)
-
+        random_id = ''.join(random.choice(
+            string.ascii_uppercase + string.ascii_lowercase) 
+            for _ in range(10)
+        )
+        component_name = self.__name + random_id + route.replace("/", "_")
+    
         def binder():
             if self.__backend is Backend.SANIC:
                 def binded(request):
                     return component.receive_sanic(request)
-                binded.__name__ = self.__name + route.replace("/", "_")
+                binded.__name__ = component_name
                 return binded
             elif self.__backend is Backend.QUART:
                 def binded():
                     return component.receive_quart()
-                binded.__name__ = self.__name + route.replace("/", "_")
+                binded.__name__ = component_name
                 return binded
             else:
                 raise UncompatibleBackendError()

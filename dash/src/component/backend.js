@@ -1,7 +1,6 @@
 import * as request from 'request';
 import { logging } from '../common/logger'; 
 
-
 const logger = logging('BackendShim');
 
 
@@ -14,7 +13,7 @@ class Request {
         this._onSend = (url, content) => {};
         this._progress = (event) => {}; 
         this._log = false;
-
+        
         // underlying request object
         this.request = undefined;
     }
@@ -219,14 +218,16 @@ export class ResourceRequest extends Request {
 
 
 export class BackendShim {
-    constructor() {
+    constructor(site, metrics_port, quic_port) {
         // the base path refers to the backend server
-        this._base_path = "https://www.example.org";
-        this._path = "https://www.example.org/request";
-        this._resource_path = "https://www.example.org/piece";    
+        this._base_path = `https://${site}:${quic_port}`;
+        this._path = `https://${site}:${quic_port}/request`;
+        this._resource_path = `https://${site}:${quic_port}/piece`;    
 
         // the experiment path is used as a logging and control service
-        this._experiment_path = "https://www.example.org:8080";
+        this._experiment_path = `https://${site}:${metrics_port}`;
+
+        console.log(this._base_path);
     }
 
     headerRequest() {

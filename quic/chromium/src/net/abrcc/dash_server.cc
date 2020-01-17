@@ -22,12 +22,19 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     "quic server. In the JSON we should specify the paths for"
     "videos and the DASH manifest.");
 
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    std::string,
+    site,
+    "",
+    "Site.");
+
 namespace quic {
 
 std::unique_ptr<quic::QuicSimpleServerBackend>
 QuicDashServer::MemoryCacheBackendFactory::CreateBackend() {
   auto dash_backend = std::make_unique<DashBackend>();
   if (!GetQuicFlag(FLAGS_quic_config_path).empty()) {
+    dash_backend->SetExtra(FLAGS_site);
     dash_backend->InitializeBackend(
       GetQuicFlag(FLAGS_quic_config_path));
   }

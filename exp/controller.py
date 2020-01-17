@@ -37,6 +37,7 @@ class BackendProcessor(SubprocessStream):
 class Controller:
     def __init__(self,
         name: str,
+        site: str,
         network: Network,
         dash: List[str],
         quic_port: int, 
@@ -48,17 +49,19 @@ class Controller:
         self.dash = dash
         self.only_server = only_server
         self.port = port
-       
+        self.quic_port = quic_port
+
         directory = Path(os.path.dirname(os.path.realpath(__file__)))
         script = str(directory / '..' / 'quic' / 'run.sh')
         
-        ports = ['--port', f"{quic_port}", '-mp', f"{port}"]
+        ports = ['--port', f"{quic_port}", '-mp', f"{port}", '--site', site]
         self.chrome  = SubprocessStream(
-            [script] + ports + ['--chrome']
+            [script] + ports + ['--chrome', '--profile', name]
         ) 
         self.backend = BackendProcessor( 
-            cmd=[script, '--port', f"{quic_port}", '-d', 'record', '--certs'] +
-                sum([['-d', str(d)] for d in dash] if dash else [], ['-s']),
+            cmd=[script, '--port', f"{quic_port}", '-mp', f"{port}"] +
+                sum([['-d', str(d)] for d in dash] if dash else [], ['-s']) + 
+                ['--site', site, '--profile', name],
             path=path,
             name=name,
             frontend=self.chrome,
@@ -89,7 +92,8 @@ class Controller:
         elif self.leader_port:
             # Let the leader starts the network and wait for it to 
             # tell us it's all ok
-            await post_after({'port' : self.port}, 0, "/start", port=self.leader_port)
+            print(self, self.port)
+            await post_after({'port' : self.quic_port}, 0, "/start", port=self.leader_port)
             return 'OK'
 
     @ctx_component
@@ -99,7 +103,7 @@ class Controller:
             await post_after({}, 10000, '/destroy', self.port)
         else:
             # wait for others then, destroy myself
-            await post_after({'port' : self.port}, 0, '/destroy', self.leader_port)
+            await post_after({'port' : self.quic_port}, 0, '/destroy', self.leader_port)
             await post_after({'port' : self.port}, 0, '/destroy', self.port)
         return 'OK'
 

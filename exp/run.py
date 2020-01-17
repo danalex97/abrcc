@@ -22,10 +22,12 @@ def run(args: Namespace) -> None:
 
     controller = Controller(
         name = name,
+        site = args.site,
         network = Network(
             bandwidth=getattr(args, 'bandwidth', None),
             delay=getattr(args, 'delay', None),
             trace_path=getattr(args, 'trace', None),
+            ports=[args.quic_port],
         ),
         dash = args.dash,
         quic_port = args.quic_port,
@@ -73,6 +75,7 @@ def run(args: Namespace) -> None:
 if __name__ == "__main__":
     parser = ArgumentParser(description='Run a single video instance.')
     parser.add_argument('--name', type=str, default='default', help='Instance name. Must be specified when running with a leader.')
+    parser.add_argument('--site', type=str, default='www.example.org', help='Site name of instance served in chrome')
     parser.add_argument('--quic-port', type=int, default=6000, help="Port for QUIC server.")
     parser.add_argument('--port', type=int, default=8080, help='Port(default 8080).')
     parser.add_argument('--path', type=str, default='logs/default', help='Experiment folder path.')

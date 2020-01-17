@@ -1,6 +1,6 @@
 {
     "domain" : "www.example.org",
-    "base_path" : "/sites/www.example.org",
+    "base_path" : "/sites/",
     "player" : {
         "index" : "/index.html",
         "manifest" : "/manifest.mpd",

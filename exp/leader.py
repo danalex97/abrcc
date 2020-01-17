@@ -4,7 +4,7 @@ import os
 import time
 
 from enum import Enum
-from typing import Dict
+from typing import Dict, Optional
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from threading import Thread
@@ -29,8 +29,8 @@ class Instance:
 
 class LeaderController:
     instances: Dict[int, Instance]
-    all_started: asyncio.Event
-    all_stopped: asyncio.Event
+    _all_started: Optional[asyncio.Event]
+    _all_stopped: Optional[asyncio.Event]
 
     def __init__(self,
         instances: int,
@@ -42,9 +42,21 @@ class LeaderController:
         self.port = port
         
         self.instances = {}
-        self.all_started = asyncio.Event()
-        self.all_stopped = asyncio.Event()
+        self._all_started = None 
+        self._all_stopped = None
 
+    @property
+    def all_started(self):
+        if self._all_started is None:
+            self._all_started = asyncio.Event()
+        return self._all_started
+
+    @property
+    def all_stopped(self):
+        if self._all_stopped is None:
+            self._all_stopped = asyncio.Event()
+        return self._all_stopped
+    
     @property
     def started(self):
         return len([x.state == InstanceState.STARTED for x in self.instances.values()])
@@ -55,9 +67,15 @@ class LeaderController:
 
     @ctx_component
     async def on_start(self, json: JSONType) -> JSONType:
+        print(json)
+        
         port = json['port']
         self.instances[port] = Instance()
+        self.network.add_port(port)
 
+        print([x.state for x in self.instances.values()])
+        print(self.started, self.stopped)
+    
         # Wait for all instances to start
         if self.started == self.nbr_instances:
             self.all_started.set()
@@ -89,6 +107,7 @@ class LeaderController:
 def run(args: Namespace) -> None:
     path = Path(args.path)
 
+    print(f'Running leader with {args.instances} instances.')
     shutil.rmtree(path, ignore_errors=True)
     os.system(f"mkdir -p {path}")
 
@@ -102,6 +121,10 @@ def run(args: Namespace) -> None:
         port = args.port,
     )
     
+    directory = Path(os.path.dirname(os.path.realpath(__file__)))
+    script = str(directory / '..' / 'quic' / 'run.sh')
+    os.system(f'{script} --certs')
+
     server = Server('experiment', args.port)
 
     (server

@@ -30,7 +30,10 @@ class DashBackend : public QuicSimpleServerBackend {
   void CloseBackendResponseStream(
       QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
 
+  void SetExtra(const std::string& site);
  private:
+  std::string site;
+
   std::shared_ptr<StoreService> store;
   std::shared_ptr<MetricsService> metrics;
   std::shared_ptr<PollingService> polling;

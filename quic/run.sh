@@ -7,7 +7,8 @@ OUT_DIR=$CHROMIUM_DIR/src/$TARGET
 
 HOST=127.0.0.1
 PORT=6121
-METRICS_PORT=8080
+METRICS_PORT=""
+PROFILE="profile"
 SITE=www.example.org
 
 TC=/sbin/tc
@@ -30,7 +31,7 @@ function setup_certs {
         log "Skipping certs setup."    
     else
         log "Setup certs..."
-        generate_certs
+        generate_certs $SITE
         install_certs
         log "Certs setup."
     fi
@@ -70,7 +71,13 @@ function build_dash_client_npm {
     log "Building dash client..."
     pushd $DIR/../dash > /dev/null
 
-    run_cmd npm run build $DASH_ARGS 
+    if [ ! -z $METRICS_PORT ]; then 
+        DASH_ARGS="${DASH_ARGS} record metrics-port=${METRICS_PORT}"
+    fi
+    if [ ! -z $PORT ]; then 
+        DASH_ARGS="${DASH_ARGS} quic-port=${PORT}"
+    fi
+    run_cmd npm run build $DASH_ARGS $SITE
     if [ ! -z $DASH_COMPRESS ]; then 
         run_cmd npm run build:compress
         run_cmd ls -lh dist
@@ -78,10 +85,11 @@ function build_dash_client_npm {
 
     SRC=$DIR/../dash
     DST=$DIR/sites/$SITE
-    run_cmd rm -rf $DST/dist
+    run_cmd run_cmd rm -rf $DST
+    run_cmd mkdir -p $DST
     run_cmd cp -r $SRC/dist $DST
-    run_cmd rm -rf $DST/index.html
     run_cmd cp $SRC/index.html $DST
+    run_cmd cp $SRC/manifest.mpd $DST
 
     popd > /dev/null
     log "Dash client built."
@@ -98,17 +106,9 @@ function quic_server {
         $VERBOSE \
         --quic_config_path=$DIR/config.json \
         --port=$PORT \
+        --site=$SITE \
         --certificate_file=$CERTS_PATH/out/leaf_cert.pem \
         --key_file=$CERTS_PATH/out/leaf_cert.pkcs8 
-}
-
-function quic_client {
-    build quic_client
-    run_cmd $OUT_DIR/quic_client \
-        --disable_certificate_verification=True \
-        --host=$HOST \
-        --port=$PORT \
-        $SITE
 }
 
 function quic_chrome {
@@ -116,35 +116,39 @@ function quic_chrome {
     if [[ -v SUDO_USER ]]; then
         sudo -u $SUDO_USER google-chrome-stable \
             --v=1 \
-            --user-data-dir=/tmp/chrome-profile \
+            --user-data-dir=/tmp/$PROFILE \
             --no-proxy-server \
             --enable-quic \
-            --origin-to-force-quic-on=$SITE:$RED_PORT \
+            --origin-to-force-quic-on=$SITE:$PORT \
             --autoplay-policy=no-user-gesture-required \
             --ignore-certificate-errors \
             --allow-running-insecure-content \
             --enable-features=NetworkService \
             --incognito \
-            --host-resolver-rules="MAP www.example.org:443 127.0.0.1:$PORT, MAP www.example.org:8080 127.0.0.1:$METRICS_PORT" \
-            https://$SITE
+            --host-resolver-rules="MAP * 127.0.0.1" \
+            https://$SITE:$PORT
     else
         google-chrome-stable \
             --v=1 \
             --user-data-dir=/tmp/chrome-profile \
             --no-proxy-server \
             --enable-quic \
-            --origin-to-force-quic-on=$SITE:$RED_PORT \
+            --origin-to-force-quic-on=$SITE:$PORT \
             --autoplay-policy=no-user-gesture-required \
             --ignore-certificate-errors \
             --allow-running-insecure-content \
             --enable-features=NetworkService \
             --incognito \
-            --host-resolver-rules="MAP www.example.org:443 127.0.0.1:$PORT, MAP www.example.org:8080 127.0.0.1:$METRICS_PORT" \
+            --host-resolver-rules="MAP * 127.0.0.1" \
             https://$SITE
     fi
 }
 
 function usage() {
+    if [ ! -z "$CERTS" ] ; then 
+        setup_certs
+        exit 0;
+    fi
     echo "Usage: $0 [OPTION]..."
     echo "Quic runner."
 
@@ -155,7 +159,7 @@ function usage() {
     printf "\t %- 30s %s\n" "--chrome" "Run a quic client in Chrome."
     printf "\t %- 30s %s\n" "--port [int]" "Change the port. (default 6121)"
     printf "\t %- 30s %s\n" "(-mp | --metrics-port) [int]" "Change the to which chrome talks to. (default 8080)"
-    printf "\t %- 30s %s\n" "--site [url]" "Change the site. (default www.example.org)"
+    printf "\t %- 30s %s\n" "--site [url]" "Change the site serverd. (default www.example.org)"
     printf "\t %- 30s %s\n" "--bw [int]" "Change connection bandwidth in mbit."
     printf "\t %- 30s %s\n" "(--latency | --delay) [int]" "Change connection latency in ms."
     printf "\t %- 30s %s\n" "--burst [int]" "Change the burst. (default 20000)"
@@ -175,18 +179,13 @@ function parse_command_line_options() {
         case $1 in
             -b | --build)
                 build net
-                build quic_client
                 build dash_server
                 exit 0
-                ;;
-            -c | --client)
-                FUNC=quic_client
                 ;;
             -s | --server)
                 FUNC=quic_server
                 ;;
             --chrome)
-                shift
                 FUNC=quic_chrome
                 ;;
             --host)
@@ -219,6 +218,10 @@ function parse_command_line_options() {
                 ;;
             --reset)
                 RESET="yes"
+                ;;
+            --profile)
+                shift
+                PROFILE=$1
                 ;;
             --certs)
                 CERTS="yes"
