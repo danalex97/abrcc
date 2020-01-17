@@ -67,21 +67,20 @@ class LeaderController:
 
     @ctx_component
     async def on_start(self, json: JSONType) -> JSONType:
-        print(json)
-        
         port = json['port']
         self.instances[port] = Instance()
         self.network.add_port(port)
 
-        print([x.state for x in self.instances.values()])
-        print(self.started, self.stopped)
-    
+        print(f'[leader] Start sync > {port}')
         # Wait for all instances to start
         if self.started == self.nbr_instances:
             self.all_started.set()
             # Once all instances have started, we can start the network simulation
             await self.network.run(same_process=True)
+        
         await self.all_started.wait()
+        print(f'[leader] Start done > {port}')
+        
         return 'OK'
 
     @ctx_component
@@ -90,18 +89,22 @@ class LeaderController:
         self.instances[port].stop() 
     
         # Wait for all instances to stop 
+        print(f'[leader] Destroy sync > {port}')
         if self.stopped == self.nbr_instances:
             self.all_stopped.set()
-            
-            # kill all remaining chrome instances
-            os.system("kill $(pgrep chrome)")
             Thread(target=self.finalize).start()
-        
+          
         await self.all_stopped.wait()
+        print(f'[leader] Destroy done > {port}')
+        
         return 'OK'
     
     def finalize(self) -> None:
         time.sleep(5)
+        print('[leader] Finalization')
+
+        # kill all remaining chrome instances and myself
+        os.system("kill $(pgrep chrome)")
         kill_subprocess(os.getpid())
 
 def run(args: Namespace) -> None:

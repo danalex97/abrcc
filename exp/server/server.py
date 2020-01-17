@@ -41,6 +41,13 @@ async def post_after(data: JSONType, wait: int, resource: str, port: int = 8080)
             pass
 
 
+def post_after_async(data: JSONType, wait: int, resource: str, port: int = 8080) -> None:
+    """
+    Best effor send JSON after at least wait ms.
+    """
+    asyncio.ensure_future(post_after(data, wait, resource, port))
+
+
 class Component(ABC):
     """
     A component class that receives JSON requests and returns stringyfied jsons.

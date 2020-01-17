@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from server.data import Metrics, Segment, Value
-from server.server import post_after, Component, JSONType
+from server.server import post_after, post_after_async, Component, JSONType
 
 
 PENALTY_REBUF = 4.3
@@ -18,6 +18,7 @@ K_in_M = 1000.0
 
 class Monitor(Component):
     path: Path
+    name: str
     metrics: List[Metrics]
     timestamps: List[int]
     segments: List[Segment] 
@@ -25,11 +26,12 @@ class Monitor(Component):
 
     def __init__(self, 
         path: Path, 
+        name: str,
         plot: bool = False,
         request_port: Optional[int] = None,
         port: Optional[int] = None,
     ) -> None:
-        self.path = path / 'metrics.log' 
+        self.path = path / f'{name}_metrics.log' 
         self.metrics = []
         self.timestamps = [0]
         self.segments = []
@@ -92,12 +94,11 @@ class Monitor(Component):
         if self.plot:
             idx  = self.index
             port = self.request_port
-            await asyncio.gather(*[
-                post_after(Value(rebuffer, idx).json, 0, "/rebuffer", port=port),
-                post_after(Value(switch, idx).json, 0, "/switch", port=port),
-                post_after(Value(quality, idx).json, 0, "/quality", port=port),
-                post_after(Value(qoe, idx).json, 0, "/qoe", port=port),
-            ])
+
+            post_after_async(Value(rebuffer, idx).json, 0, "/rebuffer", port=port),
+            post_after_async(Value(switch, idx).json, 0, "/switch", port=port),
+            post_after_async(Value(quality, idx).json, 0, "/quality", port=port),
+            post_after_async(Value(qoe, idx).json, 0, "/qoe", port=port),
     
     async def compute_qoe(self, metrics: Metrics) -> None: 
         self.metrics.append(metrics)
@@ -114,5 +115,5 @@ class Monitor(Component):
                 self.compute_qoe(metrics),
             ])
         if 'complete' in json:
-            await post_after(json, 0, "/complete", port=self.port) 
+            post_after_async(json, 0, "/complete", port=self.port) 
         return 'OK'

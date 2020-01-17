@@ -45,6 +45,7 @@ def run(args: Namespace) -> None:
         .add_post('/start', controller.on_start())
         .add_post('/metrics', Monitor(
             path = path, 
+            name = name,
             plot = args.plot or (args.leader_port != None), 
             request_port = request_port,
             port = args.port,

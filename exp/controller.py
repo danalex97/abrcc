@@ -1,5 +1,9 @@
 import asyncio
+import atexit
 import os
+import traceback
+import time
+import signal
 
 from argparse import Namespace 
 from pathlib import Path
@@ -7,8 +11,9 @@ from threading import Thread
 from typing import List, Optional
 
 from server.process import SubprocessStream, kill_subprocess 
-from server.server import ctx_component, Component, JSONType, post_after
+from server.server import ctx_component, Component, JSONType, post_after, post_after_async
 from scripts.network import Network
+from threading import Thread
 
 
 class BackendProcessor(SubprocessStream):
@@ -19,8 +24,14 @@ class BackendProcessor(SubprocessStream):
         frontend: SubprocessStream,
     ) -> None:
         super().__init__(cmd)
-        self.quic_log = open(path / f'{name}_quic.log', 'a') 
+
+        # we want to flush all the time to keep the log
+        self.quic_log = open(path / f'{name}_quic.log', 'a', 1) 
         self.frontend = frontend
+        atexit.register(self.on_exit)
+
+    def on_exit(self) -> None:
+        self.quic_log.close()
 
     async def on_stdout(self, line: str) -> None:
         if line == "\n":
@@ -31,7 +42,11 @@ class BackendProcessor(SubprocessStream):
         self.quic_log.write(line)
         print(line, end='')
         if 'Finished storing videos' in line:
-            await self.frontend.start()
+            try:
+                await self.frontend.start()
+            except Exception as e:
+                print(f'[frontend error] {e}')
+                traceback.print_exc()
 
 
 class Controller:
@@ -72,13 +87,17 @@ class Controller:
         if not self.only_server:
             Thread(target=self.start).start()
 
-    def start(self):
+    def start(self) -> None:
         loop = asyncio.new_event_loop()
         loop.run_until_complete(post_after({}, 1000, '/init', self.port))
 
     @ctx_component
     async def on_init(self, json: JSONType) -> JSONType:
-        await self.backend.start()
+        try:
+            await self.backend.start()
+        except Exception as e:
+            print(f'[backend error] {e}')
+            traceback.print_exc()
         return 'OK'
 
     @ctx_component
@@ -92,29 +111,30 @@ class Controller:
         elif self.leader_port:
             # Let the leader starts the network and wait for it to 
             # tell us it's all ok
-            print(self, self.port)
             await post_after({'port' : self.quic_port}, 0, "/start", port=self.leader_port)
             return 'OK'
 
     @ctx_component
     async def on_complete(self, json: JSONType) -> JSONType:
+        # wait for others then, destroy myself
+        await self.chrome.stop()
+        await self.backend.stop()
+
         if not self.leader_port:
             # destroy myself
-            await post_after({}, 10000, '/destroy', self.port)
+            post_after_async({'port' : self.quic_port}, 0, '/destroy', self.port)
         else:
-            # wait for others then, destroy myself
             await post_after({'port' : self.quic_port}, 0, '/destroy', self.leader_port)
-            await post_after({'port' : self.port}, 0, '/destroy', self.port)
+            post_after_async({'port' : self.quic_port}, 0, '/destroy', self.port)
         return 'OK'
 
     @ctx_component
     async def on_destroy(self, json: JSONType) -> JSONType:
-        # killing child subprocesses
-        if not self.only_server:
-            self.chrome.stop()
-            self.backend.stop()
-            
-        if not self.only_server:
+        # Kill all chrome instances if I'm alone
+        if not self.only_server and not self.leader_port:
             os.system("pkill -9 chrome")
+        
+        # Kill myself
         kill_subprocess(os.getpid())
+        
         return 'OK'

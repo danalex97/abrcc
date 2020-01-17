@@ -34,17 +34,14 @@ class Network:
         self.ports = ports
         self.first = not skip
         self.trace = None
+
+        self.setup_traffic_class()
+        self.add_port_filters()
     
     def add_port(self, port: int) -> None:
         if port not in self.ports:
             self.ports.append(port)
             self.add_port_filters(ports=[port])
-
-    def initialize(self) -> None:
-        if self.delay and (self.bandwidth or self.trace_path):
-            self.setup_traffic_class()
-            self.add_port_filters()
-            self.set_conditions()
 
     def set_trace(self) -> None:
         if self.trace_path is None:
@@ -92,8 +89,8 @@ class Network:
    
     async def run(self, same_process: bool = True) -> None:
         if same_process:
-            self.initialize()
-            await self.process()
+            self.set_conditions()
+            asyncio.ensure_future(self.process())
         else:
             script = str(os.path.realpath(__file__))
             cmd = (['python3', script, '-s'] +
