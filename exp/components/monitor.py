@@ -37,7 +37,8 @@ class Monitor(Component):
         self.segments = []
         self.index = 1
         self.port = port
-        
+        self.name = name
+
         self.plot = plot
         self.request_port = request_port
 
@@ -95,10 +96,11 @@ class Monitor(Component):
             idx  = self.index
             port = self.request_port
 
-            post_after_async(Value(rebuffer, idx).json, 0, "/rebuffer", port=port),
-            post_after_async(Value(switch, idx).json, 0, "/switch", port=port),
-            post_after_async(Value(quality, idx).json, 0, "/quality", port=port),
-            post_after_async(Value(qoe, idx).json, 0, "/qoe", port=port),
+            make_value = lambda value: {'name': self.name, 'value': Value(value, idx).json}
+            post_after_async(make_value(rebuffer), 0, "/rebuffer", port=port),
+            post_after_async(make_value(switch), 0, "/switch", port=port),
+            post_after_async(make_value(quality), 0, "/quality", port=port),
+            post_after_async(make_value(qoe), 0, "/qoe", port=port),
     
     async def compute_qoe(self, metrics: Metrics) -> None: 
         self.metrics.append(metrics)

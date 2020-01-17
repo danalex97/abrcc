@@ -13,11 +13,11 @@ def kill_subprocess(pid: int) -> None:
         parent = psutil.Process(pid)
         for child in parent.children(recursive=True):
             try: 
-                os.kill(child.pid, signal.SIGUSR1)
+                child.kill()
             except:
                 pass
         try:
-            os.kill(parent.pid, signal.SIGUSR1)
+            parent.kill()
         except:
             pass
     except:
@@ -54,6 +54,11 @@ class SubprocessStream:
         pass
 
     async def stop(self) -> None:
+        try:
+            await asyncio.wait_for(self.future, timeout=1.0)
+        except:
+            pass
+       
         kill_subprocess(self.process.pid)
         await asyncio.wait([self.future])
 

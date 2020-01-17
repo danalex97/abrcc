@@ -10,7 +10,8 @@ from pathlib import Path
 from threading import Thread
 
 from components.plots import LivePlot
-from server.server import ctx_component, do_nothing, JSONType, Server, post_after
+from components.complete import OnComplete
+from server.server import ctx_component, multiple_sync, do_nothing, JSONType, Server, post_after
 from server.process import kill_subprocess 
 from scripts.network import Network
 
@@ -130,10 +131,6 @@ def run(args: Namespace) -> None:
 
     server = Server('experiment', args.port)
 
-    (server
-        .add_post('/start', controller.on_start())
-        .add_post('/destroy', controller.on_destroy()))
-
     plots = {}
     if args.plot:
         plots = {
@@ -154,6 +151,12 @@ def run(args: Namespace) -> None:
             .add_post('/switch', do_nothing)
             .add_post('/quality', do_nothing))
 
+    (server
+        .add_post('/start', controller.on_start())
+        .add_post('/destroy', multiple_sync(
+            OnComplete(path, 'leader', plots), 
+            controller.on_destroy(),
+         )))
     server.run()
 
 

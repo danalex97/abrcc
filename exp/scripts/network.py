@@ -72,6 +72,9 @@ class Network:
     def set_conditions(self, bw: Optional[float] = None):
         if bw is None:
             bw = self.bandwidth if not self.trace else self.trace[0][1] 
+        if bw is None:
+            run_cmd(f'{TC} qdisc del dev lo root')
+            return
         bw = format(bw, '.3f')
         
         cmd    = f'{TC} qdisc change dev lo handle 30:'

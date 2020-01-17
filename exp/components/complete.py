@@ -24,12 +24,15 @@ class OnComplete(Component):
     async def export_plots(self) -> None:
         if len(self.plots) > 0:
             ref_plot = list(self.plots.values())[1]
+            ref_dataset = list(ref_plot.datasets.values())[0]
             with open(self.plots_path, 'a') as f:
-                xs = ref_plot.x
+                xs = ref_dataset.x
                 for x in xs:
                     out = {'x' : x}
                     for name, plot in self.plots.items():
-                        out[name] = plot.y[x]
+                        out[name] = {}
+                        for ds_name, dataset in plot.datasets.items():
+                            out[name][ds_name] = dataset.y[x]
                     f.write(json.dumps(out))
                     f.write('\n')
             ref_plot.figure.savefig(self.draw_path)

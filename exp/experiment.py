@@ -63,21 +63,21 @@ def experiment1(args: Namespace) -> None:
 @experiment
 def multiple1(args: Namespace) -> None:
     experiment_path = str(Path("experiments") / "multiple1")
-    for bandwidth in [1]:
+    for bandwidth in [200]:
         for latency in [10]:
             for server1 in ['back_end']:
-                for server2 in ['back_end']:
+                for server2 in ['front_end']:
                     path = str(Path(experiment_path) / f'{bandwidth}_{latency}_{server1}_{server2}')
                     
                     dash1 = "" if server1 == "back_end" else "-d fe"
                     dash2 = "" if server2 == "back_end" else "-d fe"
 
-                    leader_cmd = f"python3 leader.py -b {bandwidth} -l {latency} --port 8800 2 --path {path}"
+                    leader_cmd = f"python3 leader.py -b {bandwidth} -l {latency} --port 8800 2 --path {path} --plot"
                     cmd1  = f"python3 run.py --port 8000 --quic-port 4000 -lp 8800 --name a {dash1} --path {path}"
                     cmd2  = f"python3 run.py --port 8001 --quic-port 4001 -lp 8800 --name b {dash2} --path {path}"
                     
                     leader = run_cmd_async(leader_cmd)
-                    
+                    time.sleep(1)
                     instance1 = run_cmd_async(cmd1)
                     time.sleep(15)
                     instance2 = run_cmd_async(cmd2)
