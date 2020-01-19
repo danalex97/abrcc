@@ -1,4 +1,5 @@
 import { AbrAlgorithm } from '../algo/interface';
+import { BufferLevelGetter } from '../algo/getters';
 
 import { Decision, Value } from '../common/data';
 import { logging } from '../common/logger';
@@ -8,30 +9,23 @@ const logger = logging('BB');
 const SECOND = 1000;
 
 
+// [TODO] should come from manifest
+const bitrateArray = [300, 750, 1200, 1850, 2850, 4300];
+const n = bitrateArray.length;
+const reservoir = 5 * SECOND;
+const cushion = 10 * SECOND;
+
+
 export class BB extends AbrAlgorithm {
     constructor() {
         super();
 
-        // [TODO] get this from manifest
-        this.bitrateArray = [300, 750, 1200, 1850, 2850, 4300]; // in Kbps
-        this.lastBufferLevel = new Value(0).withTimestamp(0);
+        this.bufferLevel = new BufferLevelGetter();
     }
-
+   
     getDecision(metrics, index, timestamp) {
-        logger.log(metrics);
-        
-        let reservoir = 5 * SECOND;
-        let cushion = 10 * SECOND;
-        
-        this.lastBufferLevel = metrics.bufferLevel.reduce(
-            (a, b) => a.timestamp < b.timestamp ? b : a, this.lastBufferLevel);
-        let bufferLevel = this.lastBufferLevel.value;
-        
-        // reference algorithm: 
-        // https://github.com/danalex97/pensieve/blob/1120bb173958dc9bc9f2ebff1a8fe688b6f4e93c/dash.js/src/streaming/controllers/AbrController.js#L344
-
-        let bitrateArray = this.bitrateArray;
-        let n = bitrateArray.length;
+        this.bufferLevel.update(metrics);
+        let bufferLevel = this.bufferLevel.value;
 
         let bitrate = 0;
         let quality = 0;

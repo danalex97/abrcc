@@ -1,5 +1,5 @@
 import { App } from '../apps/app';
-import { BB } from '../algo/bb';
+import { GetAlgorithm } from '../algo/selector';
 
 import { Decision } from '../common/data';
 import { logging, exportLogs } from '../common/logger';
@@ -15,7 +15,7 @@ const logger = logging('App');
 
 
 export class FrontEndApp extends App {
-    constructor(player, recordMetrics, shim) {
+    constructor(player, recordMetrics, shim, name) {
         super(player);
     
         this.tracker = new StatsTracker(player);
@@ -24,7 +24,7 @@ export class FrontEndApp extends App {
         
         this.statsController = new StatsController();
         this.qualityController = new QualityController();
-        this.algorithm = new BB();
+        this.algorithm = GetAlgorithm(name);
 
         this.recordMetrics = recordMetrics;
 
@@ -70,7 +70,9 @@ export class FrontEndApp extends App {
         });
 
         this.interceptor
-            .onRequest((index) => {
+            .onRequest((ctx, index) => {
+                this.algorithm.newRequest(ctx);
+
                 this.qualityController.advance(index + 1);
                 this.tracker.getMetrics(); 
             })

@@ -38,7 +38,7 @@ def experiment1(args: Namespace) -> None:
             experiment_log.write(f'> [bandwidth] {bandwidth}, [latency] {latency}: [qoe] ')
             for server in ['front_end', 'back_end']:
                 path = str(Path(experiment_path) / f'{server}_{bandwidth}_{latency}')
-                dash = "" if server == "back_end" else "-d fe"
+                dash = "" if server == "back_end" else "-d fe=bb"
                 cmd  = f"python3 run.py -l {latency} -b {bandwidth} {dash} --path {path}"
                
                 if not os.path.isdir(path):
@@ -63,14 +63,14 @@ def experiment1(args: Namespace) -> None:
 @experiment
 def multiple1(args: Namespace) -> None:
     experiment_path = str(Path("experiments") / "multiple1")
-    for bandwidth in [200]:
+    for bandwidth in [100]:
         for latency in [10]:
             for server1 in ['back_end']:
-                for server2 in ['front_end']:
+                for server2 in ['back_end']:
                     path = str(Path(experiment_path) / f'{bandwidth}_{latency}_{server1}_{server2}')
                     
-                    dash1 = "" if server1 == "back_end" else "-d fe"
-                    dash2 = "" if server2 == "back_end" else "-d fe"
+                    dash1 = "" if server1 == "back_end" else "-d fe=bb"
+                    dash2 = "" if server2 == "back_end" else "-d fe=bb"
 
                     leader_cmd = f"python3 leader.py -b {bandwidth} -l {latency} --port 8800 2 --path {path} --plot"
                     cmd1  = f"python3 run.py --port 8000 --quic-port 4000 -lp 8800 --name a {dash1} --path {path}"

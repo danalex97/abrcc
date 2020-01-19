@@ -82,7 +82,7 @@ export class Interceptor extends InterceptorUtil {
     constructor() {
         super();
 
-        this._onRequest = (index) => {};
+        this._onRequest = (ctx, index) => {};
         
         // map of contexts for onIntercept
         this._toIntercept = {};
@@ -134,7 +134,7 @@ export class Interceptor extends InterceptorUtil {
                 let index = processor.index;
                 
                 if (interceptor._done[index] === undefined) {
-                    interceptor._onRequest(index);
+                    interceptor._onRequest(ctx, index);
                     interceptor._done[index] = url;
                 } else {
                     logger.log("Retry on request", index, url);

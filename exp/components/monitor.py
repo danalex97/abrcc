@@ -66,7 +66,8 @@ class Monitor(Component):
 
         player_times  = get_values(m.playerTime for m in self.metrics)
         buffer_levels = get_values(m.bufferLevel for m in self.metrics)
-        
+
+        # [TODO] See rebuffer time issue
         # Compute quality, rebuffering time and difference in quality switches
         rebuffer = 0 # in s
         for time1, time2 in zip(player_times[:-1], player_times[1:]):

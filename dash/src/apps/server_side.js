@@ -155,7 +155,7 @@ export class ServerSideApp extends App {
             .start();
 
         this.interceptor
-            .onRequest((index) => {
+            .onRequest((ctx, index) => {
                 // only when a request is sent, this means that the next 
                 // decision of the abr component will ask for the next 
                 // index 

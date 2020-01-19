@@ -4,12 +4,16 @@ export class ArgsParser {
     }
 
     get serverSide() {
-        return !this.frontEnd;
+        return this.frontEnd === null;
     }
 
     get frontEnd() {
-        return this.args.includes('fe')
-            || this.args.includes('front-end');
+        for (let arg of this.args) {
+            if (arg.includes('fe') || arg.includes('front-end')) {
+                return arg.split('=')[1];
+            }
+        }
+        return null;
     }
 
     get recordMetrics() {
@@ -27,7 +31,7 @@ export class ArgsParser {
     }
 
     get metricsPort() {
-         for (let arg of this.args) {
+        for (let arg of this.args) {
             if (arg.includes('metrics-port')) {
                 return arg.split('=')[1];
             }

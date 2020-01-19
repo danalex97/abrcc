@@ -42,29 +42,6 @@ function set_network_conditions {
         log "Resetting qdiscs..."
         priv_run_cmd $TC qdisc del dev lo root
     fi
-    if [ -z "$BW" ] && [ -z "$DELAY" ] ; then 
-        return    
-    fi 
-
-    log "Setting network conditions.."
-    local cmd="${TC} qdisc add dev lo parent 1:3 handle 30: tbf"
-    if [ ! -z "$BW" ] ; then  
-        cmd="${cmd} rate ${BW}mbit" 
-    fi
-    if [ ! -z "$DELAY" ]; then 
-        cmd="${cmd} latency ${DELAY}ms"
-    fi
-    cmd="${cmd} burst ${BURST}" 
-
-    priv_run_cmd $TC qdisc add dev lo root handle 1: prio
-    
-    echo "[running] $cmd"
-    eval $cmd
-
-    log "Throttling bandwidth on port $PORT"
-    priv_run_cmd $TC filter add dev lo protocol ip parent 1:0 prio 3 u32 match ip sport $PORT 0xffff flowid 1:3
-
-    log "Network conditions set."
 }
 
 function build_dash_client_npm {
@@ -130,7 +107,7 @@ function quic_chrome {
     else
         google-chrome-stable \
             --v=1 \
-            --user-data-dir=/tmp/chrome-profile \
+            --user-data-dir=/tmp/$PROFILE \
             --no-proxy-server \
             --enable-quic \
             --origin-to-force-quic-on=$SITE:$PORT \
@@ -140,7 +117,7 @@ function quic_chrome {
             --enable-features=NetworkService \
             --incognito \
             --host-resolver-rules="MAP * 127.0.0.1" \
-            https://$SITE
+            https://$SITE:$PORT
     fi
 }
 
@@ -158,11 +135,9 @@ function usage() {
     printf "\t %- 30s %s\n" "-b | --build" "Build quic client and server."
     printf "\t %- 30s %s\n" "--chrome" "Run a quic client in Chrome."
     printf "\t %- 30s %s\n" "--port [int]" "Change the port. (default 6121)"
+    printf "\t %- 30s %s\n" "--profile [str]" "Change the chrome profile name to run."
     printf "\t %- 30s %s\n" "(-mp | --metrics-port) [int]" "Change the to which chrome talks to. (default 8080)"
     printf "\t %- 30s %s\n" "--site [url]" "Change the site serverd. (default www.example.org)"
-    printf "\t %- 30s %s\n" "--bw [int]" "Change connection bandwidth in mbit."
-    printf "\t %- 30s %s\n" "(--latency | --delay) [int]" "Change connection latency in ms."
-    printf "\t %- 30s %s\n" "--burst [int]" "Change the burst. (default 20000)"
     printf "\t %- 30s %s\n" "--certs" "Regenerate and install server certificates."
     printf "\t %- 30s %s\n" "-d | --dash" "Pass a command line argument to dash."
     printf "\t %- 30s %s\n" "-dc | --dash-compress" "Compress the dash js bundle."
@@ -204,18 +179,6 @@ function parse_command_line_options() {
                 shift
                 SITE=$1
                 ;;
-            --bw)
-                shift 
-                BW=$1
-                ;;
-            --burst)
-                shift 
-                BURST=$1
-                ;;
-            --latency | --delay)
-                shift 
-                DELAY=$1
-                ;;
             --reset)
                 RESET="yes"
                 ;;
@@ -241,6 +204,7 @@ function parse_command_line_options() {
                 exit 0
                 ;;
             * )
+                CERTS=""
                 usage
                 exit 1
         esac
@@ -251,4 +215,5 @@ function parse_command_line_options() {
 
 FUNC=usage
 parse_command_line_options "$@"
+echo $FUNC
 $FUNC

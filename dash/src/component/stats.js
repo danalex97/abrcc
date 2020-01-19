@@ -155,7 +155,6 @@ export class StatsTracker {
     constructor(player) {
         this.player = player;
         this.callbacks = [];
-        console.log(this.callbacks);
     }
 
     start() {

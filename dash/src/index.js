@@ -57,8 +57,8 @@ function init() {
     if (parser.serverSide) {
         app = new ServerSideApp(player, parser.recordMetrics, shim);
     }
-    if (parser.frontEnd) {
-        app = new FrontEndApp(player, parser.recordMetrics, shim);
+    if (!parser.serverSide) {
+        app = new FrontEndApp(player, parser.recordMetrics, shim, parser.frontEnd);
     }
     if (parser.recordMetrics) {
         shim

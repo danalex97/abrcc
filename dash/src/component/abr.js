@@ -6,7 +6,7 @@ const dash_logger = logging('DashLog');
 const MEDIA_TYPE = 'video';
 
 
-function getFactory() {
+export function getFactory() {
     return window.dashjs.FactoryMaker;
 }
 
