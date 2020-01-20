@@ -118,3 +118,14 @@ export class LastThrpGetter extends ThrpGetter {
         return size / time;
     }
 }
+
+export class LastFetchTimeGetter extends ThrpGetter {
+    get value() {
+        if (this.lastSegment < 2) {
+            return 0;
+        }
+        let index = this.lastSegment;
+        let time = this.segments[index].timestamp - this.segments[index - 1].timestamp;    
+        return time;
+    }
+}

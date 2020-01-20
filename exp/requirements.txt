@@ -7,3 +7,5 @@ pillow
 psutil
 sanic==19.9.0
 sanic-cors
+tensorflow==1.*
+tflearn

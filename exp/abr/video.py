@@ -16,9 +16,11 @@ __VIDEO_SIZE = {
 }
 
 
-VIDEO_BIT_RATE = [300,750,1200,1850,2850,4300]  # Kbps
+VIDEO_BIT_RATE = [300, 750, 1200, 1850, 2850, 4300]  # Kbps
 TOTAL_VIDEO_CHUNKS = 49
 
 
 def get_chunk_size(quality: int, index: int) -> int:
-   return __VIDEO_SIZE[quality][index] 
+    if index >= TOTAL_VIDEO_CHUNKS or index < 0:
+        return 0
+    return __VIDEO_SIZE[quality][index] 

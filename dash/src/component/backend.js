@@ -169,6 +169,11 @@ export class FrontEndDecisionRequest extends Request {
         this._object = {};
     }
 
+    addLastFetchTime(time) {
+        this._object['last_fetch_time'] = time;
+        return this;
+    }
+    
     addIndex(index) {
         this._object['index'] = index;
         return this;
