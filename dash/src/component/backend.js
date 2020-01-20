@@ -18,9 +18,26 @@ class Request {
         this.request = undefined;
     }
 
+    _nativeSyncPost(path, resource, content) {
+        if (this._log) {
+            logger.log('Sending native sync POST request', path + resource);
+        }
+
+        let xhr = new XMLHttpRequest();
+        xhr.open("POST", path + resource, false);
+
+        xhr.onreadystatechange = () => {
+            if (xhr.readyState == 4 && xhr.status == 200) {
+                this._onResponse(xhr);
+            }
+        };
+
+        xhr.send(JSON.stringify(content));
+    }
+
     _nativeGet(path, resource, responseType) {
         if (this._log) {
-            logger.log('sending native GET request', path + resource);
+            logger.log('Sending native GET request', path + resource);
         }
 
         let xhr = new XMLHttpRequest();
@@ -145,6 +162,24 @@ export class StartLoggingRequest extends Request {
 }
 
 
+export class FrontEndDecisionRequest extends Request {
+    constructor(shim) {
+        super(shim);
+        
+        this._object = {};
+    }
+
+    addIndex(index) {
+        this._object['index'] = index;
+        return this;
+    }
+
+    send() {
+        return this._nativeSyncPost(this.shim.experimentPath, "/decision", this._object);
+    }
+}
+
+
 export class MetricsLoggingRequest extends MetricsRequest {
     constructor(shim) {
         super(shim);
@@ -162,7 +197,7 @@ export class MetricsLoggingRequest extends MetricsRequest {
 
     send() {
         return this._request(request.post, this.shim.experimentPath, "/metrics", {
-            json : this._json,
+            json: this._json,
         });
     }
 }
@@ -236,6 +271,10 @@ export class BackendShim {
 
     metricsRequest() {
         return new MetricsRequest(this);
+    }
+
+    frontEndDecisionRequest() {
+        return new FrontEndDecisionRequest(this);
     }
 
     startLoggingRequest() {

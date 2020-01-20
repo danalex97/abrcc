@@ -12,6 +12,14 @@ from server.server import Server, multiple_sync
 from scripts.network import Network
 
 
+from abr.robust_mpc import RobustMpc
+from abr.pensieve import Pensieve
+
+
+ABR_ALGORITHMS = ['bola', 'bb', 'festive', 'rb', 'robustMpc', 'pensieve']
+PYTHON_ABR_ALGORITHMS = ['robustMpc', 'pensieve']
+
+
 def run(args: Namespace) -> None:
     path = Path(args.path)
     name = args.name
@@ -20,6 +28,12 @@ def run(args: Namespace) -> None:
         shutil.rmtree(path, ignore_errors=True)
         os.system(f"mkdir -p {path}")
 
+    if args.algo is not None:
+        if args.dash is None:
+            args.dash = []
+        args.dash.append(f'fe={args.algo}')
+
+    # Add controller for launching the QUIC server and browser 
     controller = Controller(
         name = name,
         site = args.site,
@@ -36,9 +50,10 @@ def run(args: Namespace) -> None:
         path = path,
         leader_port = args.leader_port,
     )
-    
+   
     server = Server('experiment', args.port)
         
+    # Handle controller communication and metrics
     request_port = args.leader_port if args.leader_port else args.port 
     (server
         .add_post('/init', controller.on_init())
@@ -52,6 +67,14 @@ def run(args: Namespace) -> None:
         ))
         .add_post('/destroy', controller.on_destroy()))
 
+    # Haandle Abr requests
+    if args.algo in PYTHON_ABR_ALGORITHMS:
+        if args.algo == 'robustMpc':
+            server.add_post('/decision', RobustMpc())
+        elif args.algo == 'pensieve':
+            server.add_post('/decision', Pensieve())
+
+    # Handle live plots
     plots = {}
     if args.plot:
         plots = {
@@ -66,6 +89,7 @@ def run(args: Namespace) -> None:
             .add_post('/switch', plots['switch'])
             .add_post('/quality', plots['quality']))
 
+    # Handle stream completion in the Browser
     server.add_post('/complete', multiple_sync(
         OnComplete(path, name, plots), 
         controller.on_complete(),
@@ -85,6 +109,7 @@ if __name__ == "__main__":
     parser.add_argument('-b', '--bandwidth', type=float, help='Bandwidth of the link.')
     parser.add_argument('-t', '--trace', type=str, help='Trace of bandwidth.')
     parser.add_argument('-d','--dash', action='append', help='Add arguments to dash player.')
+    parser.add_argument('--algo', choices=ABR_ALGORITHMS, help='Choose abr algorithm.') 
     parser.add_argument('--plot', action='store_true', help='Enable plotting.')
     parser.add_argument('-lp', '--leader-port', dest='leader_port', type=int, required=False, help='Port of the leader.')
     run(parser.parse_args())   

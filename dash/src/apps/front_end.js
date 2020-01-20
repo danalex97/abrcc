@@ -24,7 +24,7 @@ export class FrontEndApp extends App {
         
         this.statsController = new StatsController();
         this.qualityController = new QualityController();
-        this.algorithm = GetAlgorithm(name);
+        this.algorithm = GetAlgorithm(name, shim);
 
         this.recordMetrics = recordMetrics;
 
