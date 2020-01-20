@@ -16,6 +16,10 @@ export class ArgsParser {
         return null;
     }
 
+    get bola() {
+        return this.frontEnd == 'bola';
+    }
+
     get recordMetrics() {
         return this.args.includes('record')
             || this.args.includes('record-metrics');

@@ -16,20 +16,41 @@ const logger = logging('index');
 const LARGE_BUFFER_TIME = 100000;
 
     
-function updateAbrSettings(player) {
-    player.updateSettings({
-        'streaming': {
-            'abr': {
-                'useDefaultABRRules': false
+function updateAbrSettings(player, parser) {
+    if (!parser.bola) {
+        player.updateSettings({
+            'streaming': {
+                'abr': {
+                    'useDefaultABRRules': false
+                },
+                'stableBufferTime': LARGE_BUFFER_TIME, // we use this to request continuously
+                'bufferTimeAtTopQuality': LARGE_BUFFER_TIME, // we use this to request continously
+            },  
+            'debug': { 
+                'logLevel': Debug.LOG_LEVEL_INFO,
             },
-            'stableBufferTime': LARGE_BUFFER_TIME, // we use this to request continuously
-            'bufferTimeAtTopQuality': LARGE_BUFFER_TIME, // we use this to request continously
-        },  
-        'debug': { 
-            'logLevel': Debug.LOG_LEVEL_INFO,
-        },
-    });
-    console.log(player.getSettings());
+        });
+    } else {
+        player.updateSettings({
+            'streaming' : {
+                'abr' : {
+                    'useDefaultABRRules': true,
+                    'ABRStrategy': 'abrThroughput',
+                    'enableBufferOccupancyABR' : true, 
+                }
+            },
+            'debug': { 
+                'logLevel': Debug.LOG_LEVEL_INFO,
+            },
+
+        });
+    }
+    logger.log(player.getSettings());
+    
+    // In the case of Bola, note that the custom rule will be added
+    // after the abrThroughput rule is used. This means that if our rule 
+    // keeps the same decision we will have no problem with Bola, but still
+    // use or components to transmit the metrics.
     player.addABRCustomRule(
         'qualitySwitchRules', 
         'ServerSideRule', 
@@ -38,8 +59,8 @@ function updateAbrSettings(player) {
 }
 
 
-function startPlayer(app, player, video, url) {
-    updateAbrSettings(player);
+function startPlayer(app, player, video, url, parser) {
+    updateAbrSettings(player, parser);
     player.initialize(video, url, true);
     app.start();
     player.play();
@@ -64,11 +85,11 @@ function init() {
         shim
             .startLoggingRequest()
             .onSuccess((body) => {
-                startPlayer(app, player, video, url);
+                startPlayer(app, player, video, url, parser);
             })
             .send();
     } else {
-        startPlayer(app, player, video, url);
+        startPlayer(app, player, video, url, parser);
     }
 }
 

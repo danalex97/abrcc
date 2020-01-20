@@ -33,15 +33,36 @@ export class QualityController {
         return this;
     }
 
-    getQuality(index) {
+    getQuality(index, defaultQuality) {
+        // If the index is undefined, we use a stateful quality controller,
+        // i.e. the index that is calculated via the advance function.
         if (index === undefined) {
             index = this._index;
         }
+        
+        // handle callbacks
         this._onGetQuality(index);
+
+        // get the decision
         let decision = this._cache.piece(this._index);
+        
         if (decision !== undefined) {
+            // If the quality we decided upon is 'undefined', this means that 
+            // we are using a functionality of Dash, hence we want to use defaultQuality.
+            if (decision.quality === undefined) {
+                this.addPiece(new Decision(
+                    decision.index,
+                    defaultQuality,
+                    decision.timestamp,
+                ));
+                return defaultQuality;
+            }
+
+            // If this is not the case, we are taking a usual decision.
             return decision.quality;
         } 
+
+        // In principle, our algorithms should never arrive here.
         logger.log("No decision", index, "default decision", 0);
         return 0;
     }

@@ -80,7 +80,7 @@ function ServerSideRuleClass() {
         let abrController = rulesContext.getAbrController();
         let current = abrController.getQualityFor(MEDIA_TYPE, streamController.getActiveStreamInfo());
 
-        let quality = getQualityController().getQuality();
+        let quality = getQualityController().getQuality(undefined, current);
         logger.log("Quality change", quality);
         if (current === quality) {
             return SwitchRequest(factoryCtx).create();
