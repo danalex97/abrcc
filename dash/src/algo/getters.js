@@ -1,6 +1,7 @@
 import { MetricGetter } from '../algo/interface';
 import { Value } from '../common/data';
 import { logging } from '../common/logger';
+import { timestamp } from '../common/time';
 
 
 const logger = logging('Getters');
@@ -51,12 +52,14 @@ export class BufferLevelGetter extends MetricGetter {
     }
 
     get value() {
-        return this.lastBufferLevel.value;    
+        let value_at_timestmap = this.lastBufferLevel.value;    
+        let consumed = timestamp(new Date()) - this.lastBufferLevel.timestamp;
+        return value_at_timestmap - consumed;
     }
 }
 
 
-export class ThrpPredictorGetter extends MetricGetter {
+export class ThrpGetter extends MetricGetter {
     constructor() {
         super();
 
@@ -78,7 +81,10 @@ export class ThrpPredictorGetter extends MetricGetter {
         }
         this.requests = ctx.requests;
     }
+}
 
+
+export class ThrpPredictorGetter extends ThrpGetter {
     get value() {
         if (this.lastSegment < 2) {
             return 0;
@@ -95,5 +101,20 @@ export class ThrpPredictorGetter extends MetricGetter {
             totalTime += time;
         }
         return totalTime / totalSum;
+    }
+}
+
+
+export class LastThrpGetter extends ThrpGetter {
+    get value() {
+        if (this.lastSegment < 2) {
+            return 0;
+        }
+
+        let index = this.lastSegment;
+
+        let time = this.segments[index].timestamp - this.segments[index - 1].timestamp;    
+        let size = this.requests[index - 2].response.byteLength * 8;
+        return size / time;
     }
 }

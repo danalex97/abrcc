@@ -174,6 +174,21 @@ export class FrontEndDecisionRequest extends Request {
         return this;
     }
 
+    addBuffer(buffer) {
+        this._object['buffer'] = buffer;
+        return this;
+    }
+
+    addRebuffer(rebuffer) {
+        this._object['rebuffer'] = rebuffer;
+        return this;
+    }
+    
+    addBandwidth(bandwidth) {
+        this._object['bandwidth'] = bandwidth;
+        return this;
+    }
+
     send() {
         return this._nativeSyncPost(this.shim.experimentPath, "/decision", this._object);
     }
