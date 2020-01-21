@@ -2,7 +2,11 @@
 LOG=installer
 source ./env.sh
 
+TMP=$DIR/tmp
+TMP_CHROMIUM_DIR=$TMP/$CHROMIUM
+
 function fetch_tools {
+    # Fetch all necessary tools 
     log "Fetching tools..."
     
     if [ -d $TOOLS_DIR ]; then
@@ -15,16 +19,35 @@ function fetch_tools {
 }
 
 function fetch_chromium {
+    # Fetch chromium source in a specific folder
     log "Fetching Chromium..."
-    
-    mkdir -p $CHROMIUM_DIR
+   
+    if [ -d $TMP_CHROMIUM_DIR ]; then
+        log "Chromium already present in directory $TMP_CHROMIUM_DIR"
+    else
+        mkdir -p $TMP_CHROMIUM_DIR
 
-    pushd $CHROMIUM_DIR > /dev/null
-    run_cmd $TOOLS_DIR/fetch --nohooks --no-history $CHROMIUM
-    run_cmd $TOOLS_DIR/gclient sync --nohooks --no-history
-    popd > /dev/null
+        pushd $TMP_CHROMIUM_DIR > /dev/null
+        run_cmd $TOOLS_DIR/fetch --nohooks --no-history $CHROMIUM
+        run_cmd $TOOLS_DIR/gclient sync --nohooks --no-history
+        popd > /dev/null
 
-    log "Chromium fetched."
+        log "Chromium fetched."
+    fi
+}
+
+function copy_sources {
+    log "Moving chromium source from temporary directory..."
+    # Copy source from the temporary directory
+    cp -r -n -v $TMP_CHROMIUM_DIR $DIR
+    log "Chromium source moved"
+}
+
+function commandeer {
+    log "Removing Google's source control from $CHROMIUM_DIR"
+    rm -rf $CHROMIUM_DIR/.git
+    rm -rf $CHROMIUM_DIR/src/.git
+    log "Chromium ready."
 }
 
 function run_hooks {
@@ -47,7 +70,9 @@ function build {
 
 fetch_tools
 fetch_chromium
+
+copy_sources
 run_hooks
 build
-generate_certs
-install_certs
+
+commandeer

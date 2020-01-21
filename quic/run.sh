@@ -12,14 +12,13 @@ PROFILE="profile"
 SITE=www.example.org
 
 TC=/sbin/tc
-BW=""
-DELAY=""
 RESET=""
 BURST="20000"
 CERTS=""
 DASH_ARGS=""
 DASH_COMPRESS=""
 VERBOSE=""
+CC="bbr"
 
 function build {
     log "Building $1"
@@ -82,6 +81,7 @@ function quic_server {
     run_cmd $OUT_DIR/dash_server \
         $VERBOSE \
         --quic_config_path=$DIR/config.json \
+        --cc_type=$CC \
         --port=$PORT \
         --site=$SITE \
         --certificate_file=$CERTS_PATH/out/leaf_cert.pem \
@@ -131,9 +131,9 @@ function usage() {
 
     echo -e "\nOptions: "
     printf "\t %- 30s %s\n" "-s | --server" "Run a quic server."
-    printf "\t %- 30s %s\n" "-c | --client" "Run a quic client."
     printf "\t %- 30s %s\n" "-b | --build" "Build quic client and server."
     printf "\t %- 30s %s\n" "--chrome" "Run a quic client in Chrome."
+    printf "\t %- 30s %s\n" "--cc [congestion-control]" "Select congestion control from [bbr, custom, pcc, cubic, reno]."
     printf "\t %- 30s %s\n" "--port [int]" "Change the port. (default 6121)"
     printf "\t %- 30s %s\n" "--profile [str]" "Change the chrome profile name to run."
     printf "\t %- 30s %s\n" "(-mp | --metrics-port) [int]" "Change the to which chrome talks to. (default 8080)"
@@ -162,6 +162,22 @@ function parse_command_line_options() {
                 ;;
             --chrome)
                 FUNC=quic_chrome
+                ;;
+            --cc)
+                shift
+                if [ $1 == "bbr" ]; then
+                    CC=$1
+                elif [ $1 == "custom" ]; then
+                    CC=$1
+                elif [ $1 == "pcc" ]; then
+                    CC=$1
+                elif [ $1 == "cubic" ]; then
+                    CC=$1
+                elif [ $1 == "reno" ]; then 
+                    CC=$1
+                else
+                    echo "Congestion control $1 not recognized."
+                fi
                 ;;
             --host)
                 shift
@@ -215,5 +231,4 @@ function parse_command_line_options() {
 
 FUNC=usage
 parse_command_line_options "$@"
-echo $FUNC
 $FUNC

@@ -3,6 +3,8 @@
 #include <utility>
 #include <vector>
 
+#include "net/abrcc/cc/cc_selector.h"
+
 #include "net/abrcc/dash_backend.h"
 #include "net/third_party/quiche/src/quic/core/quic_versions.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_default_proof_providers.h"
@@ -21,12 +23,16 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     "Specifies the path to the JSON configuration path of the"
     "quic server. In the JSON we should specify the paths for"
     "videos and the DASH manifest.");
-
 DEFINE_QUIC_COMMAND_LINE_FLAG(
     std::string,
     site,
     "",
     "Site.");
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    std::string,
+    cc_type,
+    "bbr",
+    "Congestion contorl type.");
 
 namespace quic {
 
@@ -46,6 +52,9 @@ QuicDashServer::QuicDashServer(BackendFactory* backend_factory,
     : backend_factory_(backend_factory), server_factory_(server_factory) {}
 
 int QuicDashServer::Start() {
+  auto *selector = CCSelector::GetInstance();
+  selector->setCongestionControlType(GetQuicFlag(FLAGS_cc_type));
+
   auto supported_versions = AllSupportedVersions();
   for (const auto& version : supported_versions) {
     QuicEnableVersion(version);

@@ -113,6 +113,17 @@ if (is_linux) {
 # TODO(crbug.com/1018739): Remove this when migration is done.
 set_sources_assignment_filter([])
 
+
+static_library("singleton") {
+  sources = [
+    "abrcc/cc/singleton.cc",
+    "abrcc/cc/singleton.h",
+  ]
+  deps = [
+    "//base",
+  ]
+}
+
 source_set("constants") {
   sources = [
     "base/trace_constants.h",
@@ -388,6 +399,7 @@ component("net") {
   }
 
   deps = [
+    ":singleton",
     ":net_deps",
     "//net/http:transport_security_state_generated_files",
   ]
@@ -1194,6 +1206,8 @@ component("net") {
       "abrcc/cc/dummycc.h",
       "abrcc/cc/cc_wrapper.cc",
       "abrcc/cc/cc_wrapper.h",
+      "abrcc/cc/cc_selector.cc",
+      "abrcc/cc/cc_selector.h",
       "third_party/quiche/src/quic/core/congestion_control/bbr_sender.cc",
       "third_party/quiche/src/quic/core/congestion_control/bbr_sender.h",
       "third_party/quiche/src/quic/core/congestion_control/cubic_bytes.cc",
@@ -3621,6 +3635,8 @@ if (!is_ios) {
       "abrcc/abr/loop.cc",
       "abrcc/abr/loop.h",
 
+      "abrcc/cc/cc_selector.cc",
+      "abrcc/cc/cc_selector.h",
       "abrcc/cc/cc_wrapper.cc",
       "abrcc/cc/cc_wrapper.h",
       "abrcc/cc/dummycc.cc",
@@ -3637,6 +3653,7 @@ if (!is_ios) {
     ]
     deps = [
       ":net",
+      ":singleton",
       ":simple_quic_tools",
       "//base",
       "//build/win:default_exe_manifest",

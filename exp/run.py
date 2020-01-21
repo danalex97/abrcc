@@ -13,10 +13,10 @@ from scripts.network import Network
 
 
 from abr.robust_mpc import RobustMpc
-from abr.pensieve import Pensieve
 
 
 ABR_ALGORITHMS = ['bola', 'bb', 'festive', 'rb', 'robustMpc', 'pensieve']
+CC_ALGORITHMS = ['bbr', 'pcc', 'reno', 'cubic', 'custom']
 PYTHON_ABR_ALGORITHMS = ['robustMpc', 'pensieve']
 
 
@@ -37,6 +37,7 @@ def run(args: Namespace) -> None:
     controller = Controller(
         name = name,
         site = args.site,
+        cc = args.cc,
         network = Network(
             bandwidth=getattr(args, 'bandwidth', None),
             delay=getattr(args, 'delay', None),
@@ -72,6 +73,7 @@ def run(args: Namespace) -> None:
         if args.algo == 'robustMpc':
             server.add_post('/decision', RobustMpc())
         elif args.algo == 'pensieve':
+            from abr.pensieve import Pensieve
             server.add_post('/decision', Pensieve())
 
     # Handle live plots
@@ -110,6 +112,7 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--trace', type=str, help='Trace of bandwidth.')
     parser.add_argument('-d','--dash', action='append', help='Add arguments to dash player.')
     parser.add_argument('--algo', choices=ABR_ALGORITHMS, help='Choose abr algorithm.') 
+    parser.add_argument('--cc', choices=CC_ALGORITHMS, default='bbr', help='Choose cc algorithm.') 
     parser.add_argument('--plot', action='store_true', help='Enable plotting.')
     parser.add_argument('-lp', '--leader-port', dest='leader_port', type=int, required=False, help='Port of the leader.')
     run(parser.parse_args())   

@@ -11,6 +11,7 @@ quic/chromium/src/net/tools/quic/certs/out/*
 
 !quic/sites/common
 quic/sites/
+quic/tmp
 
 quic/certs/leaf
 quic/certs/leaf.cnf
