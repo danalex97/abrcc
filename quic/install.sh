@@ -68,11 +68,51 @@ function build {
     build_chromium
 }
 
-fetch_tools
-fetch_chromium
+function build_server {
+    copy_sources
+    build
+    commandeer
+}
 
-copy_sources
-run_hooks
-build
+function install_server {
+    fetch_tools
+    fetch_chromium
 
-commandeer
+    copy_sources
+    run_hooks
+    build
+
+    commandeer
+}
+
+function usage() {
+    echo "Usage: $0 [OPTION]..."
+    echo "Quic installer."
+
+    echo -e "\nOptions: "
+    printf "\t %- 30s %s\n" "-i | --install" "Install quic server."
+    printf "\t %- 30s %s\n" "-b | --build" "Build quic server."
+}
+
+
+function parse_command_line_options() {
+    while [ "${1:-}" != "" ]; do
+        case $1 in
+            -b | --build)
+                FUNC=build_server
+                ;;
+            -i | --install)
+                FUNC=install_server
+                ;;
+            * )
+                usage
+                exit 1
+        esac
+
+        shift
+    done
+}
+
+FUNC=usage
+parse_command_line_options "$@"
+$FUNC
