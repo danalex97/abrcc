@@ -20,6 +20,7 @@ class InstanceState(Enum):
     STARTED = 0
     STOPPED = 1
     
+
 class Instance:
     def __init__(self) -> None:
         self.state = InstanceState.STARTED
@@ -60,11 +61,11 @@ class LeaderController:
     
     @property
     def started(self):
-        return len([x.state == InstanceState.STARTED for x in self.instances.values()])
+        return sum([x.state == InstanceState.STARTED for x in self.instances.values()])
 
     @property
     def stopped(self):
-        return len([x.state == InstanceState.STOPPED for x in self.instances.values()])
+        return sum([x.state == InstanceState.STOPPED for x in self.instances.values()])
 
     @ctx_component
     async def on_start(self, json: JSONType) -> JSONType:
