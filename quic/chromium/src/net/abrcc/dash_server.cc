@@ -32,13 +32,18 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(
     std::string,
     cc_type,
     "bbr",
-    "Congestion contorl type.");
+    "Congestion control type.");
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    std::string,
+    abr_type,
+    "bb",
+    "Abr type.");
 
 namespace quic {
 
 std::unique_ptr<quic::QuicSimpleServerBackend>
 QuicDashServer::MemoryCacheBackendFactory::CreateBackend() {
-  auto dash_backend = std::make_unique<DashBackend>();
+  auto dash_backend = std::make_unique<DashBackend>(FLAGS_abr_type);
   if (!GetQuicFlag(FLAGS_quic_config_path).empty()) {
     dash_backend->SetExtra(FLAGS_site);
     dash_backend->InitializeBackend(

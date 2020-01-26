@@ -19,6 +19,7 @@ DASH_ARGS=""
 DASH_COMPRESS=""
 VERBOSE=""
 CC="bbr"
+ABR="bb"
 
 function build {
     log "Building $1"
@@ -82,6 +83,7 @@ function quic_server {
         $VERBOSE \
         --quic_config_path=$DIR/config.json \
         --cc_type=$CC \
+        --abr_type=$ABR \
         --port=$PORT \
         --site=$SITE \
         --certificate_file=$CERTS_PATH/out/leaf_cert.pem \
@@ -134,6 +136,7 @@ function usage() {
     printf "\t %- 30s %s\n" "-b | --build" "Build quic client and server."
     printf "\t %- 30s %s\n" "--chrome" "Run a quic client in Chrome."
     printf "\t %- 30s %s\n" "--cc [congestion-control]" "Select congestion control from [bbr, custom, pcc, cubic, reno]."
+    printf "\t %- 30s %s\n" "--abr [server-abr-type]" "Select server-side abor from [bb, random]."
     printf "\t %- 30s %s\n" "--port [int]" "Change the port. (default 6121)"
     printf "\t %- 30s %s\n" "--profile [str]" "Change the chrome profile name to run."
     printf "\t %- 30s %s\n" "(-mp | --metrics-port) [int]" "Change the to which chrome talks to. (default 8080)"
@@ -177,6 +180,16 @@ function parse_command_line_options() {
                     CC=$1
                 else
                     echo "Congestion control $1 not recognized."
+                fi
+                ;;
+            --abr)
+                shift
+                if [ $1 == "bb" ]; then
+                    ABR=$1
+                elif [ $1 == "random" ]; then
+                    ABR=$1
+                else
+                    echo "Abr $1 not recognized."
                 fi
                 ;;
             --host)

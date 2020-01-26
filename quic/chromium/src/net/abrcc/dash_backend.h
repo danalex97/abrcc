@@ -15,7 +15,7 @@ namespace quic {
 
 class DashBackend : public QuicSimpleServerBackend {
  public:
-  DashBackend();
+  DashBackend(const std::string& abr_type);
   DashBackend(const DashBackend&) = delete;
   DashBackend& operator=(const DashBackend&) = delete;
   ~DashBackend() override;

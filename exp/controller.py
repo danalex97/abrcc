@@ -53,6 +53,7 @@ class Controller:
         name: str,
         site: str,
         cc: str,
+        abr: Optional[str],
         network: Network,
         dash: List[str],
         quic_port: int, 
@@ -77,7 +78,8 @@ class Controller:
             cmd=[script, '--port', f"{quic_port}", '-mp', f"{port}"] +
                 sum([['-d', str(d)] for d in dash] if dash else [], ['-s']) + 
                 ['--site', site, '--profile', name, '--cc', cc] + 
-                (['--certs'] if not leader_port else []),
+                (['--certs'] if not leader_port else []) +
+                (['--abr', abr] if abr else []),
             path=path,
             name=name,
             frontend=self.chrome,

@@ -47,6 +47,8 @@ class BBAbr : public SegmentProgressAbr {
   abr_schema::Value last_buffer_level;
 };
 
+AbrInterface* getAbr(const std::string& abr_type);
+
 }
 
 #endif

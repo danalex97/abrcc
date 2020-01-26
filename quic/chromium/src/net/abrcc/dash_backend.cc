@@ -27,13 +27,13 @@ using spdy::SpdyHeaderBlock;
 
 namespace quic {
  
-DashBackend::DashBackend()
+DashBackend::DashBackend(const std::string& abr_type)
   : store(new StoreService())
   , metrics(new MetricsService())
   , polling(new PollingService())
   , backend_initialized_(false) 
 {
-  std::unique_ptr<AbrInterface> interface(new BBAbr());
+  std::unique_ptr<AbrInterface> interface(getAbr(abr_type));
   std::unique_ptr<AbrLoop> loop(
     new AbrLoop(std::move(interface), metrics, polling, store)
   );

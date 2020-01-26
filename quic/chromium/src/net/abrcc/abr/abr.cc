@@ -180,4 +180,16 @@ int BBAbr::decideQuality(int index) {
   return quality;
 }
 
+AbrInterface* getAbr(const std::string& abr_type) {
+  if (abr_type == "bb") {
+    QUIC_LOG(WARNING) << "BB abr selected";
+    return new BBAbr();
+  } else if (abr_type == "random") {
+    QUIC_LOG(WARNING) << "Random abr selected";
+    return new RandomAbr();
+  }
+  QUIC_LOG(WARNING) << "Defaulting to BB abr";
+  return new BBAbr();
+}
+
 }
