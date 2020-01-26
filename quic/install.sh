@@ -47,6 +47,7 @@ function commandeer {
     log "Removing Google's source control from $CHROMIUM_DIR"
     rm -rf $CHROMIUM_DIR/.git
     rm -rf $CHROMIUM_DIR/src/.git
+    rm -rf $CHROMIUM_DIR/.gclient
     log "Chromium ready."
 }
 

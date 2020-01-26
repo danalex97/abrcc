@@ -1,1 +1,0 @@
-COOLDOWN_TIME = 15
