@@ -1,6 +1,7 @@
 #!/bin/bash
 LOG=installer
-source ./env.sh
+BASEDIR=$(dirname "$0")
+source $BASEDIR/env.sh
 
 TMP=$DIR/tmp
 TMP_CHROMIUM_DIR=$TMP/$CHROMIUM
@@ -70,12 +71,15 @@ function build {
 }
 
 function build_server {
+    pushd $DIR > /dev/null
     copy_sources
     build
     commandeer
+    popd > /dev/null
 }
 
 function install_server {
+    pushd $DIR > /dev/null
     fetch_tools
     fetch_chromium
 
@@ -84,6 +88,7 @@ function install_server {
     build
 
     commandeer
+    popd > /dev/null
 }
 
 function usage() {
