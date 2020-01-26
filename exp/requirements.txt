@@ -9,3 +9,5 @@ sanic==19.9.0
 sanic-cors
 tensorflow==1.*
 tflearn
+pandas
+seaborn

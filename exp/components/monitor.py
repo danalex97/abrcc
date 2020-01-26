@@ -3,7 +3,7 @@ import json
 import os
 
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Generator, Dict
 
 from server.data import Metrics, Segment, Value
 from server.server import post_after, post_after_async, Component, JSONType
@@ -16,41 +16,23 @@ BOOST_QUALITY = 1.0
 K_in_M = 1000.0
 
 
-class Monitor(Component):
-    path: Path
-    name: str
+class MetricsProcessor:
     metrics: List[Metrics]
     timestamps: List[int]
     segments: List[Segment] 
     index: int 
 
-    def __init__(self, 
-        path: Path, 
-        name: str,
-        plot: bool = False,
-        request_port: Optional[int] = None,
-        port: Optional[int] = None,
-    ) -> None:
-        self.path = path / f'{name}_metrics.log' 
+    def __init__(self, logging: bool = False) -> None:
         self.metrics = []
         self.timestamps = [0]
         self.segments = []
         self.index = 1
-        self.port = port
-        self.name = name
-
-        self.plot = plot
-        self.request_port = request_port
+        self.logging = logging
 
         # [TODO] remove hardcoding
         self.qualities = [300, 750, 1200, 1850, 2850, 4300]
 
-    async def log_path(self, metrics: Metrics) -> None:
-        with open(self.path, 'a') as f:
-            f.write(json.dumps(metrics.json))
-            f.write('\n')
-
-    async def advance(self, segment: Segment) -> None:
+    def advance(self, segment: Segment) -> None:
         self.index += 1
         self.segments.append(segment)
         
@@ -92,23 +74,69 @@ class Monitor(Component):
         qoe = (quality / K_in_M * BOOST_QUALITY 
             - PENALTY_REBUF * rebuffer 
             - PENALTY_QSWITCH * switch / K_in_M)
-       
-        if self.plot:
-            idx  = self.index
-            port = self.request_port
-
-            make_value = lambda value: {'name': self.name, 'value': Value(value, idx).json}
-            post_after_async(make_value(rebuffer), 0, "/rebuffer", port=port),
-            post_after_async(make_value(switch), 0, "/switch", port=port),
-            post_after_async(make_value(quality), 0, "/quality", port=port),
-            post_after_async(make_value(qoe), 0, "/qoe", port=port),
+        
+        return {
+            'index' : self.index,
+            'quality' : quality,
+            'switch' : switch,
+            'rebuffer' : rebuffer, 
+            'qoe' : qoe,
+        }
     
-    async def compute_qoe(self, metrics: Metrics) -> None: 
+    def compute_qoe(self, metrics: Metrics) -> Generator[Dict[str, float], None, None]: 
         self.metrics.append(metrics)
         for segment in metrics.segments:
             if segment.index >= self.index + 1 and segment.loading:
-                print(segment)
-                await self.advance(segment)
+                if self.logging:
+                    print(segment)
+                yield self.advance(segment)
+
+
+class Monitor(Component):
+    path: Path
+    name: str
+    processor: MetricsProcessor
+
+    def __init__(self, 
+        path: Path, 
+        name: str,
+        plot: bool = False,
+        request_port: Optional[int] = None,
+        port: Optional[int] = None,
+    ) -> None:
+        self.path = path / f'{name}_metrics.log' 
+        self.port = port
+        self.name = name
+        self.processor = MetricsProcessor()
+
+        self.plot = plot
+        self.request_port = request_port
+
+    async def log_path(self, metrics: Metrics) -> None:
+        with open(self.path, 'a') as f:
+            f.write(json.dumps(metrics.json))
+            f.write('\n')
+
+    async def advance(self, processed_metrics: Dict[str, float]) -> None:
+        if not self.plot:
+            return 
+
+        rebuffer = processed_metrics['rebuffer']
+        switch = processed_metrics['switch']
+        quality = processed_metrics['quality']
+        qoe = processed_metrics['qoe']
+        idx = processed_metrics['index']
+        port = self.request_port
+
+        make_value = lambda value: {'name': self.name, 'value': Value(value, idx).json}
+        post_after_async(make_value(rebuffer), 0, "/rebuffer", port=port),
+        post_after_async(make_value(switch), 0, "/switch", port=port),
+        post_after_async(make_value(quality), 0, "/quality", port=port),
+        post_after_async(make_value(qoe), 0, "/qoe", port=port),
+    
+    async def compute_qoe(self, metrics: Metrics) -> None: 
+        for processed_metrics in self.processor.compute_qoe(metrics): 
+            await self.advance(processed_metrics)
     
     async def process(self, json: JSONType) -> JSONType:
         if 'stats' in json:
