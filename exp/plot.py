@@ -161,7 +161,6 @@ def plot_cdf(
         schemes.append(scheme)
 
     ax.legend(schemes, loc=2)
-    ax.set_xlim(-1, 3)
     plt.ylabel('CDF')
     plt.xlabel('total reward')
     fig.savefig(os.path.join(store_dir, 'cdf_{}.png'.format(reward_key)))

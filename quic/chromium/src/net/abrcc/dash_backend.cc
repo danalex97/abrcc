@@ -92,6 +92,23 @@ void DashBackend::FetchResponseFromBackend(
     if (path == API_PATH) {
       // new metrics received
       metrics->AddMetrics(request_headers, request_body, quic_stream);
+ 
+      // resond with 'OK'
+      QuicStringPiece response_body("OK");
+      SpdyHeaderBlock response_headers;
+      response_headers[":status"] = QuicTextUtils::Uint64ToString(200);
+      response_headers["content-length"] = 
+        QuicTextUtils::Uint64ToString(response_body.length());
+    
+      QuicBackendResponse quic_response; 
+      quic_response.set_response_type(QuicBackendResponse::REGULAR_RESPONSE);
+      quic_response.set_headers(std::move(response_headers));
+      quic_response.set_body(response_body);
+      quic_response.set_trailers(SpdyHeaderBlock());
+      quic_response.set_stop_sending_code(0);
+
+      auto push_info = std::list<QuicBackendResponse::ServerPushInfo>();
+      quic_stream->OnResponseBackendComplete(&quic_response, push_info);
     } else if (path.find(API_PATH) != std::string::npos) {
       // add a long polling request
       polling->AddRequest(request_headers, request_body, std::move(quic_stream));
