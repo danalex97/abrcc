@@ -49,8 +49,8 @@ class QUIC_EXPORT_PRIVATE BbrAdapter : public SendAlgorithmInterface {
    
     void setParent(BbrAdapter* parent);
     
-    base::Optional<float> BandwidthEstimate() const;
-    base::Optional<float> RttEstimate() const; 
+    base::Optional<int> BandwidthEstimate() const;
+    base::Optional<int> RttEstimate() const; 
    private:
     BbrInterface();
 

@@ -52,7 +52,11 @@ const float kSimilarMinRttThreshold = 1.125;
 }  // namespace
 
 
-// BbrInterface singleton to communicate with Abr
+/**
+ * ABRCC Extension -- BEGIN
+ **/
+
+
 BbrAdapter::BbrInterface* BbrAdapter::BbrInterface::GetInstance() {
   return GET_SINGLETON(BbrAdapter::BbrInterface);
 }
@@ -74,22 +78,23 @@ QuicRoundTripCount BbrAdapter::BbrInterface::kBandwidthWindowSize() {
 }
 
 void BbrAdapter::BbrInterface::setParent(BbrAdapter *parent) {
+  QUIC_LOG(WARNING) << "PARENT: " << parent;
   this->parent = parent;
 }
 
-base::Optional<float> BbrAdapter::BbrInterface::BandwidthEstimate() const {
+base::Optional<int> BbrAdapter::BbrInterface::BandwidthEstimate() const {
   if (parent == nullptr) {
     return base::nullopt; 
   }
   return parent->BandwidthEstimate().ToKBitsPerSecond();
 }
 
-base::Optional<float> BbrAdapter::BbrInterface::RttEstimate() const {
+base::Optional<int> BbrAdapter::BbrInterface::RttEstimate() const {
   if (parent == nullptr) {
     return base::nullopt;
   }
   return !parent->min_rtt_.IsZero() 
-    ? base::Optional<float>(parent->min_rtt_.ToMilliseconds()) 
+    ? base::Optional<int>(parent->min_rtt_.ToMilliseconds()) 
     : base::nullopt;
 }
 
@@ -99,6 +104,10 @@ BbrAdapter::BbrInterface::BbrInterface()
   {}
 BbrAdapter::BbrInterface::~BbrInterface() {}
 
+
+/**
+ * ABRCC Extension -- END
+ **/
 
 BbrAdapter::DebugState::DebugState(const BbrAdapter& sender)
     : mode(sender.mode_),

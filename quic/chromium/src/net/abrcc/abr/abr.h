@@ -1,7 +1,11 @@
 #ifndef ABRCC_ABR_ABR_H_
 #define ABRCC_ABR_ABR_H_
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++17-extensions"
+
 #include "net/abrcc/abr/interface.h"
+#include "net/abrcc/cc/bbr_adapter.h"
 #include "net/abrcc/service/schema.h"
 
 #include <unordered_map>
@@ -47,7 +51,6 @@ class BBAbr : public SegmentProgressAbr {
   abr_schema::Value last_buffer_level;
 };
 
-
 class WorthedAbr : public SegmentProgressAbr {
  public:
   WorthedAbr();
@@ -56,13 +59,22 @@ class WorthedAbr : public SegmentProgressAbr {
   void registerMetrics(const abr_schema::Metrics &) override;
   int decideQuality(int index) override;
  private:
+  std::pair<int, int> compute_rates();
+  int adjustedBufferLevel(int index);
+
+  BbrAdapter::BbrInterface* interface; 
+
   abr_schema::Value last_player_time;
   abr_schema::Value last_buffer_level;
+  
+  base::Optional<abr_schema::Value> last_bandwidth;
+  base::Optional<abr_schema::Value> last_rtt;
 };
-
 
 AbrInterface* getAbr(const std::string& abr_type);
 
 }
+
+#pragma GCC diagnostic pop
 
 #endif
