@@ -4,9 +4,9 @@
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/send_algorithm_interface.h"
 
-#include "net/abrcc/cc/dummycc.h"
 #include "net/abrcc/cc/cc_wrapper.h"
 #include "net/abrcc/cc/cc_selector.h"
+#include "net/abrcc/cc/bbr_adapter.h"
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/tcp_cubic_sender_bytes.h"
@@ -41,9 +41,11 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
   QUIC_LOG(WARNING) << "CC " << congestion_control_type;
   SendAlgorithmInterface* instance = nullptr;
   switch (congestion_control_type) {
-    case kDummy:
-      QUIC_LOG(WARNING) << "Using dummy CC";
-      instance = new DummySender();
+    case kAbbr:
+      QUIC_LOG(WARNING) << "Using Adapter BBR";
+      instance = new BbrAdapter(clock->ApproximateNow(), rtt_stats, unacked_packets,
+                           initial_congestion_window, max_congestion_window,
+                           random, stats);
       break;
     case kGoogCC:  
     case kBBR:

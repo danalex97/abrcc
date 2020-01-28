@@ -17,8 +17,8 @@ CongestionControlType CCSelector::getCongestionControlType() {
 void CCSelector::setCongestionControlType(const std::string& cc_type) {
   if (cc_type == "bbr") {
     type = kBBR;
-  } else if (cc_type == "custom") {
-    type = kDummy;
+  } else if (cc_type == "abbr") {
+    type = kAbbr;
   } else if (cc_type == "pcc") {
     type = kPCC;
   } else if (cc_type == "cubic") {

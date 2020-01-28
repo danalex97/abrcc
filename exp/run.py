@@ -13,11 +13,12 @@ from scripts.network import Network
 
 
 from abr.robust_mpc import RobustMpc
+from abr.pensieve import Pensieve
 
 
 ABR_ALGORITHMS = ['bola', 'bb', 'festive', 'rb', 'robustMpc', 'pensieve']
 SERVER_ABR_ALGORITHMS = ['bb', 'random']
-CC_ALGORITHMS = ['bbr', 'pcc', 'reno', 'cubic', 'custom']
+CC_ALGORITHMS = ['bbr', 'pcc', 'reno', 'cubic', 'abbr']
 PYTHON_ABR_ALGORITHMS = ['robustMpc', 'pensieve']
 
 
@@ -76,7 +77,6 @@ def run(args: Namespace) -> None:
         if args.algo == 'robustMpc':
             server.add_post('/decision', RobustMpc())
         elif args.algo == 'pensieve':
-            from abr.pensieve import Pensieve
             server.add_post('/decision', Pensieve())
 
     # Handle live plots
