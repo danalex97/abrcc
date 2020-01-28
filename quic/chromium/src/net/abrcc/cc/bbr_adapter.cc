@@ -73,8 +73,30 @@ QuicRoundTripCount BbrAdapter::BbrInterface::kBandwidthWindowSize() {
   return getGainCycleLength() + 2;
 }
 
+void BbrAdapter::BbrInterface::setParent(BbrAdapter *parent) {
+  this->parent = parent;
+}
+
+base::Optional<float> BbrAdapter::BbrInterface::BandwidthEstimate() const {
+  if (parent == nullptr) {
+    return base::nullopt; 
+  }
+  return parent->BandwidthEstimate().ToKBitsPerSecond();
+}
+
+base::Optional<float> BbrAdapter::BbrInterface::RttEstimate() const {
+  if (parent == nullptr) {
+    return base::nullopt;
+  }
+  return !parent->min_rtt_.IsZero() 
+    ? base::Optional<float>(parent->min_rtt_.ToMilliseconds()) 
+    : base::nullopt;
+}
+
 BbrAdapter::BbrInterface::BbrInterface() 
-  : kPacingGain(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1}) {}
+  : kPacingGain(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1})
+  , parent(nullptr) 
+  {}
 BbrAdapter::BbrInterface::~BbrInterface() {}
 
 
@@ -160,9 +182,14 @@ BbrAdapter::BbrAdapter(QuicTime now,
     stats_->slowstart_start_time = QuicTime::Zero();
   }
   EnterStartupMode(now);
+  interface->setParent(this);
 }
 
-BbrAdapter::~BbrAdapter() {}
+BbrAdapter::~BbrAdapter() {
+  if (interface->parent == this) {
+    interface->setParent(nullptr);
+  }
+}
 
 void BbrAdapter::SetInitialCongestionWindowInPackets(
     QuicPacketCount congestion_window) {

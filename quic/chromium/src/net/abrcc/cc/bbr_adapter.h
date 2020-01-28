@@ -46,10 +46,18 @@ class QUIC_EXPORT_PRIVATE BbrAdapter : public SendAlgorithmInterface {
     std::vector<float> getPacingGainCycle();
     int getGainCycleLength();
     QuicRoundTripCount kBandwidthWindowSize();
+   
+    void setParent(BbrAdapter* parent);
+    
+    base::Optional<float> BandwidthEstimate() const;
+    base::Optional<float> RttEstimate() const; 
    private:
     BbrInterface();
 
     std::vector<float> kPacingGain;  
+    BbrAdapter *parent;
+    
+    friend class BbrAdapter;
   };
  
   /**
@@ -420,6 +428,8 @@ class QUIC_EXPORT_PRIVATE BbrAdapter : public SendAlgorithmInterface {
   bool probe_rtt_disabled_if_app_limited_;
   bool app_limited_since_last_probe_rtt_;
   QuicTime::Delta min_rtt_since_last_probe_rtt_;
+  
+  friend class BbrInterface;
 };
 
 QUIC_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,

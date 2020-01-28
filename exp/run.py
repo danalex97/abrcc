@@ -17,7 +17,7 @@ from abr.pensieve import Pensieve
 
 
 ABR_ALGORITHMS = ['bola', 'bb', 'festive', 'rb', 'robustMpc', 'pensieve']
-SERVER_ABR_ALGORITHMS = ['bb', 'random']
+SERVER_ABR_ALGORITHMS = ['bb', 'random', 'worthed']
 CC_ALGORITHMS = ['bbr', 'pcc', 'reno', 'cubic', 'abbr']
 PYTHON_ABR_ALGORITHMS = ['robustMpc', 'pensieve']
 

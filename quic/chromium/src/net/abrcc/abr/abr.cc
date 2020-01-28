@@ -180,6 +180,87 @@ int BBAbr::decideQuality(int index) {
   return quality;
 }
 
+
+/**
+ * (1) Worthed ABR
+ *   ABR receives:
+ *     - bandwidth and rtt estimates from CC. 
+ *     - state from front-end
+ *   ABR decides:
+ *     - safe rate
+ *     - worthed rate
+ *   Based on QoE estimation of difference between safe and worthed rate, 
+ *   we set pacing cycle of BBR Adapter.
+ **/
+
+WorthedAbr::WorthedAbr() : SegmentProgressAbr()
+               , last_player_time(abr_schema::Value(0, 0)) 
+               , last_buffer_level(abr_schema::Value(0, 0)) {} 
+WorthedAbr::~WorthedAbr() {}
+
+
+void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
+  SegmentProgressAbr::registerMetrics(metrics);
+  for (auto const& player_time : metrics.playerTime) {
+    if (player_time->timestamp > last_player_time.timestamp) {
+      last_player_time = *player_time;
+    }
+  }
+  
+  for (auto const& buffer_level : metrics.bufferLevel) {
+    if (buffer_level->timestamp > last_buffer_level.timestamp) {
+      last_buffer_level = *buffer_level;
+    }
+  }
+}
+
+
+int WorthedAbr::decideQuality(int index) {
+  double bitrate = 0;
+  int quality = 0;
+  int n = bitrateArray.size();
+  
+  if (index == 1) {
+    return 0;
+  }
+ 
+  int buffer_level = last_buffer_level.value; 
+  if (last_segment[index - 1].state == abr_schema::Segment::PROGRESS) { 
+    int start_time = index > 2 ? last_segment[index - 2].timestamp : 0;
+    int current_time = last_segment[index - 1].timestamp;
+
+    double proportion = 1.0 * last_segment[index - 1].loaded / last_segment[index - 1].total;
+    int download_time = 1.0 * (current_time - start_time) * (1 - proportion) / proportion;
+    int bonus = SEGMENT_TIME - download_time; 
+  
+    buffer_level += bonus;  
+  } 
+  QUIC_LOG(WARNING) << " [last buffer level] " << buffer_level;
+
+  if (buffer_level <= RESERVOIR) {
+    bitrate = bitrateArray[0];
+  } else if (buffer_level >= RESERVOIR + CUSHION) {
+    bitrate = bitrateArray[n - 1];
+  } else {
+    bitrate = bitrateArray[0] + 1.0 * (bitrateArray[n - 1] - bitrateArray[0]) 
+                                * (buffer_level - RESERVOIR) / CUSHION;
+  }
+
+  for (int i = n - 1; i >= 0; --i) {
+    quality = i;
+    if (bitrate >= bitrateArray[i]) {
+      break;
+    }
+  }
+  return quality;
+}
+
+
+/**
+ * WortherAbr -- end
+ **/
+
+
 AbrInterface* getAbr(const std::string& abr_type) {
   if (abr_type == "bb") {
     QUIC_LOG(WARNING) << "BB abr selected";
@@ -187,6 +268,9 @@ AbrInterface* getAbr(const std::string& abr_type) {
   } else if (abr_type == "random") {
     QUIC_LOG(WARNING) << "Random abr selected";
     return new RandomAbr();
+  } else if (abr_type == "worthed") {
+    QUIC_LOG(WARNING) << "Worthed abr selected";
+    return new WorthedAbr();
   }
   QUIC_LOG(WARNING) << "Defaulting to BB abr";
   return new BBAbr();

@@ -47,6 +47,20 @@ class BBAbr : public SegmentProgressAbr {
   abr_schema::Value last_buffer_level;
 };
 
+
+class WorthedAbr : public SegmentProgressAbr {
+ public:
+  WorthedAbr();
+  ~WorthedAbr() override;
+
+  void registerMetrics(const abr_schema::Metrics &) override;
+  int decideQuality(int index) override;
+ private:
+  abr_schema::Value last_player_time;
+  abr_schema::Value last_buffer_level;
+};
+
+
 AbrInterface* getAbr(const std::string& abr_type);
 
 }
