@@ -42,19 +42,28 @@ class QUIC_EXPORT_PRIVATE BbrAdapter : public SendAlgorithmInterface {
     virtual ~BbrInterface();
     static BbrInterface* GetInstance();
 
+    // controlling gain cycle
     void setPacingGainCycle(const std::vector<float>& gain);
     std::vector<float> getPacingGainCycle();
     int getGainCycleLength();
     QuicRoundTripCount kBandwidthWindowSize();
    
+    // allow/ban rtt probing
+    void setRttProbing(bool rttProbing); 
+    bool allowRttProbing();
+
+    // attach parent when instance changes
     void setParent(BbrAdapter* parent);
     
+    // estimates
     base::Optional<int> BandwidthEstimate() const;
     base::Optional<int> RttEstimate() const; 
    private:
     BbrInterface();
 
     std::vector<float> kPacingGain;  
+    bool canProbeRtt;
+
     BbrAdapter *parent;
     
     friend class BbrAdapter;
@@ -200,6 +209,8 @@ class QUIC_EXPORT_PRIVATE BbrAdapter : public SendAlgorithmInterface {
    **/
   
   BbrInterface *interface;
+  
+  void changeMode(Mode newMode);
 
   /**
    * ABRCC Extension -- END

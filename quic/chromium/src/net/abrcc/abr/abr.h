@@ -59,10 +59,15 @@ class WorthedAbr : public SegmentProgressAbr {
   void registerMetrics(const abr_schema::Metrics &) override;
   int decideQuality(int index) override;
  private:
-  std::pair<int, int> compute_rates();
   int adjustedBufferLevel(int index);
+  
+  std::pair<int, int> computeRates(bool stochastic);
+  void adjustCC(); 
+  void setRttProbing(bool probing);
 
   BbrAdapter::BbrInterface* interface; 
+
+  bool is_rtt_probing;
 
   abr_schema::Value last_player_time;
   abr_schema::Value last_buffer_level;

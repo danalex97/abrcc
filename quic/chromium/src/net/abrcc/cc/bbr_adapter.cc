@@ -62,6 +62,7 @@ BbrAdapter::BbrInterface* BbrAdapter::BbrInterface::GetInstance() {
 }
 
 void BbrAdapter::BbrInterface::setPacingGainCycle(const std::vector<float>& gain) {
+  // [TODO] this is thread unsafe
   kPacingGain = gain; 
 }
 
@@ -78,7 +79,6 @@ QuicRoundTripCount BbrAdapter::BbrInterface::kBandwidthWindowSize() {
 }
 
 void BbrAdapter::BbrInterface::setParent(BbrAdapter *parent) {
-  QUIC_LOG(WARNING) << "PARENT: " << parent;
   this->parent = parent;
 }
 
@@ -98,13 +98,26 @@ base::Optional<int> BbrAdapter::BbrInterface::RttEstimate() const {
     : base::nullopt;
 }
 
+void BbrAdapter::BbrInterface::setRttProbing(bool rttProbing) {
+  // [TODO] this is thread unsafe
+  canProbeRtt = rttProbing;
+}
+
+bool BbrAdapter::BbrInterface::allowRttProbing() {
+  return canProbeRtt;
+}
+
 BbrAdapter::BbrInterface::BbrInterface() 
   : kPacingGain(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1})
+  , canProbeRtt(true)
   , parent(nullptr) 
   {}
 BbrAdapter::BbrInterface::~BbrInterface() {}
 
-
+void BbrAdapter::changeMode(BbrAdapter::Mode newMode) {
+  QUIC_LOG(WARNING) << "[BBR Mode]: " << mode_ << " -> " << newMode;
+  mode_ = newMode;
+}
 /**
  * ABRCC Extension -- END
  **/
@@ -524,13 +537,13 @@ void BbrAdapter::EnterStartupMode(QuicTime now) {
     DCHECK_EQ(stats_->slowstart_start_time, QuicTime::Zero()) << mode_;
     stats_->slowstart_start_time = now;
   }
-  mode_ = STARTUP;
+  changeMode(STARTUP);
   pacing_gain_ = high_gain_;
   congestion_window_gain_ = high_cwnd_gain_;
 }
 
 void BbrAdapter::EnterProbeBandwidthMode(QuicTime now) {
-  mode_ = PROBE_BW;
+  changeMode(PROBE_BW);
   congestion_window_gain_ = congestion_window_gain_constant_;
 
   // Pick a random offset for the gain cycle out of {0, 2..7} range. 1 is
@@ -714,7 +727,7 @@ void BbrAdapter::CheckIfFullBandwidthReached() {
 void BbrAdapter::MaybeExitStartupOrDrain(QuicTime now) {
   if (mode_ == STARTUP && is_at_full_bandwidth_) {
     OnExitStartup(now);
-    mode_ = DRAIN;
+    changeMode(DRAIN);
     pacing_gain_ = drain_gain_;
     congestion_window_gain_ = high_cwnd_gain_;
   }
@@ -739,11 +752,11 @@ void BbrAdapter::OnExitStartup(QuicTime now) {
 void BbrAdapter::MaybeEnterOrExitProbeRtt(QuicTime now,
                                          bool is_round_start,
                                          bool min_rtt_expired) {
-  if (min_rtt_expired && !exiting_quiescence_ && mode_ != PROBE_RTT) {
+  if (min_rtt_expired && !exiting_quiescence_ && mode_ != PROBE_RTT && interface->allowRttProbing()) {
     if (InSlowStart()) {
       OnExitStartup(now);
     }
-    mode_ = PROBE_RTT;
+    changeMode(PROBE_RTT);
     pacing_gain_ = 1;
     // Do not decide on the time to exit PROBE_RTT until the |bytes_in_flight|
     // is at the target small value.

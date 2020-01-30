@@ -7,6 +7,9 @@
 #include <iostream>
 #include <limits>
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wc++17-extensions"
+
 namespace {
  
   // [TODO] use the storage service for this
@@ -220,15 +223,24 @@ namespace WorthedAbrConstants {
   const double safe_downscale = 0.75;
 
   const int horizon = 5;
+  const int horizon_stochastic = 4;
   const int segments = 49;
 
+  const int reward_delta_stochastic = 4000;
   const int reward_delta = 5000;
+
+  const int reservoir = 5 * SECOND;
+  const int cushion = 10 * SECOND;
+  const int safe_to_rtt_probe = 10 * SECOND;
 }
 
 WorthedAbr::WorthedAbr() : SegmentProgressAbr()
                , interface(BbrAdapter::BbrInterface::GetInstance()) 
+               , is_rtt_probing(true)
                , last_player_time(abr_schema::Value(0, 0)) 
-               , last_buffer_level(abr_schema::Value(0, 0)) {} 
+               , last_buffer_level(abr_schema::Value(0, 0)) 
+               , last_bandwidth(base::nullopt) 
+               , last_rtt(base::nullopt) {} 
 WorthedAbr::~WorthedAbr() {}
 
 static double compute_reward(
@@ -276,15 +288,22 @@ static double compute_reward(
          - smoothness_diff);
 }
 
-static std::vector<std::vector<int>> cartesian(int depth, int max) {
+static double rand_prob() {
+  return (double)rand() / (RAND_MAX + 1.0);
+}
+
+static std::vector<std::vector<int>> cartesian(int depth, int max, double percent) {
   std::vector<std::vector<int> > out; 
   if (depth <= 0) {
     out.push_back(std::vector<int>());
     return out;
   }
-  std::vector<std::vector<int> > rest = cartesian(depth - 1, max);
+  std::vector<std::vector<int> > rest = cartesian(depth - 1, max, 1);
   for (int i = 0; i < max; ++i) {
     for (auto &vec : rest) {
+      if (rand_prob() > percent) {
+        continue;
+      }
       std::vector<int> now = {i};
       for (auto &x : vec) {
         now.push_back(x);
@@ -299,13 +318,16 @@ static std::pair<double, int> compute_reward_and_quality(
   int start_index, 
   int bandwidth,
   int start_buffer,
-  int current_quality
+  int current_quality,
+  bool stochastic
 ) {
   double best = -std::numeric_limits<double>::infinity();
+  double percent = stochastic ? .2 : 1;
   int quality = 0;
-
+  
   int depth = std::min(WorthedAbrConstants::segments - start_index, WorthedAbrConstants::horizon);
-  for (auto &next : cartesian(depth, WorthedAbrConstants::qualities)) {
+  depth = stochastic ? std::min(depth, WorthedAbrConstants::horizon_stochastic) : depth;
+  for (auto &next : cartesian(depth, WorthedAbrConstants::qualities, percent)) {
     double reward = compute_reward(next, start_index, bandwidth, start_buffer, current_quality);
     if (reward > best) {
       best = reward;
@@ -333,7 +355,7 @@ int WorthedAbr::adjustedBufferLevel(int index) {
 
 
 // Compute rate_safe and rate_worthed
-std::pair<int, int> WorthedAbr::compute_rates() {
+std::pair<int, int> WorthedAbr::computeRates(bool stochastic) {
   // State:
   //  - horizon  | static
   //  - buffer
@@ -344,20 +366,26 @@ std::pair<int, int> WorthedAbr::compute_rates() {
     : WorthedAbrConstants::default_bandwidth;
   int last_index = this->decision_index - 1; 
   int last_quality = this->decisions[last_index].quality;
-  int buffer_level = adjustedBufferLevel(last_index);
-  
+  // int buffer_level = adjustedBufferLevel(last_index);
+  // Be pesimistic here
+  int buffer_level = last_buffer_level.value;
+
   // compute rate_safe
   double rate_safe = bandwidth_kbps * WorthedAbrConstants::safe_downscale;
   double reward_safe = compute_reward_and_quality(
     last_index + 1,
     rate_safe,
     buffer_level,
-    last_quality
+    last_quality,
+    stochastic
   ).first; 
-  QUIC_LOG(WARNING) << "[WorthedAbr] rate safe: " << rate_safe;
+  // QUIC_LOG(WARNING) << "[WorthedAbr] rate safe: " << rate_safe;
  
   // compute rate worthed
-  double scale_step_kbps = 100;
+  double scale_step_kbps = stochastic ? 150 : 100;
+  double needed_reward = stochastic ? WorthedAbrConstants::reward_delta_stochastic 
+                                 : WorthedAbrConstants::reward_delta;
+
   double current_bandwidth_kbps = bandwidth_kbps * WorthedAbrConstants::safe_downscale;
   double max_bandwidth_kbps = 2 * WorthedAbrConstants::bitrate_array[WorthedAbrConstants::qualities - 1];
   double reward = reward_safe;
@@ -367,16 +395,96 @@ std::pair<int, int> WorthedAbr::compute_rates() {
       last_index + 1,
       current_bandwidth_kbps,
       buffer_level,
-      last_quality
+      last_quality,
+      stochastic
     ).first;
-    if (reward - reward_safe >= WorthedAbrConstants::reward_delta) {
+    if (reward - reward_safe >= needed_reward) {
       break;
     }
   }
   double rate_worthed = current_bandwidth_kbps; 
-  QUIC_LOG(WARNING) << "[WorthedAbr] rate worthed: " << rate_worthed;
+  // QUIC_LOG(WARNING) << "[WorthedAbr] rate worthed: " << rate_worthed;
 
   return std::make_pair(rate_safe, rate_worthed);
+}
+
+
+static double partial_bw_safe(double bw) {
+  double bw_mbit = bw / 1000.;
+  double bw_max  = WorthedAbrConstants::bitrate_array.back() / 1000.; 
+
+  if (bw_mbit > bw_max) {
+    bw_mbit = bw_max;
+  }
+
+  // The base fuunction related to the bandwidth should be strictly
+  // decreasing as we want to be less aggresive as we have more bandwidth
+  return log(bw_max + 1 - bw_mbit) / 2 / log(bw_max + 1);  
+}
+
+static double factor(double bw, double delta) {
+  double bw_mbit = bw / 1000.;
+  double bw_max  = WorthedAbrConstants::bitrate_array.back() / 1000.; 
+  double delta_mbit = delta / 1000.;
+
+  if (bw_mbit > bw_max) {
+    bw_mbit = bw_max;
+  }
+  
+  // The factor function should be increasing over delta as the difference is small
+  // and decreasing as the bandwidth increases.
+  double base_factor = std::pow(std::log(bw_max + 1. - bw_mbit), 2.) 
+    / (bw_max * 0.8) / std::pow(bw_mbit, (2. / bw_max));
+  double factor = 1. - (1. - base_factor) * ((delta_mbit + 1.) / (bw_max + 1.)); 
+
+  return factor;
+}
+  
+static double aggresivity(double bw, double delta) {
+  double aggr_factor = factor(bw, delta);
+  double value = partial_bw_safe(bw);
+
+  // QUIC_LOG(WARNING) << "[WorthedAbr] partial values: " << value << ' ' << aggr_factor << '\n';
+  return std::max(std::min(value * aggr_factor, 1.), 0.);
+}
+
+void WorthedAbr::setRttProbing(bool probe) {
+  if (is_rtt_probing != probe) {
+    is_rtt_probing = probe;
+    interface->setRttProbing(probe);
+  }
+  // [TODO] be less aggressive after RTT probing
+}
+
+void WorthedAbr::adjustCC() {
+  const auto& buffer_level = adjustedBufferLevel(decision_index - 1);
+  const auto& [bw_safe, bw_worthed] = computeRates(true);   
+
+  // for RTT probing we need to have enough pieces downloaded
+  if (buffer_level <= WorthedAbrConstants::safe_to_rtt_probe  && decision_index > 3) {
+    setRttProbing(false);
+  } else {
+    setRttProbing(true);
+  }
+  
+  double aggress = 0;
+  if (buffer_level <= WorthedAbrConstants::reservoir) {
+    // be more aggressive
+    aggress = 1;
+  } else if (buffer_level >= WorthedAbrConstants::reservoir + WorthedAbrConstants::cushion) {
+    // keep algorithm
+    aggress = 0;
+  } else {
+    aggress = aggresivity(bw_safe, bw_worthed - bw_safe);
+  }
+ 
+
+  QUIC_LOG(WARNING) << "[WorthedAbr] aggressivity: " << aggress;
+  if (aggress >= 0.4) {
+    interface->setPacingGainCycle(std::vector<float>{1.50, 1, 1.50, 1, 1.50, 1, 1.50, 1});
+  } else if (aggress < 0.4) {
+    interface->setPacingGainCycle(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1});
+  }
 }
 
 void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
@@ -393,32 +501,57 @@ void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
     }
   }
 
+  // update bandwidth estiamte
   auto bandwidth = interface->BandwidthEstimate();
   if (bandwidth != base::nullopt) {
     last_bandwidth = abr_schema::Value(bandwidth.value(), last_timestamp);
+  }
+
+  // update rtt estiamte
+  auto rtt = interface->RttEstimate();
+  if (rtt != base::nullopt) {
+    last_rtt = abr_schema::Value(rtt.value(), last_timestamp);
+  }
+
+  // adjust congestion control
+  //adjustCC();
+ 
+  if (last_bandwidth != base::nullopt) {
+    QUIC_LOG(WARNING) << " [last bw] " << last_bandwidth.value().value;
   }
 }
 
 
 int WorthedAbr::decideQuality(int index) {
-  if (index == 1) {
-    return 0;
+  if (index <= 3) {
+    return 0; // TODO modify
   }
 
+  adjustCC();
+
   // get constants
-  int buffer_level = adjustedBufferLevel(index);
   int last_index = this->decision_index - 1; 
   int last_quality = this->decisions[last_index].quality;
+  // Be pesimistic here
+  // int buffer_level = adjustedBufferLevel(index);
+  int buffer_level = last_buffer_level.value;
   QUIC_LOG(WARNING) << " [last buffer level] " << buffer_level;
+  if (last_bandwidth != base::nullopt) {
+    QUIC_LOG(WARNING) << " [last bw] " << last_bandwidth.value().value;
+  }
+  if (last_bandwidth != base::nullopt) {
+    QUIC_LOG(WARNING) << " [last rtt] " << last_rtt.value().value;
+  }
 
   // compute rate safe
-  int rate_safe = compute_rates().first; 
+  int rate_safe = computeRates(false).first; 
   int quality = compute_reward_and_quality(
     last_index + 1,
     rate_safe,
     buffer_level,
-    last_quality
-  ).second; 
+    last_quality,
+    false
+  ).second;
   QUIC_LOG(WARNING) << "[WorthedAbr] quality " << quality;
   
   return quality;
@@ -446,3 +579,5 @@ AbrInterface* getAbr(const std::string& abr_type) {
 }
 
 }
+
+#pragma GCC diagnostic pop
