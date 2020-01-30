@@ -372,7 +372,6 @@ std::pair<int, int> WorthedAbr::computeRates(bool stochastic) {
     : WorthedAbrConstants::default_bandwidth;
   int last_index = this->decision_index - 1; 
   int last_quality = this->decisions[last_index].quality;
-  // int buffer_level = adjustedBufferLevel(last_index);
   // Be pesimistic here
   int buffer_level = last_buffer_level.value;
 
@@ -385,7 +384,7 @@ std::pair<int, int> WorthedAbr::computeRates(bool stochastic) {
     last_quality,
     stochastic
   ).first; 
-  // QUIC_LOG(WARNING) << "[WorthedAbr] rate safe: " << rate_safe;
+  QUIC_LOG(INFO) << "[WorthedAbr] rate safe: " << rate_safe;
  
   // compute rate worthed
   double scale_step_kbps = stochastic ? 150 : 100;
@@ -409,7 +408,7 @@ std::pair<int, int> WorthedAbr::computeRates(bool stochastic) {
     }
   }
   double rate_worthed = current_bandwidth_kbps; 
-  // QUIC_LOG(WARNING) << "[WorthedAbr] rate worthed: " << rate_worthed;
+  QUIC_LOG(INFO) << "[WorthedAbr] rate worthed: " << rate_worthed;
 
   return std::make_pair(rate_safe, rate_worthed);
 }
@@ -450,7 +449,7 @@ static double aggresivity(double bw, double delta) {
   double aggr_factor = factor(bw, delta);
   double value = partial_bw_safe(bw);
 
-  // QUIC_LOG(WARNING) << "[WorthedAbr] partial values: " << value << ' ' << aggr_factor << '\n';
+  QUIC_LOG(INFO) << "[WorthedAbr] partial values: " << value << ' ' << aggr_factor << '\n';
   return std::max(std::min(value * aggr_factor, 1.), 0.);
 }
 
@@ -459,10 +458,15 @@ void WorthedAbr::setRttProbing(bool probe) {
     is_rtt_probing = probe;
     interface->setRttProbing(probe);
   }
-  // [TODO] be less aggressive after RTT probing
+  // [TODO] maybe be less aggressive after RTT probing?
 }
 
 void WorthedAbr::adjustCC() {
+  if (decision_index <= 2) {
+    // Adjust CC only after a few segments
+    return;
+  }
+  
   const auto& buffer_level = adjustedBufferLevel(decision_index - 1);
   const auto& [bw_safe, bw_worthed] = computeRates(true);   
 
@@ -486,10 +490,12 @@ void WorthedAbr::adjustCC() {
  
 
   QUIC_LOG(WARNING) << "[WorthedAbr] aggressivity: " << aggress;
-  if (aggress >= 0.4) {
-    interface->setPacingGainCycle(std::vector<float>{1.50, 1, 1.50, 1, 1.50, 1, 1.50, 1});
+  if (aggress == 1) {
+    interface->proposePacingGainCycle(std::vector<float>{1.5, 1, 1.5, 1, 1, 1, 1, 1});
+  } else if (aggress >= 0.4) {
+    interface->proposePacingGainCycle(std::vector<float>{1.3, 0.8, 1.3, 0.8, 0.8, 1, 1, 1});
   } else if (aggress < 0.4) {
-    interface->setPacingGainCycle(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1});
+    interface->proposePacingGainCycle(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1});
   }
 }
 
@@ -510,11 +516,11 @@ void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   // update bandwidth estiamte
   auto bandwidth = interface->BandwidthEstimate();
   if (bandwidth != base::nullopt) {
-    last_bandwidth = abr_schema::Value(bandwidth.value(), last_timestamp);
-    if (average_bandwidth->empty() || last_bandwidth.value().value != average_bandwidth->last()) {
-      if (decision_index >= 2) {
-        average_bandwidth->sample(last_bandwidth.value().value);
-      }
+    // limit the bandwidth estimate downloards
+    auto bw_value = std::min(bandwidth.value(), WorthedAbrConstants::bitrate_array.back());
+    last_bandwidth = abr_schema::Value(bw_value, last_timestamp);
+    if (average_bandwidth->empty() || bw_value != average_bandwidth->last()) {
+      average_bandwidth->sample(last_bandwidth.value().value);
     }
   }
 
@@ -526,7 +532,7 @@ void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   }
 
   // adjust congestion control
-  //adjustCC();
+  adjustCC();
  
   if (last_bandwidth != base::nullopt) {
     QUIC_LOG(WARNING) << " [last bw] " << last_bandwidth.value().value;
@@ -538,17 +544,14 @@ void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
 
 
 int WorthedAbr::decideQuality(int index) {
-  if (index <= 3) {
-    return 0; // TODO modify
+  if (index == 1) {
+    return 0; 
   }
-
-  adjustCC();
 
   // get constants
   int last_index = this->decision_index - 1; 
   int last_quality = this->decisions[last_index].quality;
-  // Be pesimistic here
-  // int buffer_level = adjustedBufferLevel(index);
+  // We use the current buffer level, so we are less optimistic
   int buffer_level = last_buffer_level.value;
   QUIC_LOG(WARNING) << " [last buffer level] " << buffer_level;
   if (last_bandwidth != base::nullopt) {
@@ -559,9 +562,12 @@ int WorthedAbr::decideQuality(int index) {
   }
 
   int bandwidth = (int)average_bandwidth->value_or(WorthedAbrConstants::default_bandwidth);
+  if (last_bandwidth != base::nullopt) {
+    QUIC_LOG(WARNING) << " [bw estimate] " << bandwidth;
+  }
   int quality = compute_reward_and_quality(
     last_index + 1,
-    bandwidth,
+    bandwidth * WorthedAbrConstants::safe_downscale,
     buffer_level,
     last_quality,
     false

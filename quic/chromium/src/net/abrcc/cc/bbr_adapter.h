@@ -43,10 +43,13 @@ class QUIC_EXPORT_PRIVATE BbrAdapter : public SendAlgorithmInterface {
     static BbrInterface* GetInstance();
 
     // controlling gain cycle
-    void setPacingGainCycle(const std::vector<float>& gain);
+    void proposePacingGainCycle(const std::vector<float>& gain);
     std::vector<float> getPacingGainCycle();
     int getGainCycleLength();
     QuicRoundTripCount kBandwidthWindowSize();
+    
+    // should be called 
+    void updatePacingGainCycle();
    
     // allow/ban rtt probing
     void setRttProbing(bool rttProbing); 
@@ -61,6 +64,7 @@ class QUIC_EXPORT_PRIVATE BbrAdapter : public SendAlgorithmInterface {
    private:
     BbrInterface();
 
+    std::vector< std::vector<float> > kPacingGainProposals;
     std::vector<float> kPacingGain;  
     bool canProbeRtt;
 

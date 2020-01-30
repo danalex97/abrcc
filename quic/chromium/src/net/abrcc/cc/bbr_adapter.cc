@@ -61,9 +61,63 @@ BbrAdapter::BbrInterface* BbrAdapter::BbrInterface::GetInstance() {
   return GET_SINGLETON(BbrAdapter::BbrInterface);
 }
 
-void BbrAdapter::BbrInterface::setPacingGainCycle(const std::vector<float>& gain) {
+void BbrAdapter::BbrInterface::proposePacingGainCycle(const std::vector<float>& gain) {
   // [TODO] this is thread unsafe
-  kPacingGain = gain; 
+  kPacingGainProposals.push_back(gain);
+}
+
+void BbrAdapter::BbrInterface::updatePacingGainCycle() {
+  // [TODO] this is thread unsafe
+  QUIC_LOG(WARNING) << "[BBR Adapter] updating pacing gain cycle";
+
+  auto votes = std::map<
+    std::vector<float>, 
+    int, 
+    std::function<bool(const std::vector<float>&, const std::vector<float>&)>> {
+      [](const auto& a, const auto& b) {
+        for (int i = 0; i < int(std::min(a.size(), b.size())); ++i) {
+          if (a[i] < b[i]) {
+            return true;
+          } else if (a[i] > b[i]) {
+            return false;
+          }
+        }
+        return a.size() < b.size();
+      }
+  };
+ 
+  int most_votes = 0;
+  std::vector<float> best_proposal;
+  for (auto &proposal : kPacingGainProposals) {
+    if (votes.find(proposal) == votes.end()) {
+      votes[proposal] = 0;
+    }
+    votes[proposal]++;
+
+    if (votes[proposal] > most_votes) {
+      most_votes = votes[proposal];
+      best_proposal = proposal;
+    }
+  }
+
+  auto to_str = [](const std::vector<float>& v) {
+    std::string out;
+    out += "[";
+    for (auto &x : v) {
+      out += std::to_string(x);
+      out += ", ";
+    }
+    out.pop_back();
+    out += "]";
+    return out;
+  };
+  if (!best_proposal.empty() && kPacingGainProposals.size() > 10) {
+    QUIC_LOG(WARNING) << "[BBR Adapter] chosen proposal " << to_str(best_proposal) 
+                      << "with " << most_votes << " votes";
+  
+    kPacingGain = best_proposal; 
+    kPacingGainProposals.clear();
+ }
 }
 
 std::vector<float> BbrAdapter::BbrInterface::getPacingGainCycle() {
@@ -118,6 +172,7 @@ void BbrAdapter::changeMode(BbrAdapter::Mode newMode) {
   QUIC_LOG(WARNING) << "[BBR Mode]: " << mode_ << " -> " << newMode;
   mode_ = newMode;
 }
+
 /**
  * ABRCC Extension -- END
  **/
@@ -689,6 +744,12 @@ void BbrAdapter::UpdateGainCyclePhase(QuicTime now,
   if (should_advance_gain_cycling) {
     cycle_current_offset_ = (cycle_current_offset_ + 1) % interface->getGainCycleLength();
     last_cycle_start_ = now;
+
+    // If we finished a gain cycle, then we look at the poposals
+    if (cycle_current_offset_ == 0) {
+      interface->updatePacingGainCycle();
+    }
+  
     // Stay in low gain mode until the target BDP is hit.
     // Low gain mode will be exited immediately when the target BDP is achieved.
     if (drain_to_target_ && pacing_gain_ < 1 &&
