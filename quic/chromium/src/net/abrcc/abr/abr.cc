@@ -269,6 +269,11 @@ static double compute_reward(
     int chunk_quality = qualities[i];
     int current_index = start_index + i;
 
+    if (current_index > int(WorthedAbrConstants::segment_sizes[chunk_quality].size())) {
+      continue;
+    }
+
+
     double size_kb = 8. * WorthedAbrConstants::segment_sizes[chunk_quality][current_index] / 1000.;
     double download_time_ms = size_kb / bandwidth * 1000;
 
@@ -325,7 +330,8 @@ static std::pair<double, int> compute_reward_and_quality(
   int bandwidth,
   int start_buffer,
   int current_quality,
-  bool stochastic
+  bool stochastic,
+  int last_decision
 ) {
   double best = -std::numeric_limits<double>::infinity();
   double percent = stochastic ? .2 : 1;
@@ -337,7 +343,13 @@ static std::pair<double, int> compute_reward_and_quality(
     double reward = compute_reward(next, start_index, bandwidth, start_buffer, current_quality);
     if (reward > best) {
       best = reward;
-      quality = next[0];
+      if (!next.empty()) {
+        quality = next[0];
+      } else {
+        // [TODO] this is not great for the last segment
+        // we should do something different here, maybe...
+        quality = last_decision;
+      }
     }
   }
   return std::make_pair(best, quality);
@@ -372,6 +384,7 @@ std::pair<int, int> WorthedAbr::computeRates(bool stochastic) {
     : WorthedAbrConstants::default_bandwidth;
   int last_index = this->decision_index - 1; 
   int last_quality = this->decisions[last_index].quality;
+  // int buffer_level = adjustedBufferLevel(last_index);
   // Be pesimistic here
   int buffer_level = last_buffer_level.value;
 
@@ -382,7 +395,8 @@ std::pair<int, int> WorthedAbr::computeRates(bool stochastic) {
     rate_safe,
     buffer_level,
     last_quality,
-    stochastic
+    stochastic,
+    decisions[last_index].quality
   ).first; 
   QUIC_LOG(INFO) << "[WorthedAbr] rate safe: " << rate_safe;
  
@@ -401,7 +415,8 @@ std::pair<int, int> WorthedAbr::computeRates(bool stochastic) {
       current_bandwidth_kbps,
       buffer_level,
       last_quality,
-      stochastic
+      stochastic,
+      decisions[last_index].quality
     ).first;
     if (reward - reward_safe >= needed_reward) {
       break;
@@ -466,12 +481,13 @@ void WorthedAbr::adjustCC() {
     // Adjust CC only after a few segments
     return;
   }
-  
+ 
+  // Note here we use the adjusted level
   const auto& buffer_level = adjustedBufferLevel(decision_index - 1);
   const auto& [bw_safe, bw_worthed] = computeRates(true);   
 
   // for RTT probing we need to have enough pieces downloaded
-  if (buffer_level <= WorthedAbrConstants::safe_to_rtt_probe  && decision_index > 3) {
+  if (buffer_level <= WorthedAbrConstants::safe_to_rtt_probe && decision_index > 3) {
     setRttProbing(false);
   } else {
     setRttProbing(true);
@@ -519,7 +535,9 @@ void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
     // limit the bandwidth estimate downloards
     auto bw_value = std::min(bandwidth.value(), WorthedAbrConstants::bitrate_array.back());
     last_bandwidth = abr_schema::Value(bw_value, last_timestamp);
-    if (average_bandwidth->empty() || bw_value != average_bandwidth->last()) {
+    if (average_bandwidth->empty() 
+        || bw_value != average_bandwidth->last() 
+        || bw_value == WorthedAbrConstants::bitrate_array.back()) {
       average_bandwidth->sample(last_bandwidth.value().value);
     }
   }
@@ -570,7 +588,8 @@ int WorthedAbr::decideQuality(int index) {
     bandwidth * WorthedAbrConstants::safe_downscale,
     buffer_level,
     last_quality,
-    false
+    false,
+    decisions[last_index].quality
   ).second;
   QUIC_LOG(WARNING) << "[WorthedAbr] quality " << quality;
   
