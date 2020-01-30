@@ -3,6 +3,8 @@
 #include "net/abrcc/service/schema.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
+#include "net/abrcc/structs/averages.h"
+
 #include <algorithm>
 #include <iostream>
 #include <limits>
@@ -232,6 +234,8 @@ namespace WorthedAbrConstants {
   const int reservoir = 5 * SECOND;
   const int cushion = 10 * SECOND;
   const int safe_to_rtt_probe = 10 * SECOND;
+
+  const int bandwidth_window = 10;
 }
 
 WorthedAbr::WorthedAbr() : SegmentProgressAbr()
@@ -239,8 +243,10 @@ WorthedAbr::WorthedAbr() : SegmentProgressAbr()
                , is_rtt_probing(true)
                , last_player_time(abr_schema::Value(0, 0)) 
                , last_buffer_level(abr_schema::Value(0, 0)) 
+               , average_bandwidth(new structs::WilderEMA<double>(WorthedAbrConstants::bandwidth_window))
                , last_bandwidth(base::nullopt) 
                , last_rtt(base::nullopt) {} 
+
 WorthedAbr::~WorthedAbr() {}
 
 static double compute_reward(
@@ -505,7 +511,13 @@ void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   auto bandwidth = interface->BandwidthEstimate();
   if (bandwidth != base::nullopt) {
     last_bandwidth = abr_schema::Value(bandwidth.value(), last_timestamp);
+    if (average_bandwidth->empty() || last_bandwidth.value().value != average_bandwidth->last()) {
+      if (decision_index >= 2) {
+        average_bandwidth->sample(last_bandwidth.value().value);
+      }
+    }
   }
+
 
   // update rtt estiamte
   auto rtt = interface->RttEstimate();
@@ -518,6 +530,9 @@ void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
  
   if (last_bandwidth != base::nullopt) {
     QUIC_LOG(WARNING) << " [last bw] " << last_bandwidth.value().value;
+  }
+  if (!average_bandwidth->empty()) {
+    QUIC_LOG(WARNING) << " [bw avg] " << average_bandwidth->value();
   }
 }
 
@@ -543,11 +558,10 @@ int WorthedAbr::decideQuality(int index) {
     QUIC_LOG(WARNING) << " [last rtt] " << last_rtt.value().value;
   }
 
-  // compute rate safe
-  int rate_safe = computeRates(false).first; 
+  int bandwidth = (int)average_bandwidth->value_or(WorthedAbrConstants::default_bandwidth);
   int quality = compute_reward_and_quality(
     last_index + 1,
-    rate_safe,
+    bandwidth,
     buffer_level,
     last_quality,
     false

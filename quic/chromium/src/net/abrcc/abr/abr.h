@@ -8,6 +8,8 @@
 #include "net/abrcc/cc/bbr_adapter.h"
 #include "net/abrcc/service/schema.h"
 
+#include "net/abrcc/structs/averages.h"
+
 #include <unordered_map>
 
 namespace quic {
@@ -71,7 +73,8 @@ class WorthedAbr : public SegmentProgressAbr {
 
   abr_schema::Value last_player_time;
   abr_schema::Value last_buffer_level;
-  
+  std::unique_ptr<structs::MovingAverage<double>> average_bandwidth;  
+
   base::Optional<abr_schema::Value> last_bandwidth;
   base::Optional<abr_schema::Value> last_rtt;
 };
