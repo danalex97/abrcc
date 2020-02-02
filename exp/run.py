@@ -12,10 +12,6 @@ from server.server import Server, multiple_sync
 from scripts.network import Network
 
 
-from abr.robust_mpc import RobustMpc
-from abr.pensieve import Pensieve
-
-
 ABR_ALGORITHMS = ['bola', 'bb', 'festive', 'rb', 'robustMpc', 'pensieve']
 SERVER_ABR_ALGORITHMS = ['bb', 'random', 'worthed']
 CC_ALGORITHMS = ['bbr', 'pcc', 'reno', 'cubic', 'abbr']
@@ -33,8 +29,20 @@ def run(args: Namespace) -> None:
     if args.algo is not None:
         if args.dash is None:
             args.dash = []
-        if args.algo not in ABR_ALGORITHMS:
+        if args.algo in ABR_ALGORITHMS:
             args.dash.append(f'fe={args.algo}')
+        
+
+    server = Server('experiment', args.port)
+ 
+    # Haandle Abr requests
+    if args.algo in PYTHON_ABR_ALGORITHMS:
+        if args.algo == 'robustMpc':
+            from abr.robust_mpc import RobustMpc
+            server.add_post('/decision', RobustMpc())
+        elif args.algo == 'pensieve':
+            from abr.pensieve import Pensieve
+            server.add_post('/decision', Pensieve())
 
     # Add controller for launching the QUIC server and browser 
     controller = Controller(
@@ -55,9 +63,7 @@ def run(args: Namespace) -> None:
         path = path,
         leader_port = args.leader_port,
     )
-   
-    server = Server('experiment', args.port)
-        
+       
     # Handle controller communication and metrics
     request_port = args.leader_port if args.leader_port else args.port 
     (server
@@ -71,14 +77,7 @@ def run(args: Namespace) -> None:
             port = args.port,
         ))
         .add_post('/destroy', controller.on_destroy()))
-
-    # Haandle Abr requests
-    if args.algo in PYTHON_ABR_ALGORITHMS:
-        if args.algo == 'robustMpc':
-            server.add_post('/decision', RobustMpc())
-        elif args.algo == 'pensieve':
-            server.add_post('/decision', Pensieve())
-
+    
     # Handle live plots
     plots = {}
     if args.plot:

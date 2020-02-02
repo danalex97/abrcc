@@ -37,7 +37,9 @@ class Network:
 
         self.setup_traffic_class()
         self.add_port_filters()
-    
+        if self.trace_path:
+            self.set_trace()
+
     def add_port(self, port: int) -> None:
         if port not in self.ports:
             self.ports.append(port)

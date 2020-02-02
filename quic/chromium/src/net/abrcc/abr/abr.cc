@@ -536,8 +536,8 @@ void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
     auto bw_value = std::min(bandwidth.value(), WorthedAbrConstants::bitrate_array.back());
     last_bandwidth = abr_schema::Value(bw_value, last_timestamp);
     if (average_bandwidth->empty() 
-        || bw_value != average_bandwidth->last() 
-        || bw_value == WorthedAbrConstants::bitrate_array.back()) {
+        || bw_value != average_bandwidth->last()) {
+        // [TODO] what happens is the bandwidth is large constantly: i.e. bitrate_array.back()
       average_bandwidth->sample(last_bandwidth.value().value);
     }
   }
