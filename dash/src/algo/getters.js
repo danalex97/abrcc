@@ -94,7 +94,7 @@ export class ThrpPredictorGetter extends ThrpGetter {
         let totalTime = 0;
         let minIndex = Math.max(this.lastSegment - this.horizon + 1, 2);
         for (let index = this.lastSegment; index >= minIndex; --index) {
-            let time = this.segments[index].timestamp - this.segments[index - 1].timestamp;    
+            let time = this.segments[index].timestamp - this.segments[index - 1].timestamp;
             let size = this.requests[index - 2].response.byteLength * 8;
 
             totalSum += time * time / size;

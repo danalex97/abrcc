@@ -7,6 +7,7 @@ from typing import List, Optional, Generator, Dict
 
 from server.data import Metrics, Segment, Value
 from server.server import post_after, post_after_async, Component, JSONType
+from abr.video import get_vmaf, get_chunk_size
 
 
 PENALTY_REBUF = 4.3
@@ -14,6 +15,10 @@ PENALTY_QSWITCH = 1.0
 BOOST_QUALITY = 1.0 
 
 K_in_M = 1000.0
+
+REBUF_PENALITY_QOE = 25
+SWITCING_PENALITY_QOE = 2.5
+SEGMENT_LENGTH = 4.0
 
 
 class MetricsProcessor:
@@ -28,6 +33,7 @@ class MetricsProcessor:
         self.segments = []
         self.index = 1
         self.logging = logging
+        self.vmaf_previous = 0
 
         # [TODO] remove hardcoding
         self.qualities = [300, 750, 1200, 1850, 2850, 4300]
@@ -70,17 +76,36 @@ class MetricsProcessor:
         switch = (abs(self.qualities[self.segments[-1].quality] - self.qualities[self.segments[-2].quality])
             if len(self.segments) > 1 else 0)
        
-        # Compute qoe
-        qoe = (quality / K_in_M * BOOST_QUALITY 
+        # Compute raw qoe
+        raw_qoe = (quality / K_in_M * BOOST_QUALITY 
             - PENALTY_REBUF * rebuffer 
             - PENALTY_QSWITCH * switch / K_in_M)
+     
+        # Get vmaf
+        vmaf = get_vmaf(self.index, quality)
         
+        # Compute vmaf qoe
+        reward_vmaf = (vmaf - 
+            REBUF_PENALITY_QOE * rebuffer / 1000. - 
+            SWITCING_PENALITY_QOE * abs(vmaf - self.vmaf_previous))
+        self.vmaf_previous = vmaf
+    
+        # Current bw estimate
+        segment_size = 8 * get_chunk_size(segment.quality, self.index)
+        time = timestamp - last_timestamp
+        bw = segment_size / time / 1000. # mbps
+
         return {
             'index' : self.index,
             'quality' : quality,
-            'switch' : switch,
             'rebuffer' : rebuffer, 
-            'qoe' : qoe,
+            'raw_qoe' : raw_qoe,
+            'vmaf' : vmaf,
+            'vmaf_qoe' : reward_vmaf,
+            'bw' : bw,
+            # [TODO] do this properly
+            'timestamp' : timestamp - self.timestamps[1], 
+            # So we (approx) align metrics that are per-timestamp
         }
     
     def compute_qoe(self, metrics: Metrics) -> Generator[Dict[str, float], None, None]: 
@@ -122,17 +147,23 @@ class Monitor(Component):
             return 
 
         rebuffer = processed_metrics['rebuffer']
-        switch = processed_metrics['switch']
         quality = processed_metrics['quality']
-        qoe = processed_metrics['qoe']
+        raw_qoe = processed_metrics['raw_qoe']
+        vmaf = processed_metrics['vmaf']
+        vmaf_qoe = processed_metrics['vmaf_qoe']
+        bw = processed_metrics['bw']
         idx = processed_metrics['index']
         port = self.request_port
+        timestamp = int(processed_metrics['timestamp']/1000)
 
         make_value = lambda value: {'name': self.name, 'value': Value(value, idx).json}
+        make_bw = lambda value: {'name': self.name, 'value': Value(value, timestamp).json}
         post_after_async(make_value(rebuffer), 0, "/rebuffer", port=port),
-        post_after_async(make_value(switch), 0, "/switch", port=port),
         post_after_async(make_value(quality), 0, "/quality", port=port),
-        post_after_async(make_value(qoe), 0, "/qoe", port=port),
+        post_after_async(make_value(raw_qoe), 0, "/raw_qoe", port=port),
+        post_after_async(make_value(vmaf), 0, "/vmaf", port=port),
+        post_after_async(make_value(vmaf_qoe), 0, "/vmaf_qoe", port=port),
+        post_after_async(make_bw(bw), 0, "/bw", port=port),
     
     async def compute_qoe(self, metrics: Metrics) -> None: 
         for processed_metrics in self.processor.compute_qoe(metrics): 

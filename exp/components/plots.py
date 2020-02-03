@@ -10,25 +10,26 @@ from matplotlib.figure import Figure
 from typing import Optional, Dict, Tuple, List 
 from timeit import default_timer as timer
 
-from server.server import Component, JSONType
+from server.server import do_nothing, Server, Component, JSONType
 from server.data import Value
 
 
 plt.style.use('ggplot')
 
-HORIZONTAL = 2
+HORIZONTAL = 3
 VERTICAL = 2
 RANGE_SIZE = 50
 
 
 def make_canvases() -> Tuple[Figure, List[Axes]]:
-    fig, axes = plt.subplots(HORIZONTAL, VERTICAL, sharex=False, sharey=False)
+    fig, axes = plt.subplots(VERTICAL, HORIZONTAL, sharex=False, sharey=False)
 
     plots = []
-    for i in range(HORIZONTAL):
-        for j in range(VERTICAL):
+    for i in range(VERTICAL):
+        for j in range(HORIZONTAL):
             plots.append(axes[i, j])
     
+    fig.tight_layout()
     plt.show(block=False)
     window = plt.get_current_fig_manager().window
 
@@ -52,10 +53,17 @@ class Dataset:
     def update(self, x: int, y: float) -> None: 
         while len(self.x) < x - 1:
             self.x.append(len(self.x))
-            self.y.append(0)
+            self.y.append(y)
         self.x[x - 1] = x
         self.y[x - 1] = y
-    
+   
+    def update_before(self, x: int, y: float) -> None:
+        self.update(x + 1, y)
+        pl = x - 1
+        while pl >= 0 and self.y[pl] == 0:
+            self.y[pl] = y
+            pl -= 1
+
     def draw(self) -> None:
         self.data.set_xdata(self.x)
         self.data.set_ydata(self.y)
@@ -81,12 +89,19 @@ class LivePlot(Component):
         self.axes: Axes = self.get_canvas()
         self.figure: Figure = self.FIGURE
         
-        self.range_size: int = RANGE_SIZE
+        self.range_size: int = range_size
         self.datasets: Dict[str, Dataset] = {}
 
         self.axes.set_xlabel("time(segment)")
         self.axes.set_ylabel(y_label)
         self.axes.set_title(figure_name)
+        self.axes.grid()
+
+        minor_ticks = np.arange(0, 50, 1)
+        self.axes.set_xticks(minor_ticks, minor=True)
+
+        self.axes.grid(which='minor', alpha=0.2)
+        self.axes.grid(which='major', alpha=0.5)
 
         self.first_call = True
         self.last_referesh = timer()
@@ -109,11 +124,12 @@ class LivePlot(Component):
             )
             self.first_call = False
 
-    async def draw(self, auto: bool = False) -> None:
+    async def draw(self, auto: bool = False, limit_y: bool = True) -> None:
         for dataset in self.datasets.values():
             dataset.draw()
         ys = sum([d.y for d in self.datasets.values()], [])
-        self.axes.set_ylim([min(ys) * 1.15, max(ys) * 1.15])
+        if limit_y:
+            self.axes.set_ylim([min(ys) * 1.15, max(ys) * 1.15])
         
         self.figure.canvas.draw()
         self.last_referesh = timer()
@@ -121,7 +137,7 @@ class LivePlot(Component):
         if auto:
             await asyncio.sleep(1)
             asyncio.ensure_future(
-                self.draw(auto=True)
+                self.draw(auto=True, limit_y=limit_y)
             )
 
     async def process(self, json: JSONType) -> JSONType:
@@ -133,3 +149,110 @@ class LivePlot(Component):
             await self.draw(auto=False)
 
         return 'OK'
+
+
+class BandwidthPlot(LivePlot):
+    def __init__(self, 
+        figure_name="default", 
+        y_label="y_label",
+        range_size=300, # seconds
+        trace: Optional[str] =  None,
+        bandwidth: Optional[int] = None,
+    ) -> None:
+        self.limit_y = (trace or bandwidth) is None
+        if trace != None:   
+            to_timestamp = lambda x: tuple(map(float, x))
+            with open(trace, 'r') as f:
+                content = f.read()
+                content.replace('\t', ' ')
+                trace = [
+                    to_timestamp(line.split())
+                    for line in content.split('\n')
+                    if line != ''
+                ]
+                xs = [t[0] for t in trace]
+                ys = [t[1] for t in trace]
+                
+                range_size = int(max(xs)) + 1
+                super().__init__(figure_name, y_label, range_size)
+
+                self.axes.plot(xs, ys, linestyle='--', color='k', linewidth=1)                 
+                self.axes.set_ylim([min(ys) * 1.15, max(ys) * 1.15])
+        else:
+            super().__init__(figure_name, y_label, range_size)
+            if bandwidth:
+                self.axes.set_ylim([0, bandwidth * 1.15])
+
+        self.axes.set_xlabel("time(s)")
+        
+        self.axes.grid()
+        self.axes.grid(which='minor', alpha=0.2)
+        self.axes.grid(which='major', alpha=0.5)
+        self.axes.grid()
+
+    async def update(self, name: str, x: int, y: float) -> None:
+        # [TODO] remove duplication
+        if name not in self.datasets:
+            self.datasets[name] = Dataset(
+                axes=self.axes,
+                name=name,
+                range_size=self.range_size,
+            )
+            self.axes.legend(loc="upper left")
+
+        dataset = self.datasets[name]
+        dataset.update_before(x, y)
+
+        if self.first_call:
+            asyncio.ensure_future(
+                self.draw(auto=True, limit_y=self.limit_y)
+            )
+            self.first_call = False
+    
+    async def process(self, json: JSONType) -> JSONType:
+        name  = json['name']
+        value = Value.from_json(json['value'])
+        
+        await self.update(name, value.timestamp, value.value)
+        if timer() - self.last_referesh > 3:
+            await self.draw(auto=False, limit_y=self.limit_y)
+
+        return 'OK'
+
+
+def attach_plot_components(
+    server: Server,
+    trace: Optional[str] = None,
+    bandwidth: Optional[int] = None,
+    no_plot: bool = False, 
+) -> Dict[str, LivePlot]:
+    if no_plot:
+        (server
+            .add_post('/raw_qoe', do_nothing) 
+            .add_post('/rebuffer', do_nothing)
+            .add_post('/quality', do_nothing)
+            .add_post('/vmaf', do_nothing)
+            .add_post('/vmaf_qoe', do_nothing)
+            .add_post('/bw', do_nothing))
+        return {}
+    plots = {
+        'raw_qoe' : LivePlot(figure_name='qoe', y_label='raw qoe'),
+        'rebuffer' : LivePlot(figure_name='rebuffer', y_label='rebuffer'),
+        'quality' : LivePlot(figure_name='quality', y_label='quality'),
+        'vmaf' : LivePlot(figure_name='vmaf', y_label='vmaf'),
+        'vmaf_qoe' : LivePlot(figure_name='vmaf_qoe', y_label='vmaf qoe'),
+        'bw' : BandwidthPlot(
+            figure_name='bw', 
+            y_label='bw estimation(mbps)',
+            trace=trace,
+            bandwidth=bandwidth,
+        ),
+    }
+    (server
+        .add_post('/raw_qoe', plots['raw_qoe'])
+        .add_post('/rebuffer', plots['rebuffer'])
+        .add_post('/quality', plots['quality'])
+        .add_post('/vmaf', plots['vmaf'])
+        .add_post('/vmaf_qoe', plots['vmaf_qoe'])
+        .add_post('/bw', plots['bw']))
+    return plots

@@ -9,7 +9,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from threading import Thread
 
-from components.plots import LivePlot
+from components.plots import attach_plot_components
 from components.complete import OnComplete
 from server.server import ctx_component, multiple_sync, do_nothing, JSONType, Server, post_after
 from server.process import kill_subprocess 
@@ -131,33 +131,18 @@ def run(args: Namespace) -> None:
     os.system(f'{script} --certs')
 
     server = Server('experiment', args.port)
-
-    plots = {}
-    if args.plot:
-        plots = {
-            'qoe' : LivePlot(figure_name='qoe', y_label='qoe'),
-            'rebuffer' : LivePlot(figure_name='rebuffer', y_label='rebuffer'),
-            'switch' : LivePlot(figure_name='switch', y_label='switch'),
-            'quality' : LivePlot(figure_name='quality', y_label='quality'),
-        }
-        (server
-            .add_post('/qoe', plots['qoe'])
-            .add_post('/rebuffer', plots['rebuffer'])
-            .add_post('/switch', plots['switch'])
-            .add_post('/quality', plots['quality']))
-    else:
-        (server
-            .add_post('/qoe', do_nothing)
-            .add_post('/rebuffer', do_nothing)
-            .add_post('/switch', do_nothing)
-            .add_post('/quality', do_nothing))
-
+    plots = attach_plot_components(
+        server,
+        trace=getattr(args, 'trace', None),
+        bandwidth=getattr(args, 'bandwidth', None),
+        no_plot=args.plot is None,
+    )
     (server
         .add_post('/start', controller.on_start())
         .add_post('/destroy', multiple_sync(
-            OnComplete(path, 'leader', plots), 
-            controller.on_destroy(),
-         )))
+            OnComplete(path, 'leader', plots),
+            controller.on_destroy()
+        )))
     server.run()
 
 

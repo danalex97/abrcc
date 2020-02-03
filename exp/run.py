@@ -5,7 +5,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 from components.monitor import Monitor 
-from components.plots import LivePlot
+from components.plots import attach_plot_components
 from components.complete import OnComplete
 from controller import Controller
 from server.server import Server, multiple_sync
@@ -79,20 +79,12 @@ def run(args: Namespace) -> None:
         .add_post('/destroy', controller.on_destroy()))
     
     # Handle live plots
-    plots = {}
-    if args.plot:
-        plots = {
-            'qoe' : LivePlot(figure_name='qoe', y_label='qoe'),
-            'rebuffer' : LivePlot(figure_name='rebuffer', y_label='rebuffer'),
-            'switch' : LivePlot(figure_name='switch', y_label='switch'),
-            'quality' : LivePlot(figure_name='quality', y_label='quality'),
-        }
-        (server
-            .add_post('/qoe', plots['qoe'])
-            .add_post('/rebuffer', plots['rebuffer'])
-            .add_post('/switch', plots['switch'])
-            .add_post('/quality', plots['quality']))
-
+    plots = attach_plot_components(
+        server,
+        trace=getattr(args, 'trace', None),
+        no_plot=args.plot is None,
+    )
+    
     # Handle stream completion in the Browser
     server.add_post('/complete', multiple_sync(
         OnComplete(path, name, plots), 

@@ -6,6 +6,7 @@ import os
 import pandas as pd
 import seaborn as sns 
 
+from abr.video import get_vmaf
 from collections import defaultdict
 from pathlib import Path
 from typing import List, Dict, Optional
@@ -15,25 +16,7 @@ from server.data import Metrics
 
 
 NUM_BINS = 100
-PENSIEVE_VIDEO_CSV = None
 
-
-def get_vmaf(index: int, bitrate: int) -> float:
-    global PENSIEVE_VIDEO_CSV
-    if PENSIEVE_VIDEO_CSV is None:
-        directory = Path(os.path.dirname(os.path.realpath(__file__)))
-        pensieve_path = str(directory / 'video_info' / 'video_info.csv')
-        PENSIEVE_VIDEO_CSV = pd.read_csv(pensieve_path)
-    video_mappings = {
-        '300': '320x180x30_vmaf_score',
-        '750': '640x360x30_vmaf_score',
-        '1200': '768x432x30_vmaf_score',    
-        '1850': '1024x576x30_vmaf_score',  
-        '2850': '1280x720x30_vmaf_score',
-        '4300': '1280x720x60_vmaf_score',
-    }
-    str_bitrate = str(int(bitrate))
-    return float(PENSIEVE_VIDEO_CSV.loc[index - 1, video_mappings[str_bitrate]])
 
 
 def get_qoe(
