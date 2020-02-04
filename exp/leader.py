@@ -41,6 +41,7 @@ class LeaderController:
     ) -> None:
         self.nbr_instances = instances
         self.network = network
+        self.network.init()
         self.port = port
         
         self.instances = {}
@@ -76,11 +77,15 @@ class LeaderController:
         print(f'[leader] Start sync > {port}')
         # Wait for all instances to start
         if self.started == self.nbr_instances:
-            self.all_started.set()
             # Once all instances have started, we can start the network simulation
             await self.network.run(same_process=True)
+            
+            # Note we need to firstly wait for starting the network simulation in 
+            # order not to have a race with the other instance 
+            self.all_started.set()
         
         await self.all_started.wait()
+        await asyncio.sleep(5)
         print(f'[leader] Start done > {port}')
         
         return 'OK'
@@ -135,7 +140,7 @@ def run(args: Namespace) -> None:
         server,
         trace=getattr(args, 'trace', None),
         bandwidth=getattr(args, 'bandwidth', None),
-        no_plot=args.plot is None,
+        no_plot=not args.plot,
     )
     (server
         .add_post('/start', controller.on_start())

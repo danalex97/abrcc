@@ -46,7 +46,7 @@ class MetricsProcessor:
         last_timestamp = self.timestamps[-1]
         timestamp = segment.timestamp 
         self.timestamps.append(timestamp)
-        
+
         # Compute player times and buffer levels
         in_interval = lambda l: [v for v in l if 
             v.timestamp > last_timestamp and v.timestamp <= timestamp]
@@ -90,8 +90,10 @@ class MetricsProcessor:
             SWITCING_PENALITY_QOE * abs(vmaf - self.vmaf_previous))
         self.vmaf_previous = vmaf
     
-        # Current bw estimate
-        segment_size = 8 * get_chunk_size(segment.quality, self.index)
+        # Current bw estimate - note this is an estiamte because the backend can transmit 
+        # 2 segments at the same time: hence the actual value may be around 20% bigger/smaller
+        # [TODO] this can be fixed by using e.g. progress segments 
+        segment_size = 8 * get_chunk_size(segment.quality, self.index - 1)
         time = timestamp - last_timestamp
         bw = segment_size / time / 1000. # mbps
 

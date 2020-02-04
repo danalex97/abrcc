@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List, Dict
 
 from server.server import Component, JSONType
-from .plots import LivePlot
+from .plots import LivePlot, BandwidthPlot
 
 
 class OnComplete(Component):
@@ -21,25 +21,28 @@ class OnComplete(Component):
                 f.write(line)
                 f.write('\n')
   
-    async def export_plots(self) -> None:
+    async def export_plots(self) -> None: 
+        for name, plot in self.plots.items():
+            ref_dataset = (list(plot.datasets.values())[0]
+                if len(plot.datasets) > 0 else None)
+            if not ref_dataset:
+                continue
+            xs = ref_dataset.x
+
+            with open(self.plots_path, 'a') as f:
+                for x in xs:
+                    out = {'x' : x} 
+                    out[name] = {}
+                    for ds_name, dataset in plot.datasets.items():
+                        out[name][ds_name] = dataset.y[x]
+                    f.write(json.dumps(out))
+                    f.write('\n')
         if len(self.plots) > 0:
             for plot in self.plots.values():
                 await plot.draw()
-            
-            ref_plot = list(self.plots.values())[1]
-            ref_dataset = list(ref_plot.datasets.values())[0]
-            with open(self.plots_path, 'a') as f:
-                xs = ref_dataset.x
-                for x in xs:
-                    out = {'x' : x}
-                    for name, plot in self.plots.items():
-                        out[name] = {}
-                        for ds_name, dataset in plot.datasets.items():
-                            out[name][ds_name] = dataset.y[x]
-                    f.write(json.dumps(out))
-                    f.write('\n')
+            ref_plot = list(self.plots.values())[0]
             ref_plot.figure.savefig(self.draw_path)
-        
+
     async def process(self, json: JSONType) -> JSONType:
         if 'logs' in json:
             browser_logs = json['logs']

@@ -120,11 +120,11 @@ class LivePlot(Component):
 
         if self.first_call:
             asyncio.ensure_future(
-                self.draw(auto=True)
+                self.draw(auto=True, limit_y=True)
             )
             self.first_call = False
 
-    async def draw(self, auto: bool = False, limit_y: bool = True) -> None:
+    async def draw(self, auto: bool = False, limit_y: bool = False) -> None:
         for dataset in self.datasets.values():
             dataset.draw()
         ys = sum([d.y for d in self.datasets.values()], [])
@@ -146,7 +146,7 @@ class LivePlot(Component):
         
         await self.update(name, value.timestamp, value.value)
         if timer() - self.last_referesh > 3:
-            await self.draw(auto=False)
+            await self.draw(auto=False, limit_y=True)
 
         return 'OK'
 

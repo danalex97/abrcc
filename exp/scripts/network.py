@@ -23,18 +23,22 @@ class Network:
         delay: Optional[float] = None,
         bandwidth: Optional[float] = None,
         trace_path: Optional[str] = None,
-        burst: int = 20000,
+        burst: Optional[int] = None,
         ports: List[int] = [6121],
         skip: bool = False,
     ) -> None:
         self.delay = delay
         self.bandwidth = bandwidth
         self.trace_path = trace_path
-        self.burst = burst
+        self.burst = burst or 20000
         self.ports = ports
         self.first = not skip
         self.trace = None
 
+    def init(self):
+        """
+        Function that needs to be called before any other method.
+        """
         self.setup_traffic_class()
         self.add_port_filters()
         if self.trace_path:

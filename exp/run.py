@@ -54,6 +54,7 @@ def run(args: Namespace) -> None:
             bandwidth=getattr(args, 'bandwidth', None),
             delay=getattr(args, 'delay', None),
             trace_path=getattr(args, 'trace', None),
+            burst=getattr(args, 'burst', None),
             ports=[args.quic_port],
         ),
         dash = args.dash,
@@ -82,7 +83,7 @@ def run(args: Namespace) -> None:
     plots = attach_plot_components(
         server,
         trace=getattr(args, 'trace', None),
-        no_plot=args.plot is None,
+        no_plot=not args.plot,
     )
     
     # Handle stream completion in the Browser
@@ -103,6 +104,7 @@ if __name__ == "__main__":
     parser.add_argument('--only-server', dest='only_server', action='store_true', help='Use only as metrics server.')
     parser.add_argument('-l', '--delay', type=float,  help='Delay of the link.')
     parser.add_argument('-b', '--bandwidth', type=float, help='Bandwidth of the link.')
+    parser.add_argument('--burst', type=int, help='Burst for tc.')
     parser.add_argument('-t', '--trace', type=str, help='Trace of bandwidth.')
     parser.add_argument('-d','--dash', action='append', help='Add arguments to dash player.')
     parser.add_argument('--algo', choices=ABR_ALGORITHMS, help='Choose abr algorithm.') 

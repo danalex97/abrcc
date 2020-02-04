@@ -109,6 +109,7 @@ class Controller:
             return 'OK'
         elif not self.leader_port:
             # Start the network simulation
+            self.network.init()
             await self.network.run(same_process=True)
             return 'OK'
         elif self.leader_port:

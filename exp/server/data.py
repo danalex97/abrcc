@@ -48,7 +48,7 @@ class Segment:
             'quality' : self.quality,
             'timestamp' : self.timestamp,
         }
-
+    
     @property
     def loading(self) -> bool:
         return self.state == self.LOADING
