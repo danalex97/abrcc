@@ -67,6 +67,7 @@ class WorthedAbr : public SegmentProgressAbr {
   void adjustCC(); 
   void setRttProbing(bool probing);
 
+  int ban;
   BbrAdapter::BbrInterface* interface; 
 
   bool is_rtt_probing;

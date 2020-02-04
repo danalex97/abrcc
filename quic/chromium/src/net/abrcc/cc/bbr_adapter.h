@@ -60,6 +60,7 @@ class QUIC_EXPORT_PRIVATE BbrAdapter : public SendAlgorithmInterface {
     
     // estimates
     base::Optional<int> BandwidthEstimate() const;
+    base::Optional<float> PacingGain() const;
     base::Optional<int> RttEstimate() const; 
    private:
     BbrInterface();

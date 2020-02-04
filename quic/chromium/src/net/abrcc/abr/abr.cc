@@ -236,9 +236,11 @@ namespace WorthedAbrConstants {
   const int safe_to_rtt_probe = 10 * SECOND;
 
   const int bandwidth_window = 10;
+  const int segments_upjump_banned = 2;
 }
 
 WorthedAbr::WorthedAbr() : SegmentProgressAbr()
+               , ban(0)
                , interface(BbrAdapter::BbrInterface::GetInstance()) 
                , is_rtt_probing(true)
                , last_player_time(abr_schema::Value(0, 0)) 
@@ -272,7 +274,6 @@ static double compute_reward(
     if (current_index > int(WorthedAbrConstants::segment_sizes[chunk_quality].size())) {
       continue;
     }
-
 
     double size_kb = 8. * WorthedAbrConstants::segment_sizes[chunk_quality][current_index] / 1000.;
     double download_time_ms = size_kb / bandwidth * 1000;
@@ -477,7 +478,7 @@ void WorthedAbr::setRttProbing(bool probe) {
 }
 
 void WorthedAbr::adjustCC() {
-  if (decision_index <= 2) {
+  if (decision_index <= 1) {
     // Adjust CC only after a few segments
     return;
   }
@@ -495,22 +496,20 @@ void WorthedAbr::adjustCC() {
   
   double aggress = 0;
   if (buffer_level <= WorthedAbrConstants::reservoir) {
-    // be more aggressive
     aggress = 1;
   } else if (buffer_level >= WorthedAbrConstants::reservoir + WorthedAbrConstants::cushion) {
-    // keep algorithm
     aggress = 0;
   } else {
     aggress = aggresivity(bw_safe, bw_worthed - bw_safe);
   }
- 
 
   QUIC_LOG(WARNING) << "[WorthedAbr] aggressivity: " << aggress;
+  interface->proposePacingGainCycle(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1});
   if (aggress == 1) {
     interface->proposePacingGainCycle(std::vector<float>{1.5, 1, 1.5, 1, 1, 1, 1, 1});
   } else if (aggress >= 0.4) {
     interface->proposePacingGainCycle(std::vector<float>{1.3, 0.8, 1.3, 0.8, 0.8, 1, 1, 1});
-  } else if (aggress < 0.4) {
+  } else { 
     interface->proposePacingGainCycle(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1});
   }
 }
@@ -534,11 +533,24 @@ void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   if (bandwidth != base::nullopt) {
     // limit the bandwidth estimate downloards
     auto bw_value = std::min(bandwidth.value(), WorthedAbrConstants::bitrate_array.back());
+    auto current_gain = interface->PacingGain();
+    if (current_gain != base::nullopt && current_gain.value() > 1) {
+      // scale down(or up) bw value based on current gain
+      // we need this since the current gain is positive during aggresive cycles 
+      bw_value = (1.0 / current_gain.value()) * bw_value;
+    }
+    
     last_bandwidth = abr_schema::Value(bw_value, last_timestamp);
     if (average_bandwidth->empty() 
         || bw_value != average_bandwidth->last()) {
-        // [TODO] what happens is the bandwidth is large constantly: i.e. bitrate_array.back()
-      average_bandwidth->sample(last_bandwidth.value().value);
+       // [TODO] what happens is the bandwidth is large constantly: i.e. bitrate_array.back()
+      
+      if (!average_bandwidth->empty() && bw_value <= average_bandwidth->value() * 0.7) {
+        // if the BW dropped fast, we drop the average as well
+        // note this takes into accout the scaling down of the pacing cycle
+        average_bandwidth->sample(bw_value);
+      }
+      average_bandwidth->sample(bw_value);
     }
   }
 
@@ -550,7 +562,7 @@ void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   }
 
   // adjust congestion control
-  adjustCC();
+  //adjustCC();
  
   if (last_bandwidth != base::nullopt) {
     QUIC_LOG(WARNING) << " [last bw] " << last_bandwidth.value().value;
@@ -565,32 +577,50 @@ int WorthedAbr::decideQuality(int index) {
   if (index == 1) {
     return 0; 
   }
+  
+  adjustCC();
 
   // get constants
   int last_index = this->decision_index - 1; 
   int last_quality = this->decisions[last_index].quality;
   // We use the current buffer level, so we are less optimistic
   int buffer_level = last_buffer_level.value;
-  QUIC_LOG(WARNING) << " [last buffer level] " << buffer_level;
-  if (last_bandwidth != base::nullopt) {
-    QUIC_LOG(WARNING) << " [last bw] " << last_bandwidth.value().value;
-  }
-  if (last_bandwidth != base::nullopt) {
-    QUIC_LOG(WARNING) << " [last rtt] " << last_rtt.value().value;
+
+  // Be even less optimistic -- This way we can try to always have 
+  // bigger buffers
+  buffer_level -= WorthedAbrConstants::reservoir;
+  if (buffer_level < 0) {
+    buffer_level = 0;
   }
 
   int bandwidth = (int)average_bandwidth->value_or(WorthedAbrConstants::default_bandwidth);
-  if (last_bandwidth != base::nullopt) {
-    QUIC_LOG(WARNING) << " [bw estimate] " << bandwidth;
-  }
   int quality = compute_reward_and_quality(
     last_index + 1,
-    bandwidth * WorthedAbrConstants::safe_downscale,
+    bandwidth * WorthedAbrConstants::safe_downscale, 
     buffer_level,
     last_quality,
     false,
     decisions[last_index].quality
   ).second;
+
+  ban -= int(quality >= last_quality);
+
+  // limit jumping up
+  if (quality > last_quality) {
+    if (ban <= 0) {
+      quality = last_quality + 1;
+    } else {
+      quality = last_quality;
+    }
+ }
+
+  // [TODO] reduce jumps properly: e.g. dynamic programming
+  if (quality < last_quality) {
+    ban = WorthedAbrConstants::segments_upjump_banned;
+  }
+  
+  QUIC_LOG(WARNING) << "[WorthedAbr] quality: bandwidth used " << bandwidth;
+  QUIC_LOG(WARNING) << "[WorthedAbr] quality: buffer level used " << buffer_level;
   QUIC_LOG(WARNING) << "[WorthedAbr] quality " << quality;
   
   return quality;

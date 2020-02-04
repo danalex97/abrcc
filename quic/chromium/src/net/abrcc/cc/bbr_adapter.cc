@@ -143,6 +143,13 @@ base::Optional<int> BbrAdapter::BbrInterface::BandwidthEstimate() const {
   return parent->BandwidthEstimate().ToKBitsPerSecond();
 }
 
+base::Optional<float> BbrAdapter::BbrInterface::PacingGain() const {
+  if (parent == nullptr) {
+    return base::nullopt;
+  }
+  return parent->pacing_gain_;
+}
+
 base::Optional<int> BbrAdapter::BbrInterface::RttEstimate() const {
   if (parent == nullptr) {
     return base::nullopt;
