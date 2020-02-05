@@ -30,6 +30,43 @@ def run_cmd_async(cmd: str) -> Popen:
     return Popen([arg for arg in cmd.split(' ') if len(arg) > 0])
 
 
+def run_cmds(leader_cmd, cmd1, cmd2):
+    leader = run_cmd_async(leader_cmd)
+    time.sleep(1)
+    instance1 = run_cmd_async(cmd1)
+    time.sleep(20)
+    instance2 = run_cmd_async(cmd2)
+
+    leader.wait()
+    instance1.wait()
+    instance2.wait()
+
+def run_subexp(bandwidth, latency, path, server1, server2):
+    if os.path.isdir(path):
+        return   
+    leader_cmd = (
+        f"python3 leader.py -b {bandwidth} -l {latency} --port 8800 2 --path {path} --plot"
+    )
+    cmd1 = (
+        f"python3 run.py --port 8001 --quic-port 4001 -lp 8800 {server1} --path {path}"
+    )
+    cmd2 = (
+        f"python3 run.py --port 8002 --quic-port 4002 -lp 8800 {server2} --path {path}"
+    )
+    run_cmds(leader_cmd, cmd1, cmd2)
+
+def run_trace(path, server):
+    if os.path.isdir(path):
+        return   
+    ports = "--port 8001 --quic-port 4001"
+    extra = "--burst 2000 --plot"
+    cmd = (
+        f"python3 run.py {ports} {server} {extra} --path {path}"
+    )
+    instance = run_cmd_async(cmd)
+    instance.wait()
+
+
 @experiment
 def server_overhead(args: Namespace) -> None:
     experiment_path = str(Path("experiments") / "experiment1")
@@ -92,38 +129,6 @@ def multiple_example(args: Namespace) -> None:
 
 @experiment
 def worthed_abr(args: Namespace) -> None:
-    def run_cmds(leader_cmd, cmd1, cmd2):
-        leader = run_cmd_async(leader_cmd)
-        time.sleep(1)
-        instance1 = run_cmd_async(cmd1)
-        time.sleep(20)
-        instance2 = run_cmd_async(cmd2)
-
-        leader.wait()
-        instance1.wait()
-        instance2.wait()
-    
-    def run_subexp(bandwidth, latency, path, server1, server2):
-        leader_cmd = (
-            f"python3 leader.py -b {bandwidth} -l {latency} --port 8800 2 --path {path} --plot"
-        )
-        cmd1 = (
-            f"python3 run.py --port 8001 --quic-port 4001 -lp 8800 {server1} --path {path}"
-        )
-        cmd2 = (
-            f"python3 run.py --port 8002 --quic-port 4002 -lp 8800 {server2} --path {path}"
-        )
-        run_cmds(leader_cmd, cmd1, cmd2)
-
-    def run_trace(path, server):
-        ports = "--port 8001 --quic-port 4001"
-        extra = "--burst 2000 --plot"
-        cmd = (
-            f"python3 run.py {ports} {server} {extra} --path {path}"
-        )
-        instance = run_cmd_async(cmd)
-        instance.wait()
-
     paths = []
     experiment_path = str(Path("experiments") / "worthed_abr")
     os.system(f"mkdir -p {experiment_path}")
@@ -160,6 +165,7 @@ def worthed_abr(args: Namespace) -> None:
                 paths.append(str(Path(path) / "leader_plots.log"))
     
     # traces
+    subpath = str(Path(experiment_path) / "traces")
     for latency in [10]:
         server1 = "--cc abbr --server-algo worthed --name abrcc"
         server2 = "--cc bbr --algo pensieve --name pensieve"
@@ -167,7 +173,7 @@ def worthed_abr(args: Namespace) -> None:
             traces = Path("network_traces")
             for trace in [str(traces / "bus1.txt"), str(traces / "norway_train_6.txt")]:
                 trace_name = trace.split('/')[-1].split('.')[0]
-                path = str(Path(experiment_path) / f'{name}_{trace_name}_{latency}')
+                path = str(Path(subpath) / f'{name}_{trace_name}_{latency}')
                 run_trace(path, f"{server} -l {latency} -t {trace}")
                 paths.append(str(Path(path) / f"{name}_plots.log"))
     

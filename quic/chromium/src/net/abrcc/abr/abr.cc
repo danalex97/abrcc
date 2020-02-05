@@ -502,9 +502,8 @@ void WorthedAbr::adjustCC() {
   } else {
     aggress = aggresivity(bw_safe, bw_worthed - bw_safe);
   }
-
+  
   QUIC_LOG(WARNING) << "[WorthedAbr] aggressivity: " << aggress;
-  interface->proposePacingGainCycle(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1});
   if (aggress == 1) {
     interface->proposePacingGainCycle(std::vector<float>{1.5, 1, 1.5, 1, 1, 1, 1, 1});
   } else if (aggress >= 0.4) {
