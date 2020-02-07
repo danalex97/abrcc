@@ -11,6 +11,12 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_socket_address.h"
 
+#include <stdio.h>
+#include <execinfo.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
                               port,
                               6121,
@@ -53,11 +59,23 @@ QuicDashServer::MemoryCacheBackendFactory::CreateBackend() {
   return dash_backend;
 }
 
+void sigsegv_handler(int sig) {
+  void *array[10];
+  size_t size;
+
+  size = backtrace(array, 10);
+  fprintf(stderr, "Error: signal %d:\n", sig);
+  backtrace_symbols_fd(array, size, STDERR_FILENO);
+}
+
 QuicDashServer::QuicDashServer(BackendFactory* backend_factory,
                                ServerFactory* server_factory)
     : backend_factory_(backend_factory), server_factory_(server_factory) {}
 
 int QuicDashServer::Start() {
+  // Add signal handler for exceptions
+  signal(SIGSEGV, sigsegv_handler); 
+  
   auto *selector = CCSelector::GetInstance();
   selector->setCongestionControlType(GetQuicFlag(FLAGS_cc_type));
 

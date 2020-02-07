@@ -54,7 +54,7 @@ DashBackend::DashBackend(
   config->base_path = config->base_path + this->site;
 
   // initialize rest of DashBackend
-  std::unique_ptr<AbrInterface> interface(getAbr(abr_type, config));
+  std::unique_ptr<AbrInterface> interface(getAbr(abr_type, config, config_path));
   std::unique_ptr<AbrLoop> loop(
     new AbrLoop(std::move(interface), metrics, polling, store)
   );

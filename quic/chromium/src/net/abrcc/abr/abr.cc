@@ -304,11 +304,11 @@ void StateTracker::registerMetrics(const abr_schema::Metrics &metrics) {
 
 namespace WorthedAbrConstants { 
   const std::vector<int> bitrate_array = ::bitrateArray;
-  std::map<int, std::vector<int> > segment_sizes = SEGMENTS;
+  std::map<int, std::vector<int> > segment_sizes = ::SEGMENTS;
   
   const int default_bandwidth = bitrate_array[0];
-  const int qualities = QUALITIES;
-  const int segment_size_ms = 4 * SECOND;
+  const int qualities = ::QUALITIES;
+  const int segment_size_ms = 4 * ::SECOND;
   const double rebuf_penalty = 4.3;
   const double safe_downscale = 0.75;
 
@@ -319,9 +319,9 @@ namespace WorthedAbrConstants {
   const int reward_delta_stochastic = 4000;
   const int reward_delta = 5000;
 
-  const int reservoir = 5 * SECOND;
-  const int cushion = 10 * SECOND;
-  const int safe_to_rtt_probe = 10 * SECOND;
+  const int reservoir = 5 * ::SECOND;
+  const int cushion = 10 * ::SECOND;
+  const int safe_to_rtt_probe = 10 * ::SECOND;
 
   const int segments_upjump_banned = 2;
 }
@@ -609,8 +609,6 @@ int WorthedAbr::decideQuality(int index) {
     return 0; 
   }
   
-  adjustCC();
-
   // get constants
   int last_index = this->decision_index - 1; 
   int last_quality = this->decisions[last_index].quality;
@@ -671,8 +669,18 @@ namespace TargetAbrConstants {
   const std::vector<int> bitrate_array = ::bitrateArray;
   std::map<int, std::vector<int> > segment_sizes = ::SEGMENTS;
   
+  const int qualities = ::QUALITIES;
+  const int segments = 49;
+  const int default_bandwidth = bitrate_array[0];
+  
   const int reservoir = 5 * ::SECOND;
   const int horizon = 5;
+
+  // constants used for QoE function weights
+  const double alpha = 1.;
+  const double beta = 2.5;
+  const double gamma = 25.;
+  const double omega = 1500.;
 
   std::map<int, std::string> vmaf_video_mapping = {
     { 0, "320x180x30_vmaf_score" }, 
@@ -697,8 +705,105 @@ int TargetAbr::vmaf(const int quality, const int index) {
   return static_cast<int>(video_info.get(key, index - 1));
 }
 
-double TargetAbr::qoe(const int index, const double bandwidth, const int buffer_level) {
-  return 0; 
+
+static double compute_vmaf_reward(
+  std::vector<int> qualities,
+  std::vector<int> vmaf,
+  int start_index, 
+  int bandwidth,
+  int start_buffer,
+  int current_vmaf
+) {
+  // buffer state
+  int current_rebuffer = 0;  
+  int current_buffer = start_buffer;
+
+  // accumators
+  int vmaf_sum = 0;
+  int vmaf_diff = 0;
+  int last_vmaf = current_vmaf;
+
+
+  for (size_t i = 0; i < qualities.size(); ++i) {
+    int chunk_quality = qualities[i];
+    int current_index = start_index + i;
+
+    if (current_index > int(TargetAbrConstants::segment_sizes[chunk_quality].size())) {
+      continue;
+    }
+
+    double size_kb = 8. * WorthedAbrConstants::segment_sizes[chunk_quality][current_index] / 1000.;
+    double download_time_ms = size_kb / bandwidth * 1000;
+
+    // simulate buffer changes
+    if (current_buffer < download_time_ms) {
+      current_rebuffer += download_time_ms - current_buffer;
+      current_buffer = 0;
+    } else {
+      current_buffer -= download_time_ms;
+    }
+    current_buffer += WorthedAbrConstants::segment_size_ms;
+    
+    // compute vmaf differce and reward
+    vmaf_sum += vmaf[i];
+    vmaf_diff += abs(vmaf[i] - last_vmaf);
+    last_vmaf = vmaf[i];
+  }
+
+  // we have:
+  //   - total vmaf
+  //   - total vmaf change
+  //   - total rebuffer 
+  //   - buffer
+  
+  // compute reward
+  int indicator = current_buffer <= TargetAbrConstants::reservoir ? 1 : 0;
+  return ( TargetAbrConstants::alpha * vmaf_sum
+         - TargetAbrConstants::beta * vmaf_diff
+         - TargetAbrConstants::gamma * current_rebuffer
+         - TargetAbrConstants::omega * indicator);
+}
+
+
+std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
+  // compute current_vmaf, start_index, start_buffer
+  int last_index = this->decision_index - 1; 
+  int current_quality = decisions[last_index].quality;
+  int current_vmaf = TargetAbr::vmaf(current_quality, last_index); 
+  int start_index = last_index + 1;
+  int start_buffer = last_buffer_level.value;
+
+  // brute force
+  double best = -std::numeric_limits<double>::infinity();
+  int quality = 0;
+  int depth = std::min(TargetAbrConstants::segments - start_index, TargetAbrConstants::horizon);
+  
+  for (auto &next : cartesian(depth, TargetAbrConstants::qualities, 1)) {
+    std::vector<int> vmaf;
+    for (size_t i = 0; i < next.size(); ++i) {
+      vmaf.push_back(TargetAbr::vmaf(next[i], start_index + i));
+    }
+
+    double reward = compute_vmaf_reward(
+      next,
+      vmaf, 
+      start_index, 
+      bandwidth, 
+      start_buffer, 
+      current_vmaf
+    );
+    if (reward > best) {
+      best = reward;
+      if (!next.empty()) {
+        quality = next[0];
+      } else {
+        // [TODO] this is not great for the last segment
+        quality = current_quality;
+      }
+    }
+  }
+  QUIC_LOG(WARNING) << "[TargetAbr] " << best << ' ' << quality << '\n';
+  return std::make_pair(best, quality);
 }
 
 void TargetAbr::registerMetrics(const abr_schema::Metrics &metrics) {
@@ -707,16 +812,25 @@ void TargetAbr::registerMetrics(const abr_schema::Metrics &metrics) {
 } 
 
 int TargetAbr::decideQuality(int index) {
-  // [TODO] implement
-  return 0;
+  if (index <= 1) {
+    return 0; 
+  }
+
+  int bandwidth = (int)average_bandwidth->value_or(TargetAbrConstants::default_bandwidth);
+  return qoe(bandwidth).second;
 }
 
 /**
  * TargetAbr - end 
  **/
 
-AbrInterface* getAbr(const std::string& abr_type, const std::shared_ptr<DashBackendConfig>& config) {
-  std::string base_path = config->base_path.substr(1);
+AbrInterface* getAbr(
+  const std::string& abr_type, 
+  const std::shared_ptr<DashBackendConfig>& config,
+  const std::string& config_path
+) {
+  std::string dir_path = config_path.substr(0, config_path.find_last_of("/"));
+  std::string base_path = dir_path + config->base_path;
   std::string video_info_path = base_path + config->player_config.video_info;
   if (abr_type == "bb") {
     QUIC_LOG(WARNING) << "BB abr selected";

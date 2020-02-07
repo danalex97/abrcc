@@ -102,12 +102,16 @@ class TargetAbr : public SegmentProgressAbr, public StateTracker {
   int decideQuality(int index) override;  
  private:
   int vmaf(const int quality, const int index);
-  double qoe(const int index, const double bandwidth,  const int buffer_level);
+  std::pair<double, int> qoe(const double bandwidth);
 
   structs::CsvReader<double> video_info;
 };
 
-AbrInterface* getAbr(const std::string& abr_type, const std::shared_ptr<DashBackendConfig>& config);
+AbrInterface* getAbr(
+  const std::string& abr_type, 
+  const std::shared_ptr<DashBackendConfig>& config,
+  const std::string& config_path
+);
 
 }
 
