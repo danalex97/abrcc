@@ -56,7 +56,26 @@ class BBAbr : public SegmentProgressAbr {
   abr_schema::Value last_buffer_level;
 };
 
-class WorthedAbr : public SegmentProgressAbr {
+class StateTracker {
+ public:
+  StateTracker();
+  virtual ~StateTracker();
+
+  void registerMetrics(const abr_schema::Metrics &);
+ protected:
+  BbrAdapter::BbrInterface* interface; 
+
+  abr_schema::Value last_player_time;
+  abr_schema::Value last_buffer_level;
+  std::unique_ptr<structs::MovingAverage<double>> average_bandwidth;  
+
+  base::Optional<abr_schema::Value> last_bandwidth;
+  base::Optional<abr_schema::Value> last_rtt;
+ private:
+  int last_timestamp;
+};
+
+class WorthedAbr : public SegmentProgressAbr, public StateTracker {
  public:
   WorthedAbr();
   ~WorthedAbr() override;
@@ -71,19 +90,10 @@ class WorthedAbr : public SegmentProgressAbr {
   void setRttProbing(bool probing);
 
   int ban;
-  BbrAdapter::BbrInterface* interface; 
-
   bool is_rtt_probing;
-
-  abr_schema::Value last_player_time;
-  abr_schema::Value last_buffer_level;
-  std::unique_ptr<structs::MovingAverage<double>> average_bandwidth;  
-
-  base::Optional<abr_schema::Value> last_bandwidth;
-  base::Optional<abr_schema::Value> last_rtt;
 };
 
-class TargetAbr : public SegmentProgressAbr {
+class TargetAbr : public SegmentProgressAbr, public StateTracker {
  public:
   TargetAbr(const std::string& video_info_path);
   ~TargetAbr() override;
@@ -91,9 +101,10 @@ class TargetAbr : public SegmentProgressAbr {
   void registerMetrics(const abr_schema::Metrics &) override;
   int decideQuality(int index) override;  
  private:
-  structs::CsvReader<double> video_info;
-
   int vmaf(const int quality, const int index);
+  double qoe(const int index, const double bandwidth,  const int buffer_level);
+
+  structs::CsvReader<double> video_info;
 };
 
 AbrInterface* getAbr(const std::string& abr_type, const std::shared_ptr<DashBackendConfig>& config);

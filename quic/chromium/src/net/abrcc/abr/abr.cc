@@ -207,6 +207,88 @@ int BBAbr::decideQuality(int index) {
   return quality;
 }
 
+/**
+ * State tracker used to compute:
+ *  - last player time
+ *  - last buffer time
+ *  - last bandwidth 
+ *  - last rtt
+ * 
+ *  - Wilder EMA of bandwidth 
+ **/
+
+namespace StateTrackerConstants { 
+  const std::vector<int> bitrate_array = ::bitrateArray;
+  const int bandwidth_window = 10;
+}
+
+StateTracker::StateTracker() 
+ : interface(BbrAdapter::BbrInterface::GetInstance()) 
+ , last_player_time(abr_schema::Value(0, 0)) 
+ , last_buffer_level(abr_schema::Value(0, 0)) 
+ , average_bandwidth(new structs::WilderEMA<double>(StateTrackerConstants::bandwidth_window))
+ , last_bandwidth(base::nullopt) 
+ , last_rtt(base::nullopt) 
+ , last_timestamp(0) {} 
+
+StateTracker::~StateTracker() {}
+
+void StateTracker::registerMetrics(const abr_schema::Metrics &metrics) {
+  for (const auto& segment : metrics.segments) {
+    last_timestamp = std::max(last_timestamp, segment->timestamp);
+  }
+
+  for (auto const& player_time : metrics.playerTime) {
+    if (player_time->timestamp > last_player_time.timestamp) {
+      last_player_time = *player_time;
+    }
+  }
+  
+  for (auto const& buffer_level : metrics.bufferLevel) {
+    if (buffer_level->timestamp > last_buffer_level.timestamp) {
+      last_buffer_level = *buffer_level;
+    }
+  }
+
+  // update bandwidth estiamte
+  auto bandwidth = interface->BandwidthEstimate();
+  if (bandwidth != base::nullopt) {
+    // limit the bandwidth estimate downloards
+    auto bw_value = std::min(bandwidth.value(), StateTrackerConstants::bitrate_array.back());
+    auto current_gain = interface->PacingGain();
+    if (current_gain != base::nullopt && current_gain.value() > 1) {
+      // scale down(or up) bw value based on current gain
+      // we need this since the current gain is positive during aggresive cycles 
+      bw_value = (1.0 / current_gain.value()) * bw_value;
+    }
+    
+    last_bandwidth = abr_schema::Value(bw_value, last_timestamp);
+    if (average_bandwidth->empty() 
+        || bw_value != average_bandwidth->last()) {
+       // [TODO] what happens is the bandwidth is large constantly: i.e. bitrate_array.back()
+      
+      if (!average_bandwidth->empty() && bw_value <= average_bandwidth->value() * 0.7) {
+        // if the BW dropped fast, we drop the average as well
+        // note this takes into accout the scaling down of the pacing cycle
+        average_bandwidth->sample(bw_value);
+      }
+      average_bandwidth->sample(bw_value);
+    }
+  }
+
+  // update rtt estiamte
+  auto rtt = interface->RttEstimate();
+  if (rtt != base::nullopt) {
+    last_rtt = abr_schema::Value(rtt.value(), last_timestamp);
+  }
+
+  if (last_bandwidth != base::nullopt) {
+    QUIC_LOG(WARNING) << " [last bw] " << last_bandwidth.value().value;
+  }
+  if (!average_bandwidth->empty()) {
+    QUIC_LOG(WARNING) << " [bw avg] " << average_bandwidth->value();
+  }
+}
 
 /**
  * (1) Worthed ABR
@@ -241,19 +323,14 @@ namespace WorthedAbrConstants {
   const int cushion = 10 * SECOND;
   const int safe_to_rtt_probe = 10 * SECOND;
 
-  const int bandwidth_window = 10;
   const int segments_upjump_banned = 2;
 }
 
-WorthedAbr::WorthedAbr() : SegmentProgressAbr()
-               , ban(0)
-               , interface(BbrAdapter::BbrInterface::GetInstance()) 
-               , is_rtt_probing(true)
-               , last_player_time(abr_schema::Value(0, 0)) 
-               , last_buffer_level(abr_schema::Value(0, 0)) 
-               , average_bandwidth(new structs::WilderEMA<double>(WorthedAbrConstants::bandwidth_window))
-               , last_bandwidth(base::nullopt) 
-               , last_rtt(base::nullopt) {} 
+WorthedAbr::WorthedAbr() 
+  : SegmentProgressAbr()
+  , StateTracker()
+  , ban(0)
+  , is_rtt_probing(true) {} 
 
 WorthedAbr::~WorthedAbr() {}
 
@@ -521,60 +598,9 @@ void WorthedAbr::adjustCC() {
 
 void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   SegmentProgressAbr::registerMetrics(metrics);
-  for (auto const& player_time : metrics.playerTime) {
-    if (player_time->timestamp > last_player_time.timestamp) {
-      last_player_time = *player_time;
-    }
-  }
-  
-  for (auto const& buffer_level : metrics.bufferLevel) {
-    if (buffer_level->timestamp > last_buffer_level.timestamp) {
-      last_buffer_level = *buffer_level;
-    }
-  }
+  StateTracker::registerMetrics(metrics);
 
-  // update bandwidth estiamte
-  auto bandwidth = interface->BandwidthEstimate();
-  if (bandwidth != base::nullopt) {
-    // limit the bandwidth estimate downloards
-    auto bw_value = std::min(bandwidth.value(), WorthedAbrConstants::bitrate_array.back());
-    auto current_gain = interface->PacingGain();
-    if (current_gain != base::nullopt && current_gain.value() > 1) {
-      // scale down(or up) bw value based on current gain
-      // we need this since the current gain is positive during aggresive cycles 
-      bw_value = (1.0 / current_gain.value()) * bw_value;
-    }
-    
-    last_bandwidth = abr_schema::Value(bw_value, last_timestamp);
-    if (average_bandwidth->empty() 
-        || bw_value != average_bandwidth->last()) {
-       // [TODO] what happens is the bandwidth is large constantly: i.e. bitrate_array.back()
-      
-      if (!average_bandwidth->empty() && bw_value <= average_bandwidth->value() * 0.7) {
-        // if the BW dropped fast, we drop the average as well
-        // note this takes into accout the scaling down of the pacing cycle
-        average_bandwidth->sample(bw_value);
-      }
-      average_bandwidth->sample(bw_value);
-    }
-  }
-
-
-  // update rtt estiamte
-  auto rtt = interface->RttEstimate();
-  if (rtt != base::nullopt) {
-    last_rtt = abr_schema::Value(rtt.value(), last_timestamp);
-  }
-
-  // adjust congestion control
-  //adjustCC();
- 
-  if (last_bandwidth != base::nullopt) {
-    QUIC_LOG(WARNING) << " [last bw] " << last_bandwidth.value().value;
-  }
-  if (!average_bandwidth->empty()) {
-    QUIC_LOG(WARNING) << " [bw avg] " << average_bandwidth->value();
-  }
+  adjustCC();
 }
 
 
@@ -646,6 +672,7 @@ namespace TargetAbrConstants {
   std::map<int, std::vector<int> > segment_sizes = ::SEGMENTS;
   
   const int reservoir = 5 * ::SECOND;
+  const int horizon = 5;
 
   std::map<int, std::string> vmaf_video_mapping = {
     { 0, "320x180x30_vmaf_score" }, 
@@ -659,7 +686,10 @@ namespace TargetAbrConstants {
 
 TargetAbr::TargetAbr(const std::string &video_info_path) 
   : SegmentProgressAbr() 
-  , video_info(structs::CsvReader<double>(video_info_path)) {}
+  , StateTracker()
+  , video_info(structs::CsvReader<double>(video_info_path)) {} 
+
+
 TargetAbr::~TargetAbr() {}
 
 int TargetAbr::vmaf(const int quality, const int index) {
@@ -667,11 +697,13 @@ int TargetAbr::vmaf(const int quality, const int index) {
   return static_cast<int>(video_info.get(key, index - 1));
 }
 
+double TargetAbr::qoe(const int index, const double bandwidth, const int buffer_level) {
+  return 0; 
+}
+
 void TargetAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   SegmentProgressAbr::registerMetrics(metrics);
-
-  std::cout << vmaf(1, 1) << '\n';
-  // [TODO] register metrics
+  StateTracker::registerMetrics(metrics);
 } 
 
 int TargetAbr::decideQuality(int index) {
@@ -684,6 +716,8 @@ int TargetAbr::decideQuality(int index) {
  **/
 
 AbrInterface* getAbr(const std::string& abr_type, const std::shared_ptr<DashBackendConfig>& config) {
+  std::string base_path = config->base_path.substr(1);
+  std::string video_info_path = base_path + config->player_config.video_info;
   if (abr_type == "bb") {
     QUIC_LOG(WARNING) << "BB abr selected";
     return new BBAbr();
@@ -694,9 +728,7 @@ AbrInterface* getAbr(const std::string& abr_type, const std::shared_ptr<DashBack
     QUIC_LOG(WARNING) << "Worthed abr selected";
     return new WorthedAbr();
   } else if (abr_type == "target") {
-    std::string base_path = config->base_path.substr(1);
-    std::string video_info_path = base_path + config->player_config.video_info;
-
+    QUIC_LOG(WARNING) << "Target abr selected";
     return new TargetAbr(video_info_path);
   }
   QUIC_LOG(WARNING) << "Defaulting to BB abr";
