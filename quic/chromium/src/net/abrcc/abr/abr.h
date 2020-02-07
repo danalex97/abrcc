@@ -4,11 +4,14 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wc++17-extensions"
 
+#include "net/abrcc/dash_config.h"
+
 #include "net/abrcc/abr/interface.h"
 #include "net/abrcc/cc/bbr_adapter.h"
 #include "net/abrcc/service/schema.h"
 
 #include "net/abrcc/structs/averages.h"
+#include "net/abrcc/structs/csv.h"
 
 #include <unordered_map>
 
@@ -80,10 +83,24 @@ class WorthedAbr : public SegmentProgressAbr {
   base::Optional<abr_schema::Value> last_rtt;
 };
 
-AbrInterface* getAbr(const std::string& abr_type);
+class TargetAbr : public SegmentProgressAbr {
+ public:
+  TargetAbr(const std::string& video_info_path);
+  ~TargetAbr() override;
+ 
+  void registerMetrics(const abr_schema::Metrics &) override;
+  int decideQuality(int index) override;  
+ private:
+  structs::CsvReader<double> video_info;
+
+  int vmaf(const int quality, const int index);
+};
+
+AbrInterface* getAbr(const std::string& abr_type, const std::shared_ptr<DashBackendConfig>& config);
 
 }
 
 #pragma GCC diagnostic pop
+
 
 #endif

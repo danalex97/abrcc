@@ -43,9 +43,10 @@ namespace quic {
 
 std::unique_ptr<quic::QuicSimpleServerBackend>
 QuicDashServer::MemoryCacheBackendFactory::CreateBackend() {
-  auto dash_backend = std::make_unique<DashBackend>(FLAGS_abr_type);
+  auto dash_backend = std::make_unique<DashBackend>(
+    FLAGS_abr_type, FLAGS_quic_config_path, FLAGS_site
+  );
   if (!GetQuicFlag(FLAGS_quic_config_path).empty()) {
-    dash_backend->SetExtra(FLAGS_site);
     dash_backend->InitializeBackend(
       GetQuicFlag(FLAGS_quic_config_path));
   }

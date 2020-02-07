@@ -137,7 +137,7 @@ void StoreService::MetaFromConfig(
   // init
   this->base_path = base_path;
   this->config = config;
-  
+
   // add resources
   registerResource(config->domain, base_path + config->player_config.index, "/");
   registerResource(

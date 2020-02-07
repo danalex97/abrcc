@@ -3630,6 +3630,8 @@ if (!is_ios) {
       
       "abrcc/structs/averages.h",
       "abrcc/structs/averages.cc",
+      "abrcc/structs/csv.h",
+      "abrcc/structs/csv.cc",
 
       "abrcc/abr/interface.cc",
       "abrcc/abr/interface.h",

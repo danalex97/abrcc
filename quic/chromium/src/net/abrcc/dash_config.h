@@ -9,6 +9,7 @@ struct PlayerConfig {
   std::string index;
   std::string manifest;
   std::string player;
+  std::string video_info;
 
   PlayerConfig();
   PlayerConfig(const PlayerConfig&) = delete;
@@ -19,6 +20,7 @@ struct PlayerConfig {
     converter->RegisterStringField("index", &PlayerConfig::index);
     converter->RegisterStringField("manifest", &PlayerConfig::manifest);
     converter->RegisterStringField("player", &PlayerConfig::player);
+    converter->RegisterStringField("video_info", &PlayerConfig::video_info);
   }
 };
 

@@ -1,4 +1,6 @@
 #include "net/abrcc/abr/abr.h"
+
+#include "net/abrcc/dash_config.h"
 #include "net/abrcc/abr/interface.h"
 #include "net/abrcc/service/schema.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
@@ -8,9 +10,13 @@
 #include <algorithm>
 #include <iostream>
 #include <limits>
+#include <fstream>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wc++17-extensions"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-const-variable"
 
 namespace {
  
@@ -631,7 +637,53 @@ int WorthedAbr::decideQuality(int index) {
  **/
 
 
-AbrInterface* getAbr(const std::string& abr_type) {
+/**
+ * TargetAbr - begin
+ **/
+
+namespace TargetAbrConstants { 
+  const std::vector<int> bitrate_array = ::bitrateArray;
+  std::map<int, std::vector<int> > segment_sizes = ::SEGMENTS;
+  
+  const int reservoir = 5 * ::SECOND;
+
+  std::map<int, std::string> vmaf_video_mapping = {
+    { 0, "320x180x30_vmaf_score" }, 
+    { 1, "640x360x30_vmaf_score" },
+    { 2, "768x432x30_vmaf_score" },    
+    { 3, "1024x576x30_vmaf_score" },  
+    { 4, "1280x720x30_vmaf_score" },
+    { 5, "1280x720x60_vmaf_score" }
+  };
+}
+
+TargetAbr::TargetAbr(const std::string &video_info_path) 
+  : SegmentProgressAbr() 
+  , video_info(structs::CsvReader<double>(video_info_path)) {}
+TargetAbr::~TargetAbr() {}
+
+int TargetAbr::vmaf(const int quality, const int index) {
+  auto& key = TargetAbrConstants::vmaf_video_mapping[quality];
+  return static_cast<int>(video_info.get(key, index - 1));
+}
+
+void TargetAbr::registerMetrics(const abr_schema::Metrics &metrics) {
+  SegmentProgressAbr::registerMetrics(metrics);
+
+  std::cout << vmaf(1, 1) << '\n';
+  // [TODO] register metrics
+} 
+
+int TargetAbr::decideQuality(int index) {
+  // [TODO] implement
+  return 0;
+}
+
+/**
+ * TargetAbr - end 
+ **/
+
+AbrInterface* getAbr(const std::string& abr_type, const std::shared_ptr<DashBackendConfig>& config) {
   if (abr_type == "bb") {
     QUIC_LOG(WARNING) << "BB abr selected";
     return new BBAbr();
@@ -641,6 +693,11 @@ AbrInterface* getAbr(const std::string& abr_type) {
   } else if (abr_type == "worthed") {
     QUIC_LOG(WARNING) << "Worthed abr selected";
     return new WorthedAbr();
+  } else if (abr_type == "target") {
+    std::string base_path = config->base_path.substr(1);
+    std::string video_info_path = base_path + config->player_config.video_info;
+
+    return new TargetAbr(video_info_path);
   }
   QUIC_LOG(WARNING) << "Defaulting to BB abr";
   return new BBAbr();
@@ -648,4 +705,5 @@ AbrInterface* getAbr(const std::string& abr_type) {
 
 }
 
+#pragma GCC diagnostic pop
 #pragma GCC diagnostic pop

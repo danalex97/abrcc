@@ -15,13 +15,18 @@ namespace quic {
 
 class DashBackend : public QuicSimpleServerBackend {
  public:
-  DashBackend(const std::string& abr_type);
+  // Note we need the config path for abr
+  DashBackend(
+    const std::string& abr_type, 
+    const std::string& config_path,
+    const std::string& site
+  );
   DashBackend(const DashBackend&) = delete;
   DashBackend& operator=(const DashBackend&) = delete;
   ~DashBackend() override;
 
   // Implements the functions for interface QuicSimpleServerBackend
-  bool InitializeBackend(const std::string& config_path) override;
+  bool InitializeBackend(const std::string& _unused) override;
   bool IsBackendInitialized() const override;
   void FetchResponseFromBackend(
       const spdy::SpdyHeaderBlock& request_headers,
@@ -29,14 +34,15 @@ class DashBackend : public QuicSimpleServerBackend {
       QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
   void CloseBackendResponseStream(
       QuicSimpleServerBackend::RequestHandler* quic_server_stream) override;
-
-  void SetExtra(const std::string& site);
  private:
+  std::string config_path;
   std::string site;
 
   std::shared_ptr<StoreService> store;
   std::shared_ptr<MetricsService> metrics;
   std::shared_ptr<PollingService> polling;
+  
+  std::shared_ptr<DashBackendConfig> config;
 
   bool backend_initialized_;
   

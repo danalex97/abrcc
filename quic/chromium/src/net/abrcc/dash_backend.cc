@@ -26,28 +26,18 @@ const std::string PIECE_PATH = "/piece";
 using spdy::SpdyHeaderBlock;
 
 namespace quic {
- 
-DashBackend::DashBackend(const std::string& abr_type)
-  : store(new StoreService())
+
+DashBackend::DashBackend(
+  const std::string& abr_type, 
+  const std::string& config_path,
+  const std::string& site
+) : config_path(config_path)
+  , site(site)
+  , store(new StoreService())
   , metrics(new MetricsService())
   , polling(new PollingService())
   , backend_initialized_(false) 
-{
-  std::unique_ptr<AbrInterface> interface(getAbr(abr_type));
-  std::unique_ptr<AbrLoop> loop(
-    new AbrLoop(std::move(interface), metrics, polling, store)
-  );
-  this->abr_loop = std::move(loop); 
-}
-DashBackend::~DashBackend() {}
-
-void DashBackend::SetExtra(const std::string& site) {
-  this->site = site;
-}
-
-bool DashBackend::InitializeBackend(const std::string& config_path) {
-  QUIC_LOG(INFO) << "Starting DASH backend from config: " << config_path;
-  
+{ 
   // read config file
   std::ifstream stream(config_path);
   std::string data((std::istreambuf_iterator<char>(stream)),
@@ -55,13 +45,24 @@ bool DashBackend::InitializeBackend(const std::string& config_path) {
  
   // get config
   base::Optional<base::Value> value = base::JSONReader::Read(data);
-  std::shared_ptr<DashBackendConfig> config(new DashBackendConfig());
+  config = std::shared_ptr<DashBackendConfig>(new DashBackendConfig());
   base::JSONValueConverter<DashBackendConfig> converter;
-  converter.Convert(*value, config.get());
-  
+  converter.Convert(*value, config.get()); 
+
+  // override shared config values using site
   config->domain = this->site;
   config->base_path = config->base_path + this->site;
 
+  // initialize rest of DashBackend
+  std::unique_ptr<AbrInterface> interface(getAbr(abr_type, config));
+  std::unique_ptr<AbrLoop> loop(
+    new AbrLoop(std::move(interface), metrics, polling, store)
+  );
+  this->abr_loop = std::move(loop); 
+}
+DashBackend::~DashBackend() {}
+
+bool DashBackend::InitializeBackend(const std::string& _unused) {
   // paths
   std::string dir_path = config_path.substr(0, config_path.find_last_of("/"));
   std::string base_path = dir_path + config->base_path;

@@ -4,6 +4,7 @@
     "player" : {
         "index" : "/index.html",
         "manifest" : "/manifest.mpd",
+        "video_info" : "/video_info.csv", 
         "player" : "/dist/bundle.js"
     },
     "video_paths" : [
