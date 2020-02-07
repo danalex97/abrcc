@@ -674,7 +674,7 @@ namespace TargetAbrConstants {
   const int default_bandwidth = bitrate_array[0];
   
   const int reservoir = 5 * ::SECOND;
-  const int horizon = 5;
+  const int horizon = 4; // should be much bigger
 
   // constants used for QoE function weights
   const double alpha = 1.;
@@ -695,7 +695,8 @@ namespace TargetAbrConstants {
 TargetAbr::TargetAbr(const std::string &video_info_path) 
   : SegmentProgressAbr() 
   , StateTracker()
-  , video_info(structs::CsvReader<double>(video_info_path)) {} 
+  , video_info(structs::CsvReader<double>(video_info_path))
+  , bandwidth_target(TargetAbrConstants::default_bandwidth) {} 
 
 
 TargetAbr::~TargetAbr() {}
@@ -802,7 +803,6 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
       }
     }
   }
-  QUIC_LOG(WARNING) << "[TargetAbr] " << best << ' ' << quality << '\n';
   return std::make_pair(best, quality);
 }
 
@@ -817,7 +817,50 @@ int TargetAbr::decideQuality(int index) {
   }
 
   int bandwidth = (int)average_bandwidth->value_or(TargetAbrConstants::default_bandwidth);
+  
+  // Get seach range for bandwidth target
+  int estimator = bandwidth;
+  int min_bw = int(fmin(estimator, bandwidth) * 0.75);
+  int max_bw = int(fmax(estimator, bandwidth) * 1.25);
+ 
+  // Compute new bandwidth target
+  bandwidth_target = max_bw;
+  int qoe_max_bw = qoe(max_bw).first; 
+  int step = 100;
+  while (
+    bandwidth_target - step >= min_bw && 
+    qoe(bandwidth_target - step).first >= 0.95 * qoe_max_bw
+  ) {
+    bandwidth_target -= step;
+  }
+
+  QUIC_LOG(WARNING) << "[TargetAbr] bandwidth current: " << bandwidth;
+  QUIC_LOG(WARNING) << "[TargetAbr] bandwidth target: " << bandwidth_target;
+
+  // Return next quality
   return qoe(bandwidth).second;
+}
+
+void TargetAbr::adjustCC() {
+  // Note here we use the adjusted level
+  int buffer_level = last_buffer_level.value;
+  int bandwidth    = last_bandwidth != base::nullopt 
+    ? last_bandwidth.value().value
+    : TargetAbrConstants::default_bandwidth;
+
+  if (buffer_level <= TargetAbrConstants::reservoir) {
+    interface->proposePacingGainCycle(std::vector<float>{1.5, 1, 1.5, 1, 1, 1, 1, 1});
+    return;
+  }
+
+  double proportion = bandwidth / bandwidth_target;
+  if (proportion >= 0.9) {
+    interface->proposePacingGainCycle(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1});
+  } else if (proportion >= 0.8) {
+    interface->proposePacingGainCycle(std::vector<float>{1.3, 0.8, 1.3, 0.8, 0.8, 1, 1, 1});
+  } else {
+    interface->proposePacingGainCycle(std::vector<float>{1.5, 1, 1.5, 1, 1, 1, 1, 1});
+  }
 }
 
 /**

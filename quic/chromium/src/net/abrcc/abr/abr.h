@@ -104,7 +104,11 @@ class TargetAbr : public SegmentProgressAbr, public StateTracker {
   int vmaf(const int quality, const int index);
   std::pair<double, int> qoe(const double bandwidth);
 
+  void adjustCC();
+
   structs::CsvReader<double> video_info;
+
+  int bandwidth_target;
 };
 
 AbrInterface* getAbr(
