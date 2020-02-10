@@ -6,6 +6,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 #include "net/abrcc/structs/averages.h"
+#include "net/abrcc/structs/estimators.h"
 
 #include <algorithm>
 #include <iostream>
@@ -674,14 +675,28 @@ namespace TargetAbrConstants {
   const int default_bandwidth = bitrate_array[0];
   
   const int reservoir = 5 * ::SECOND;
-  const int horizon = 4; // should be much bigger
+  const int horizon = 4; // should be much bigger 
+  // [TODO] maybe small horizon is a problem
 
   // constants used for QoE function weights
   const double alpha = 1.;
-  const double beta = 2.5;
-  const double gamma = 25.;
-  const double omega = 1500.;
+  const double beta = 2.5; // 5. instead of 2.5
+  const double gamma = 25.; // 100. instead of 25.
 
+  // constants for bandwidth estimator
+  const int bandwidth_window = 6;
+  const int projection_window = 2;
+  const int time_delta = 100;
+
+  // constants for optimization objective
+  const double qoe_percentile = .95;
+  const double qoe_delta = .15;
+  const int step = 50;
+  
+  // constants for deciding quality
+  const double safe_downscale = .8;
+
+  // consts use for vmaf computation
   std::map<int, std::string> vmaf_video_mapping = {
     { 0, "320x180x30_vmaf_score" }, 
     { 1, "640x360x30_vmaf_score" },
@@ -696,6 +711,11 @@ TargetAbr::TargetAbr(const std::string &video_info_path)
   : SegmentProgressAbr() 
   , StateTracker()
   , video_info(structs::CsvReader<double>(video_info_path))
+  , bw_estimator(new structs::LineFitEstimator<double>(
+      TargetAbrConstants::bandwidth_window,
+      TargetAbrConstants::time_delta,
+      TargetAbrConstants::projection_window
+    ))
   , bandwidth_target(TargetAbrConstants::default_bandwidth) {} 
 
 
@@ -705,7 +725,6 @@ int TargetAbr::vmaf(const int quality, const int index) {
   auto& key = TargetAbrConstants::vmaf_video_mapping[quality];
   return static_cast<int>(video_info.get(key, index - 1));
 }
-
 
 static double compute_vmaf_reward(
   std::vector<int> qualities,
@@ -755,14 +774,11 @@ static double compute_vmaf_reward(
   //   - total vmaf
   //   - total vmaf change
   //   - total rebuffer 
-  //   - buffer
   
   // compute reward
-  int indicator = current_buffer <= TargetAbrConstants::reservoir ? 1 : 0;
   return ( TargetAbrConstants::alpha * vmaf_sum
          - TargetAbrConstants::beta * vmaf_diff
-         - TargetAbrConstants::gamma * current_rebuffer
-         - TargetAbrConstants::omega * indicator);
+         - TargetAbrConstants::gamma * current_rebuffer);
 }
 
 
@@ -793,6 +809,13 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
       start_buffer, 
       current_vmaf
     );
+    /*double reward = compute_reward(
+      next,
+      start_index,
+      bandwidth,
+      start_buffer,
+      current_quality);
+    */
     if (reward > best) {
       best = reward;
       if (!next.empty()) {
@@ -810,6 +833,13 @@ void TargetAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   SegmentProgressAbr::registerMetrics(metrics);
   StateTracker::registerMetrics(metrics);
 
+  // update future estiamte
+  if (interface->BandwidthEstimate() != base::nullopt) {
+    if (bw_estimator->empty() || last_bandwidth.value().value != bw_estimator->last()) {
+      bw_estimator->sample(last_bandwidth.value().value);
+    }
+  }
+
   adjustCC();
 } 
 
@@ -820,45 +850,42 @@ int TargetAbr::decideQuality(int index) {
 
   int bandwidth = (int)average_bandwidth->value_or(TargetAbrConstants::default_bandwidth);
   
-  // Get seach range for bandwidth target
-  int estimator = bandwidth;
-  int min_bw = int(fmin(estimator, bandwidth) * 0.75);
-  int max_bw = int(fmax(estimator, bandwidth) * 1.25);
- 
+  // Get search range for bandwidth target
+  int estimator = (int)bw_estimator->value_or(bandwidth);
+  int min_bw = int(fmin(estimator, bandwidth) * (1. - TargetAbrConstants::qoe_delta));
+  int max_bw = int(estimator * (1. + TargetAbrConstants::qoe_delta));
+  
+  // [PROBLEM] this thing is not strictly increasing
   // Compute new bandwidth target
   bandwidth_target = max_bw;
   int qoe_max_bw = qoe(max_bw).first; 
-  int step = 100;
+  int step = TargetAbrConstants::step;
   while (
     bandwidth_target - step >= min_bw && 
-    qoe(bandwidth_target - step).first >= 0.95 * qoe_max_bw
+    qoe(bandwidth_target - step).first >= TargetAbrConstants::qoe_percentile * qoe_max_bw
   ) {
     bandwidth_target -= step;
   }
 
+  QUIC_LOG(WARNING) << "[TargetAbr] bandwidth interval: [" << min_bw << ", " << max_bw << "]";
   QUIC_LOG(WARNING) << "[TargetAbr] bandwidth current: " << bandwidth;
+  QUIC_LOG(WARNING) << "[TargetAbr] bandwidth estimator: " << estimator;
   QUIC_LOG(WARNING) << "[TargetAbr] bandwidth target: " << bandwidth_target;
 
   // Return next quality
-  return qoe(bandwidth).second;
+  return qoe(TargetAbrConstants::safe_downscale * bandwidth).second;
 }
 
 void TargetAbr::adjustCC() {
   // Note here we use the adjusted level
-  int buffer_level = last_buffer_level.value;
   int bandwidth    = last_bandwidth != base::nullopt 
     ? last_bandwidth.value().value
     : TargetAbrConstants::default_bandwidth;
 
-  if (buffer_level <= TargetAbrConstants::reservoir) {
-    interface->proposePacingGainCycle(std::vector<float>{1.5, 1, 1.5, 1, 1, 1, 1, 1});
-    return;
-  }
-
   double proportion = bandwidth / bandwidth_target;
   if (proportion >= 0.9) {
     interface->proposePacingGainCycle(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1});
-  } else if (proportion >= 0.7) {
+  } else if (proportion >= 0.4) {
     interface->proposePacingGainCycle(std::vector<float>{1.3, 0.8, 1.3, 0.8, 0.8, 1, 1, 1});
   } else {
     interface->proposePacingGainCycle(std::vector<float>{1.5, 1, 1.5, 1, 1, 1, 1, 1});

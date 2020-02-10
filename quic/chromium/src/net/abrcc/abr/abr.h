@@ -107,6 +107,7 @@ class TargetAbr : public SegmentProgressAbr, public StateTracker {
   void adjustCC();
 
   structs::CsvReader<double> video_info;
+  std::unique_ptr<structs::MovingAverage<double>> bw_estimator;  
 
   int bandwidth_target;
 };

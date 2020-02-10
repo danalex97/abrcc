@@ -125,6 +125,7 @@ void BbrAdapter::BbrInterface::updatePacingGainCycle() {
     out += "]";
     return out;
   };
+  QUIC_LOG(WARNING) << " most votes " << most_votes << '\n'; 
   if (!best_proposal.empty() && kPacingGainProposals.size() > 10) {
     QUIC_LOG(WARNING) << "[BBR Adapter] chosen proposal " << to_str(best_proposal) 
                       << " with " << most_votes << " votes";
