@@ -62,8 +62,22 @@ BbrAdapter::BbrInterface* BbrAdapter::BbrInterface::GetInstance() {
 }
 
 void BbrAdapter::BbrInterface::proposePacingGainCycle(const std::vector<float>& gain) {
+  auto to_str = [](const std::vector<float>& v) {
+    std::string out;
+    out += "[";
+    for (auto &x : v) {
+      out += std::to_string(x);
+      out += ", ";
+    }
+    out.pop_back();
+    out += "]";
+    return out;
+  };
+
   // [TODO] this is thread unsafe
   kPacingGainProposals.push_back(gain);
+
+  QUIC_LOG(WARNING) << "new proposal " << to_str(gain);
 }
 
 void BbrAdapter::BbrInterface::updatePacingGainCycle() {
@@ -113,7 +127,7 @@ void BbrAdapter::BbrInterface::updatePacingGainCycle() {
   };
   if (!best_proposal.empty() && kPacingGainProposals.size() > 10) {
     QUIC_LOG(WARNING) << "[BBR Adapter] chosen proposal " << to_str(best_proposal) 
-                      << "with " << most_votes << " votes";
+                      << " with " << most_votes << " votes";
   
     kPacingGain = best_proposal; 
     kPacingGainProposals.clear();

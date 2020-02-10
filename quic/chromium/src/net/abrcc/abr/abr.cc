@@ -809,6 +809,8 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
 void TargetAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   SegmentProgressAbr::registerMetrics(metrics);
   StateTracker::registerMetrics(metrics);
+
+  adjustCC();
 } 
 
 int TargetAbr::decideQuality(int index) {
@@ -856,7 +858,7 @@ void TargetAbr::adjustCC() {
   double proportion = bandwidth / bandwidth_target;
   if (proportion >= 0.9) {
     interface->proposePacingGainCycle(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1});
-  } else if (proportion >= 0.8) {
+  } else if (proportion >= 0.7) {
     interface->proposePacingGainCycle(std::vector<float>{1.3, 0.8, 1.3, 0.8, 0.8, 1, 1, 1});
   } else {
     interface->proposePacingGainCycle(std::vector<float>{1.5, 1, 1.5, 1, 1, 1, 1, 1});
