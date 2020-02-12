@@ -13,6 +13,7 @@
 #include <limits>
 #include <fstream>
 #include <unordered_map>
+#include <unordered_set>
 #include <functional>
 
 #pragma GCC diagnostic push
@@ -695,7 +696,7 @@ namespace TargetAbrConstants {
   // constants for optimization objective
   const double qoe_percentile = .95;
   const double qoe_delta = .15;
-  const int step = 50;
+  const int step = 100;
   
   // constants for deciding quality
   const double safe_downscale = .8;
@@ -735,15 +736,18 @@ namespace {
     state_t() {
       this->segment = -1;
       this->buffer = -1;
+      this->quality = -1;
     }
   
-    state_t(int segment, int buffer) {
+    state_t(int segment, int buffer, int quality) {
       this->segment = segment;
       this->buffer = buffer;
+      this->quality = quality;
     }
 
     int segment;
     int buffer;
+    int quality;
   
     bool operator == (const state_t &other) const {
       return segment == other.segment && buffer == other.buffer;
@@ -756,6 +760,7 @@ namespace {
     void operator = (const state_t &other) { 
       this->segment = other.segment;
       this->buffer = other.buffer;
+      this->quality = other.quality;
     }
 
     friend std::ostream& operator << (std::ostream &os, const state_t &value);
@@ -765,22 +770,19 @@ namespace {
     value_t() {
     }
 
-    value_t(int qoe, int vmaf, int quality, state_t from) {
+    value_t(int qoe, int vmaf, state_t from) {
       this->qoe = qoe;
       this->vmaf = vmaf;
-      this->quality = quality;
       this->from = from;
     }
 
     int qoe;
     int vmaf;
-    int quality;
     state_t from; 
 
     void operator = (const value_t& other) { 
       this->qoe = other.qoe;
       this->vmaf = other.vmaf;
-      this->quality = other.quality;
       this->from = other.from;
     }
 
@@ -788,12 +790,13 @@ namespace {
   };
  
   std::ostream& operator << (std::ostream &os, const state_t &value) { 
-    return os << "state_t(segment: " << value.segment << ", buffer: " << value.buffer << ")";
+    return os << "state_t(segment: " << value.segment << ", quality: " 
+              << value.quality << ", buffer: " << value.buffer << ")";
   }
     
   std::ostream& operator << (std::ostream &os, const value_t &value) { 
     return os << "value_t(qoe: " << value.qoe << ", vmaf: " << value.vmaf 
-       << ", quality: " << value.quality << ", from: " << value.from << ")";
+              << ", from: " << value.from << ")";
   }
 }
 
@@ -805,15 +808,18 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   int start_index = last_index + 1;
   int start_buffer = last_buffer_level.value;
 
-  // DP 
-  std::unordered_map<state_t, value_t, std::function<size_t (const state_t&)> > dp(0, [](const state_t& state) {
+  // DP
+  std::function<size_t (const state_t &)> hash = [](const state_t& state) {
     return std::hash<int>()(state.segment) ^ std::hash<int>()(state.buffer);
-  });
-  
-  int max_buffer = 4000;
-  int buffer_unit = 10;
-  state_t null_state;
-  dp[state_t(last_index, start_buffer / buffer_unit)] = value_t(0, current_vmaf, current_quality, null_state);
+  };
+  std::unordered_map<state_t, value_t, std::function<size_t (const state_t&)> > dp(0, hash);
+  std::unordered_set<state_t, std::function<size_t (const state_t&)> > curr_states(0, hash);
+
+  int buffer_unit = 20;
+  int max_buffer = 40 * ::SECOND / buffer_unit;
+  state_t null_state, start_state(last_index, start_buffer / buffer_unit, current_quality);
+  dp[start_state] = value_t(0, current_vmaf, null_state);
+  curr_states.insert(start_state);
  
   int max_segment = 0;
   for (int current_index = last_index; current_index < start_index + TargetAbrConstants::horizon; ++current_index) {
@@ -821,55 +827,59 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
       continue;  
     }
 
-    for (int buffer = 0; buffer <= max_buffer; ++buffer) {
-      if (dp.find(state_t(current_index, buffer)) != dp.end()) {
-        for (int chunk_quality = 0; chunk_quality < TargetAbrConstants::qualities; ++chunk_quality) {
-          double current_buffer = buffer * buffer_unit;
-          double rebuffer = 0;
-          
-          double size_kb = 8. * WorthedAbrConstants::segment_sizes[chunk_quality][current_index + 1] / ::SECOND;
-          double download_time_ms = size_kb / bandwidth * ::SECOND;
+    std::unordered_set<state_t, std::function<size_t (const state_t&)> > next_states(0, hash);
+    for (auto &from : curr_states) {
+      for (int chunk_quality = 0; chunk_quality < TargetAbrConstants::qualities; ++chunk_quality) {
+        double current_buffer = from.buffer * buffer_unit;
+        double rebuffer = 0;
+        
+        double size_kb = 8. * WorthedAbrConstants::segment_sizes[chunk_quality][current_index + 1] / ::SECOND;
+        double download_time_ms = size_kb / bandwidth * ::SECOND;
 
-          // simulate buffer changes
-          if (current_buffer < download_time_ms) {
-            rebuffer = download_time_ms - current_buffer;
-            current_buffer = 0;
-          } else {
-            current_buffer -= download_time_ms;
-          }
-          current_buffer += WorthedAbrConstants::segment_size_ms;
-          current_buffer = std::min(current_buffer, 1. * max_buffer * buffer_unit);
+        // simulate buffer changes
+        if (current_buffer < download_time_ms) {
+          rebuffer = download_time_ms - current_buffer;
+          current_buffer = 0;
+        } else {
+          current_buffer -= download_time_ms;
+        }
+        current_buffer += WorthedAbrConstants::segment_size_ms;
+        current_buffer = std::min(current_buffer, 1. * max_buffer * buffer_unit);
 
-          // compute DP states
-          state_t from(current_index, buffer);
-          state_t next(current_index + 1, current_buffer / buffer_unit);
+        // compute next state
+        state_t next(current_index + 1, current_buffer / buffer_unit, chunk_quality);
 
-          // compute current and last vmaf
-          int current_vmaf = TargetAbr::vmaf(chunk_quality, current_index + 1);
-          int last_vmaf    = dp[from].vmaf;
-          
-          // compute qoe
-          double qoe = dp[from].qoe;
-          qoe += 1. * TargetAbrConstants::alpha * current_vmaf;
-          qoe -= 1. * TargetAbrConstants::beta * fabs(current_vmaf - last_vmaf);
-          qoe -= 1. * TargetAbrConstants::gamma * rebuffer / ::SECOND;
+        // compute current and last vmaf
+        int current_vmaf = TargetAbr::vmaf(chunk_quality, current_index + 1);
+        int last_vmaf    = dp[from].vmaf;
+        
+        // compute qoe
+        double qoe = dp[from].qoe;
+        qoe += 1. * TargetAbrConstants::alpha * current_vmaf;
+        qoe -= 1. * TargetAbrConstants::beta * fabs(current_vmaf - last_vmaf);
+        qoe -= 1. * TargetAbrConstants::gamma * rebuffer / ::SECOND;
 
-          // update dp value with maximum qoe
-          if (dp.find(next) == dp.end() || dp[next].qoe < qoe) {
-            dp[next] = value_t(qoe, current_vmaf, chunk_quality, from); 
-            max_segment = std::max(max_segment, current_index + 1);
-          }
+        // update dp value with maximum qoe
+        if (dp.find(next) == dp.end() || dp[next].qoe < qoe) {
+          dp[next] = value_t(qoe, current_vmaf, from); 
+          next_states.insert(next);
+
+          max_segment = std::max(max_segment, current_index + 1);
         }
       }
     }
+
+    curr_states = next_states;
   }
   
   // find best series of segments
   state_t best = null_state;
   for (int buffer = 0; buffer <= max_buffer; ++buffer) {
-    state_t cand(max_segment, buffer);
-    if (dp.find(cand) != dp.end() && (best == null_state || dp[cand].qoe >= dp[best].qoe)) { 
-      best = cand;
+    for (int chunk_quality = 0; chunk_quality < TargetAbrConstants::qualities; ++chunk_quality) {
+      state_t cand(max_segment, buffer, chunk_quality);
+      if (dp.find(cand) != dp.end() && (best == null_state || dp[cand].qoe >= dp[best].qoe)) { 
+        best = cand;
+      }
     }
   }
  
@@ -890,7 +900,7 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   
   QUIC_LOG(WARNING) << "[TargetAbr] first: " << first << ' ' << dp[first];
   QUIC_LOG(WARNING) << "[TargetAbr] best: " << best << ' ' << dp[best];
-  return std::make_pair(dp[best].qoe, dp[first].quality);
+  return std::make_pair(dp[best].qoe, first.quality);
 }
 
 void TargetAbr::registerMetrics(const abr_schema::Metrics &metrics) {
@@ -919,8 +929,8 @@ int TargetAbr::decideQuality(int index) {
   int min_bw = int(fmin(estimator, bandwidth) * (1. - TargetAbrConstants::qoe_delta));
   int max_bw = int(estimator * (1. + TargetAbrConstants::qoe_delta));
   
-  // [PROBLEM] this thing is not strictly increasing
-  // Compute new bandwidth target
+  // Compute new bandwidth target -- this function should be strictly increasing 
+  // as with extra bandwidth we can take the exact same choices as we had before
   bandwidth_target = max_bw;
   int qoe_max_bw = qoe(max_bw).first; 
   int step = TargetAbrConstants::step;
