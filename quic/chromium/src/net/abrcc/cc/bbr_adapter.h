@@ -19,6 +19,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
 #include "net/abrcc/cc/singleton.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
 
 namespace quic {
 
@@ -70,7 +71,9 @@ class QUIC_EXPORT_PRIVATE BbrAdapter : public SendAlgorithmInterface {
     bool canProbeRtt;
 
     BbrAdapter *parent;
-    
+    mutable QuicMutex rtt_probe_mutex_;
+    mutable QuicMutex pacing_cycle_mutex_; 
+
     friend class BbrAdapter;
   };
  

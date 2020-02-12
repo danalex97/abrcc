@@ -14,6 +14,12 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
 #include "net/abrcc/cc/singleton.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
+
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+
 
 namespace quic {
 
@@ -74,14 +80,14 @@ void BbrAdapter::BbrInterface::proposePacingGainCycle(const std::vector<float>& 
     return out;
   };
 
-  // [TODO] this is thread unsafe
+  QuicWriterMutexLock lock(&pacing_cycle_mutex_);
   kPacingGainProposals.push_back(gain);
 
   QUIC_LOG(WARNING) << "new proposal " << to_str(gain);
 }
 
 void BbrAdapter::BbrInterface::updatePacingGainCycle() {
-  // [TODO] this is thread unsafe
+  QuicWriterMutexLock lock(&pacing_cycle_mutex_);
   QUIC_LOG(WARNING) << "[BBR Adapter] updating pacing gain cycle";
 
   auto votes = std::map<
@@ -125,7 +131,7 @@ void BbrAdapter::BbrInterface::updatePacingGainCycle() {
     out += "]";
     return out;
   };
-  QUIC_LOG(WARNING) << " most votes " << most_votes << '\n'; 
+  
   if (!best_proposal.empty() && kPacingGainProposals.size() > 10) {
     QUIC_LOG(WARNING) << "[BBR Adapter] chosen proposal " << to_str(best_proposal) 
                       << " with " << most_votes << " votes";
@@ -140,6 +146,7 @@ std::vector<float> BbrAdapter::BbrInterface::getPacingGainCycle() {
 }
 
 int BbrAdapter::BbrInterface::getGainCycleLength() {
+  QuicReaderMutexLock lock(&pacing_cycle_mutex_);
   return kPacingGain.size();
 }
 
@@ -159,6 +166,7 @@ base::Optional<int> BbrAdapter::BbrInterface::BandwidthEstimate() const {
 }
 
 base::Optional<float> BbrAdapter::BbrInterface::PacingGain() const {
+  QuicReaderMutexLock lock(&pacing_cycle_mutex_);
   if (parent == nullptr) {
     return base::nullopt;
   }
@@ -175,11 +183,12 @@ base::Optional<int> BbrAdapter::BbrInterface::RttEstimate() const {
 }
 
 void BbrAdapter::BbrInterface::setRttProbing(bool rttProbing) {
-  // [TODO] this is thread unsafe
+  QuicWriterMutexLock lock(&rtt_probe_mutex_);
   canProbeRtt = rttProbing;
 }
 
 bool BbrAdapter::BbrInterface::allowRttProbing() {
+  QuicReaderMutexLock lock(&rtt_probe_mutex_);
   return canProbeRtt;
 }
 
@@ -1110,3 +1119,5 @@ std::ostream& operator<<(std::ostream& os, const BbrAdapter::DebugState& state) 
 }
 
 }  // namespace quic
+
+#pragma GCC diagnostic pop

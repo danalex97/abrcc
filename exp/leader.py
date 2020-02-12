@@ -126,6 +126,7 @@ def run(args: Namespace) -> None:
         network = Network(
             bandwidth=getattr(args, 'bandwidth', None),
             delay=getattr(args, 'delay', None),
+            burst=getattr(args, 'burst', 20000),
             trace_path=getattr(args, 'trace', None),
         ),
         port = args.port,
@@ -157,6 +158,7 @@ if __name__ == "__main__":
     parser.add_argument('--port', type=int, default=8800, help='Port(default 8800).')
     parser.add_argument('--path', type=str, default='logs/default', help='Experiment folder path.')
     parser.add_argument('-l', '--delay', type=float,  help='Delay of the link.')
+    parser.add_argument('--burst', type=float, help='Burst of the link.')
     parser.add_argument('-b', '--bandwidth', type=float, help='Bandwidth of the link.')
     parser.add_argument('-t', '--trace', type=str, help='Trace of bandwidth.')
     parser.add_argument('--plot', action='store_true', help='Enable plotting.')

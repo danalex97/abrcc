@@ -84,10 +84,11 @@ class MetricsProcessor:
         # Get vmaf
         vmaf = get_vmaf(self.index, quality)
         
+        # [TODO] Check this is ok
         # Compute vmaf qoe
-        reward_vmaf = (vmaf - 
-            REBUF_PENALITY_QOE * rebuffer / 1000. - 
-            SWITCING_PENALITY_QOE * abs(vmaf - self.vmaf_previous))
+        reward_vmaf = (vmaf 
+            - REBUF_PENALITY_QOE * rebuffer / 1000. 
+            - SWITCING_PENALITY_QOE * abs(vmaf - self.vmaf_previous))
         self.vmaf_previous = vmaf
     
         # Current bw estimate - note this is an estiamte because the backend can transmit 

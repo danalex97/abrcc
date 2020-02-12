@@ -12,12 +12,17 @@
 #include <iostream>
 #include <limits>
 #include <fstream>
+#include <unordered_map>
+#include <functional>
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wc++17-extensions"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-const-variable"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
 
 namespace {
  
@@ -675,8 +680,7 @@ namespace TargetAbrConstants {
   const int default_bandwidth = bitrate_array[0];
   
   const int reservoir = 5 * ::SECOND;
-  const int horizon = 4; // should be much bigger 
-  // [TODO] maybe small horizon is a problem
+  const int horizon = 10;  
 
   // constants used for QoE function weights
   const double alpha = 1.;
@@ -713,7 +717,7 @@ TargetAbr::TargetAbr(const std::string &video_info_path)
   , video_info(structs::CsvReader<double>(video_info_path))
   , bw_estimator(new structs::LineFitEstimator<double>(
       TargetAbrConstants::bandwidth_window,
-      TargetAbrConstants::time_delta,
+     TargetAbrConstants::time_delta,
       TargetAbrConstants::projection_window
     ))
   , bandwidth_target(TargetAbrConstants::default_bandwidth) {} 
@@ -726,61 +730,72 @@ int TargetAbr::vmaf(const int quality, const int index) {
   return static_cast<int>(video_info.get(key, index - 1));
 }
 
-static double compute_vmaf_reward(
-  std::vector<int> qualities,
-  std::vector<int> vmaf,
-  int start_index, 
-  int bandwidth,
-  int start_buffer,
-  int current_vmaf
-) {
-  // buffer state
-  int current_rebuffer = 0;  
-  int current_buffer = start_buffer;
-
-  // accumators
-  int vmaf_sum = 0;
-  int vmaf_diff = 0;
-  int last_vmaf = current_vmaf;
-
-
-  for (size_t i = 0; i < qualities.size(); ++i) {
-    int chunk_quality = qualities[i];
-    int current_index = start_index + i;
-
-    if (current_index > int(TargetAbrConstants::segment_sizes[chunk_quality].size())) {
-      continue;
+namespace {
+  struct state_t {
+    state_t() {
+      this->segment = -1;
+      this->buffer = -1;
     }
-
-    double size_kb = 8. * WorthedAbrConstants::segment_sizes[chunk_quality][current_index] / 1000.;
-    double download_time_ms = size_kb / bandwidth * 1000;
-
-    // simulate buffer changes
-    if (current_buffer < download_time_ms) {
-      current_rebuffer += download_time_ms - current_buffer;
-      current_buffer = 0;
-    } else {
-      current_buffer -= download_time_ms;
-    }
-    current_buffer += WorthedAbrConstants::segment_size_ms;
-    
-    // compute vmaf differce and reward
-    vmaf_sum += vmaf[i];
-    vmaf_diff += abs(vmaf[i] - last_vmaf);
-    last_vmaf = vmaf[i];
-  }
-
-  // we have:
-  //   - total vmaf
-  //   - total vmaf change
-  //   - total rebuffer 
   
-  // compute reward
-  return ( TargetAbrConstants::alpha * vmaf_sum
-         - TargetAbrConstants::beta * vmaf_diff
-         - TargetAbrConstants::gamma * current_rebuffer);
-}
+    state_t(int segment, int buffer) {
+      this->segment = segment;
+      this->buffer = buffer;
+    }
 
+    int segment;
+    int buffer;
+  
+    bool operator == (const state_t &other) const {
+      return segment == other.segment && buffer == other.buffer;
+    }
+
+    bool operator != (const state_t &other) const {
+      return !(*this == other);
+    }
+
+    void operator = (const state_t &other) { 
+      this->segment = other.segment;
+      this->buffer = other.buffer;
+    }
+
+    friend std::ostream& operator << (std::ostream &os, const state_t &value);
+  };
+
+  struct value_t {
+    value_t() {
+    }
+
+    value_t(int qoe, int vmaf, int quality, state_t from) {
+      this->qoe = qoe;
+      this->vmaf = vmaf;
+      this->quality = quality;
+      this->from = from;
+    }
+
+    int qoe;
+    int vmaf;
+    int quality;
+    state_t from; 
+
+    void operator = (const value_t& other) { 
+      this->qoe = other.qoe;
+      this->vmaf = other.vmaf;
+      this->quality = other.quality;
+      this->from = other.from;
+    }
+
+    friend std::ostream& operator << (std::ostream &os, const value_t &value);
+  };
+ 
+  std::ostream& operator << (std::ostream &os, const state_t &value) { 
+    return os << "state_t(segment: " << value.segment << ", buffer: " << value.buffer << ")";
+  }
+    
+  std::ostream& operator << (std::ostream &os, const value_t &value) { 
+    return os << "value_t(qoe: " << value.qoe << ", vmaf: " << value.vmaf 
+       << ", quality: " << value.quality << ", from: " << value.from << ")";
+  }
+}
 
 std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   // compute current_vmaf, start_index, start_buffer
@@ -790,43 +805,92 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   int start_index = last_index + 1;
   int start_buffer = last_buffer_level.value;
 
-  // brute force
-  double best = -std::numeric_limits<double>::infinity();
-  int quality = 0;
-  int depth = std::min(TargetAbrConstants::segments - start_index, TargetAbrConstants::horizon);
+  // DP 
+  std::unordered_map<state_t, value_t, std::function<size_t (const state_t&)> > dp(0, [](const state_t& state) {
+    return std::hash<int>()(state.segment) ^ std::hash<int>()(state.buffer);
+  });
   
-  for (auto &next : cartesian(depth, TargetAbrConstants::qualities, 1)) {
-    std::vector<int> vmaf;
-    for (size_t i = 0; i < next.size(); ++i) {
-      vmaf.push_back(TargetAbr::vmaf(next[i], start_index + i));
+  int max_buffer = 4000;
+  int buffer_unit = 10;
+  state_t null_state;
+  dp[state_t(last_index, start_buffer / buffer_unit)] = value_t(0, current_vmaf, current_quality, null_state);
+ 
+  int max_segment = 0;
+  for (int current_index = last_index; current_index < start_index + TargetAbrConstants::horizon; ++current_index) {
+    if (current_index + 1 >= TargetAbrConstants::segments) {
+      continue;  
     }
 
-    double reward = compute_vmaf_reward(
-      next,
-      vmaf, 
-      start_index, 
-      bandwidth, 
-      start_buffer, 
-      current_vmaf
-    );
-    /*double reward = compute_reward(
-      next,
-      start_index,
-      bandwidth,
-      start_buffer,
-      current_quality);
-    */
-    if (reward > best) {
-      best = reward;
-      if (!next.empty()) {
-        quality = next[0];
-      } else {
-        // [TODO] this is not great for the last segment
-        quality = current_quality;
+    for (int buffer = 0; buffer <= max_buffer; ++buffer) {
+      if (dp.find(state_t(current_index, buffer)) != dp.end()) {
+        for (int chunk_quality = 0; chunk_quality < TargetAbrConstants::qualities; ++chunk_quality) {
+          double current_buffer = buffer * buffer_unit;
+          double rebuffer = 0;
+          
+          double size_kb = 8. * WorthedAbrConstants::segment_sizes[chunk_quality][current_index + 1] / ::SECOND;
+          double download_time_ms = size_kb / bandwidth * ::SECOND;
+
+          // simulate buffer changes
+          if (current_buffer < download_time_ms) {
+            rebuffer = download_time_ms - current_buffer;
+            current_buffer = 0;
+          } else {
+            current_buffer -= download_time_ms;
+          }
+          current_buffer += WorthedAbrConstants::segment_size_ms;
+          current_buffer = std::min(current_buffer, 1. * max_buffer * buffer_unit);
+
+          // compute DP states
+          state_t from(current_index, buffer);
+          state_t next(current_index + 1, current_buffer / buffer_unit);
+
+          // compute current and last vmaf
+          int current_vmaf = TargetAbr::vmaf(chunk_quality, current_index + 1);
+          int last_vmaf    = dp[from].vmaf;
+          
+          // compute qoe
+          double qoe = dp[from].qoe;
+          qoe += 1. * TargetAbrConstants::alpha * current_vmaf;
+          qoe -= 1. * TargetAbrConstants::beta * fabs(current_vmaf - last_vmaf);
+          qoe -= 1. * TargetAbrConstants::gamma * rebuffer / ::SECOND;
+
+          // update dp value with maximum qoe
+          if (dp.find(next) == dp.end() || dp[next].qoe < qoe) {
+            dp[next] = value_t(qoe, current_vmaf, chunk_quality, from); 
+            max_segment = std::max(max_segment, current_index + 1);
+          }
+        }
       }
     }
   }
-  return std::make_pair(best, quality);
+  
+  // find best series of segments
+  state_t best = null_state;
+  for (int buffer = 0; buffer <= max_buffer; ++buffer) {
+    state_t cand(max_segment, buffer);
+    if (dp.find(cand) != dp.end() && (best == null_state || dp[cand].qoe >= dp[best].qoe)) { 
+      best = cand;
+    }
+  }
+ 
+  if (best == null_state) {
+    QUIC_LOG(WARNING) << "[TargetAbr] keeping quality"; 
+    return std::make_pair(0, current_quality);
+  }
+
+  // find first decision
+  std::vector<state_t> states;
+  state_t state = best;
+  while (state != null_state) {
+    states.push_back(state);
+    state = dp[state].from;
+  }
+  std::reverse(states.begin(), states.end());
+  state_t first = states.size() > 1 ? states[1] : states[0];
+  
+  QUIC_LOG(WARNING) << "[TargetAbr] first: " << first << ' ' << dp[first];
+  QUIC_LOG(WARNING) << "[TargetAbr] best: " << best << ' ' << dp[best];
+  return std::make_pair(dp[best].qoe, dp[first].quality);
 }
 
 void TargetAbr::registerMetrics(const abr_schema::Metrics &metrics) {
@@ -849,7 +913,7 @@ int TargetAbr::decideQuality(int index) {
   }
 
   int bandwidth = (int)average_bandwidth->value_or(TargetAbrConstants::default_bandwidth);
-  
+
   // Get search range for bandwidth target
   int estimator = (int)bw_estimator->value_or(bandwidth);
   int min_bw = int(fmin(estimator, bandwidth) * (1. - TargetAbrConstants::qoe_delta));
@@ -923,5 +987,6 @@ AbrInterface* getAbr(
 
 }
 
+#pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic pop
