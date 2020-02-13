@@ -1,9 +1,14 @@
 from argparse import Namespace
 from subprocess import Popen
 from typing import Callable, Dict
+from wrapt_timeout_decorator import timeout as timeout_func
+from functools import wraps
+
+from server.process import kill_subprocess 
 
 import os
 import time
+import signal
 
 
 __EXPERIMENTS = {}
@@ -40,6 +45,28 @@ def run_cmds(leader_cmd: str, cmd1: str, cmd2: str) -> None:
     instance1.wait()
     instance2.wait()
 
+
+def retry(tries: int = 5, timeout: int = 600) -> Callable[[Callable], Callable]:
+    def _retry(f: Callable) -> Callable:
+        def wrapped(*args, **kwargs):
+            timed_f = timeout_func(timeout, use_signals=False)(f)
+            for _ in range(tries):
+                try:
+                    return timed_f(*args, **kwargs)
+                except TimeoutError:
+                    pid = os.getpid()
+                    kill_subprocess(pid, without_parent=True, sig=signal.SIGTERM) 
+                    os.system(f"""
+                        for pid in $(pidof -o {pid} -x python3); do
+                            kill -TERM $pid
+                        done
+                    """)
+            raise RuntimeError("Maximum retries reached")
+        return wrapped
+    return _retry
+
+
+@retry(tries=5, timeout=900)
 def run_subexp(
     bandwidth: int, 
     latency: int, 
@@ -62,6 +89,8 @@ def run_subexp(
     )
     run_cmds(leader_cmd, cmd1, cmd2)
 
+
+@retry(tries=5, timeout=900)
 def run_trace(
     path: str, 
     server: str,
@@ -74,5 +103,6 @@ def run_trace(
     cmd = (
         f"python3 run.py {ports} {server} {extra} --path {path}"
     )
+    
     instance = run_cmd_async(cmd)
     instance.wait()

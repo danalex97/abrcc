@@ -58,8 +58,18 @@ def plot_bar(
                     metrics[metric].append((name, func(group)))
 
         for metric_name, values in sorted(metrics.items()):
-            data_matrix[metric_name][idx] += [v for _, v in sorted(values)]
-            instances = [n for n, _ in sorted(values)]
+            # group values for multiple runs
+            grouped_values = defaultdict(list)
+            for name, value in values:
+                grouped_values[name].append(value)
+           
+            # average multiple runs
+            avg_values = []
+            for name, vals in grouped_values.items():
+                avg_values.append((name, sum(vals) / len(vals)))
+
+            data_matrix[metric_name][idx] += [v for _, v in sorted(avg_values)]
+            instances = [n for n, _ in sorted(avg_values)]
             
         idx += 1
     

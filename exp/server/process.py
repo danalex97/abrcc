@@ -8,16 +8,21 @@ import signal
 from typing import Awaitable, IO, List, Optional
 
 
-def kill_subprocess(pid: int) -> None:
+def kill_subprocess(
+    pid: int, 
+    without_parent: bool = False, 
+    sig: int = signal.SIGUSR1,
+) -> None:
     try:
         parent = psutil.Process(pid)
         for child in parent.children(recursive=True):
             try: 
-                os.kill(child.pid, signal.SIGUSR1)
+                os.kill(child.pid, sig)
             except:
                 pass
         try:
-            os.kill(parent.pid, signal.SIGUSR1)
+            if not without_parent:
+                os.kill(parent.pid, sig)
         except:
             pass
     except:
