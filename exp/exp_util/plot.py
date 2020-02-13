@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Union, Tuple, Callable
 from collections import defaultdict
 
 from exp_util.data import Experiment
@@ -8,7 +8,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-TagMapping = Tuple[List[str], str]
+Tags = List[str]
+Instance = Union[str, Callable]
+Name = str
+TagMapping = Tuple[List[str], Tuple[Instance, Name]]
 
 
 def plot_bar(
@@ -16,8 +19,10 @@ def plot_bar(
     experiments: List[Experiment],
     tag_maps: List[TagMapping],
 ) -> None:
+    # [TODO] this assumes single runs for now
+
     plot_data = defaultdict(list)
-    for tags, instance in tag_maps:
+    for tags, instance_name in tag_maps:
         for experiment in experiments: 
             if all((tag in experiment.extra) for tag in tags):
                 env = (
@@ -25,7 +30,7 @@ def plot_bar(
                     experiment.bandwidth,
                     experiment.trace,
                 )
-                plot_data[env].append((experiment, instance))
+                plot_data[env].append((experiment, instance_name))
 
     idx = 0
     instances = []
@@ -33,37 +38,49 @@ def plot_bar(
     for env, exp_inst in plot_data.items():
         # get plot path
         latency, bandwidth, trace = env
-        plot_name_no_metric = (plot_base + f"_{latency}" 
-            + (f"_{bandwidth}" if bandwidth else "_{trace}"))
-
+        
         # get all metrics
         metrics = defaultdict(list)
-        for exp, inst in exp_inst: 
-            for metric in exp.get_metrics(): 
-                if metric.instance == inst:
-                    metrics[metric.metric].append((metric.instance, metric.value))
-       
+        for exp, instance_name in exp_inst: 
+            instance: Instance = instance_name[0]
+            name: str = instance_name[1]
+
+            if type(instance) == str:
+                for metric in exp.get_metrics():
+                    if metric.instance == instance:
+                        metrics[metric.metric].append((name, metric.value))
+            else:
+                func = instance
+                groups = defaultdict(list)
+                for metric in exp.get_metrics():
+                    groups[metric.metric].append(metric.value)
+                for metric, group in groups.items():
+                    metrics[metric].append((name, func(group)))
+
         for metric_name, values in sorted(metrics.items()):
             data_matrix[metric_name][idx] += [v for _, v in sorted(values)]
             instances = [n for n, _ in sorted(values)]
             
         idx += 1
-   
+    
+
     idx = 0
     colors = ['b', 'g', 'r', 'y']
     for metric, matrix in data_matrix.items():
+        plot_name = f"{plot_base}_{metric}.png"
+
         ax = plt.subplot(111)
         x = np.arange(len(plot_data))
         
         transp = np.transpose(matrix)
-        
+        width = 1. / (len(instances) + 1)
         for i in range(len(transp)):
-            ax.bar(x + .25 * i, transp[i], color = colors[i], width = 0.25)
+            ax.bar(x + width * i, transp[i], color = colors[i], width = width)
         ax.get_xaxis().set_visible(False)
         plt.ylabel(metric)
         
-        ax.legend(instances, loc=2)
-        plt.show()
+        ax.legend(instances, loc=1)
+        plt.savefig(plot_name)
         plt.cla()
         
         idx += 1
