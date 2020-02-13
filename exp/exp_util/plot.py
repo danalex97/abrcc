@@ -65,7 +65,7 @@ def plot_bar(
     
 
     idx = 0
-    colors = ['b', 'g', 'r', 'y']
+    colors = ['b', 'g', 'r', 'y', 'c', 'm']
     for metric, matrix in data_matrix.items():
         plot_name = f"{plot_base}_{metric}.png"
 
