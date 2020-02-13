@@ -256,6 +256,30 @@ def generate_plots(args: Namespace) -> None:
     ])
 
 
+@experiment
+def test(args: Namespace) -> None:
+    experiments = []
+    experiment_path = str(Path("experiments") / "test")
+    os.system(f"mkdir -p {experiment_path}")
+    
+    for bandwidth in [3, 2, 1]:
+        for latency in [500]:
+            # pensieve vs worthed abr
+            subpath = str(Path(experiment_path) / "versus_pensieve")
+            for cc in ['bbr', 'cubic']:
+                server1 = f"--algo pensieve --name pensieve --cc {cc}" 
+                server2 = "--server-algo target --name abrcc --cc abbr"
+                
+                path = str(Path(subpath) / f"{cc}_{bandwidth}_{latency}")
+                run_subexp(bandwidth, latency, path, server1, server2, burst=2000, force_run=True)
+                experiments.append(Experiment(
+                    path = str(Path(path) / "leader_plots.log"),
+                    latency = latency,
+                    bandwidth = bandwidth,
+                    extra = ["versus", "pensieve", cc, "target"],
+                ))
+ 
+
 if __name__ == "__main__":
     parser = ArgumentParser(description=
         f'Run experiment setup in this Python file. ' +
