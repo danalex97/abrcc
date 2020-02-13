@@ -18,6 +18,7 @@
 #include "net/third_party/quiche/src/quic/core/quic_unacked_packet_map.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
+#include "net/abrcc/cc/cc_selector.h"
 #include "net/abrcc/cc/singleton.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
 
@@ -71,6 +72,7 @@ class QUIC_EXPORT_PRIVATE BbrAdapter : public SendAlgorithmInterface {
     bool canProbeRtt;
 
     BbrAdapter *parent;
+    bool no_adaptation;
     mutable QuicMutex rtt_probe_mutex_;
     mutable QuicMutex pacing_cycle_mutex_; 
 

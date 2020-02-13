@@ -23,11 +23,14 @@ class CCSelector {
   
   SendAlgorithmInterface* getSendAlgorithmInterface();
   void setSendAlgorithmInterface(SendAlgorithmInterface* interface);
+ 
+  bool getNoAdaptation(); 
  private:
   CCSelector(); 
 
   CongestionControlType type;
   SendAlgorithmInterface* interface;
+  bool no_adaptation;
 };
 
 }

@@ -7,11 +7,15 @@ CCSelector* CCSelector::GetInstance() {
   return GET_SINGLETON(CCSelector);
 }
 
-CCSelector::CCSelector() : type(kBBR), interface(nullptr) {}
+CCSelector::CCSelector() : type(kBBR), interface(nullptr), no_adaptation(false) {}
 CCSelector::~CCSelector() {}
 
 CongestionControlType CCSelector::getCongestionControlType() {
   return type;
+}
+
+bool CCSelector::getNoAdaptation() {
+  return no_adaptation;
 }
 
 void CCSelector::setCongestionControlType(const std::string& cc_type) {
@@ -19,6 +23,9 @@ void CCSelector::setCongestionControlType(const std::string& cc_type) {
     type = kBBR;
   } else if (cc_type == "abbr") {
     type = kAbbr;
+  } else if (cc_type == "xbbr") {
+    type = kAbbr;
+    no_adaptation = true;
   } else if (cc_type == "pcc") {
     type = kPCC;
   } else if (cc_type == "cubic") {

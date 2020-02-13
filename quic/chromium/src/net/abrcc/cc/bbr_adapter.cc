@@ -71,6 +71,10 @@ BbrAdapter::BbrInterface* BbrAdapter::BbrInterface::GetInstance() {
 }
 
 void BbrAdapter::BbrInterface::proposePacingGainCycle(const std::vector<float>& gain) {
+  if (no_adaptation) {
+    return;
+  }
+  
   auto to_str = [](const std::vector<float>& v) {
     std::string out;
     out += "[";
@@ -90,6 +94,10 @@ void BbrAdapter::BbrInterface::proposePacingGainCycle(const std::vector<float>& 
 }
 
 void BbrAdapter::BbrInterface::updatePacingGainCycle() {
+  if (no_adaptation) {
+    return;
+  }
+  
   QuicWriterMutexLock lock(&pacing_cycle_mutex_);
   QUIC_LOG(WARNING) << "[BBR Adapter] updating pacing gain cycle";
 
@@ -186,6 +194,10 @@ base::Optional<int> BbrAdapter::BbrInterface::RttEstimate() const {
 }
 
 void BbrAdapter::BbrInterface::setRttProbing(bool rttProbing) {
+  if (no_adaptation) {
+    return;
+  }
+  
   QuicWriterMutexLock lock(&rtt_probe_mutex_);
   canProbeRtt = rttProbing;
 }
@@ -199,7 +211,11 @@ BbrAdapter::BbrInterface::BbrInterface()
   : kPacingGain(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1})
   , canProbeRtt(true)
   , parent(nullptr) 
-  {}
+{ 
+  auto *selector = CCSelector::GetInstance();
+  no_adaptation = selector->getNoAdaptation();
+}
+
 BbrAdapter::BbrInterface::~BbrInterface() {}
 
 void BbrAdapter::changeMode(BbrAdapter::Mode newMode) {
