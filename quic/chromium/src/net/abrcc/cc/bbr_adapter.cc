@@ -55,6 +55,9 @@ const float kModerateProbeRttMultiplier = 0.75;
 // we don't need to enter PROBE_RTT.
 const float kSimilarMinRttThreshold = 1.125;
 
+// ABRCC constants 
+const float minimum_proposals = 5;
+
 }  // namespace
 
 
@@ -132,7 +135,7 @@ void BbrAdapter::BbrInterface::updatePacingGainCycle() {
     return out;
   };
   
-  if (!best_proposal.empty() && kPacingGainProposals.size() > 10) {
+  if (!best_proposal.empty() && kPacingGainProposals.size() >= minimum_proposals) {
     QUIC_LOG(WARNING) << "[BBR Adapter] chosen proposal " << to_str(best_proposal) 
                       << " with " << most_votes << " votes";
   

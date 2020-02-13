@@ -685,8 +685,8 @@ namespace TargetAbrConstants {
 
   // constants used for QoE function weights
   const double alpha = 1.;
-  const double beta = 2.5; // 5. instead of 2.5
-  const double gamma = 25.; // 100. instead of 25.
+  const double beta = 2.5; 
+  const double gamma = 25.; 
 
   // constants for bandwidth estimator
   const int bandwidth_window = 6;
@@ -810,12 +810,16 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
 
   // DP
   std::function<size_t (const state_t &)> hash = [](const state_t& state) {
-    return std::hash<int>()(state.segment) ^ std::hash<int>()(state.buffer);
+    size_t seed = 0;
+    seed ^= std::hash<int>()(state.segment) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    seed ^= std::hash<int>()(state.buffer) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    seed ^= std::hash<int>()(state.quality) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+    return seed;
   };
   std::unordered_map<state_t, value_t, std::function<size_t (const state_t&)> > dp(0, hash);
   std::unordered_set<state_t, std::function<size_t (const state_t&)> > curr_states(0, hash);
 
-  int buffer_unit = 20;
+  int buffer_unit = 40;
   int max_buffer = 40 * ::SECOND / buffer_unit;
   state_t null_state, start_state(last_index, start_buffer / buffer_unit, current_quality);
   dp[start_state] = value_t(0, current_vmaf, null_state);
@@ -829,7 +833,9 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
 
     std::unordered_set<state_t, std::function<size_t (const state_t&)> > next_states(0, hash);
     for (auto &from : curr_states) {
-      for (int chunk_quality = 0; chunk_quality < TargetAbrConstants::qualities; ++chunk_quality) {
+      int max_quality = std::min(TargetAbrConstants::qualities - 1, from.quality + 1);
+      int min_quality = std::max(0, from.quality - 2);
+      for (int chunk_quality = min_quality; chunk_quality <= max_quality; ++chunk_quality) {
         double current_buffer = from.buffer * buffer_unit;
         double rebuffer = 0;
         
@@ -897,7 +903,7 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   }
   std::reverse(states.begin(), states.end());
   state_t first = states.size() > 1 ? states[1] : states[0];
-  
+ 
   QUIC_LOG(WARNING) << "[TargetAbr] first: " << first << ' ' << dp[first];
   QUIC_LOG(WARNING) << "[TargetAbr] best: " << best << ' ' << dp[best];
   return std::make_pair(dp[best].qoe, first.quality);
@@ -951,18 +957,25 @@ int TargetAbr::decideQuality(int index) {
 }
 
 void TargetAbr::adjustCC() {
-  // Note here we use the adjusted level
-  int bandwidth    = last_bandwidth != base::nullopt 
-    ? last_bandwidth.value().value
-    : TargetAbrConstants::default_bandwidth;
+  // Note we use adjusted level
+  if (last_bandwidth == base::nullopt) { 
+    return;
+  }
 
-  double proportion = bandwidth / bandwidth_target;
-  if (proportion >= 0.9) {
-    interface->proposePacingGainCycle(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1});
-  } else if (proportion >= 0.4) {
-    interface->proposePacingGainCycle(std::vector<float>{1.3, 0.8, 1.3, 0.8, 0.8, 1, 1, 1});
-  } else {
-    interface->proposePacingGainCycle(std::vector<float>{1.5, 1, 1.5, 1, 1, 1, 1, 1});
+  int bandwidth = last_bandwidth.value().value;
+  if (bandwidth != last_adjustment_bandwidth) {
+    double proportion = 1. * bandwidth / bandwidth_target;
+    QUIC_LOG(WARNING) << "[TargetAbr] " << bandwidth << ' ' << proportion << '\n';
+    if (proportion >= 1.3) {
+      interface->proposePacingGainCycle(std::vector<float>{1, 0.8, 1, 0.8, 1, 1, 1, 1});
+    } else if (proportion >= 0.9) {
+      interface->proposePacingGainCycle(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1});
+    } else if (proportion >= 0.5) {
+      interface->proposePacingGainCycle(std::vector<float>{1.2, 1, 1.2, 1, 1, 1, 1, 1});
+    } else {
+      interface->proposePacingGainCycle(std::vector<float>{1.5, 1, 1.5, 1, 1, 1, 1, 1});
+    }
+    last_adjustment_bandwidth = bandwidth;
   }
 }
 

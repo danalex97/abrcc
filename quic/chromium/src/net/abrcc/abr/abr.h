@@ -110,6 +110,7 @@ class TargetAbr : public SegmentProgressAbr, public StateTracker {
   std::unique_ptr<structs::MovingAverage<double>> bw_estimator;  
 
   int bandwidth_target;
+  int last_adjustment_bandwidth;
 };
 
 AbrInterface* getAbr(
