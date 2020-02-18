@@ -61,12 +61,16 @@ def retry(tries: int = 5, timeout: int = 600) -> Callable[[Callable], Callable]:
                             kill -TERM $pid
                         done
                     """)
+                    for port in [8001, 8000, 8002, 4000, 4001, 4002, 8080, 8081, 8082, 8008]:
+                        os.system(f"kill -9 $(lsof -t -i:{port})")
+                    os.system("pkill -9 chrome")
+                    time.sleep(20)
             raise RuntimeError("Maximum retries reached")
         return wrapped
     return _retry
 
 
-@retry(tries=5, timeout=900)
+@retry(tries=5, timeout=350)
 def run_subexp(
     bandwidth: int, 
     latency: int, 
@@ -90,7 +94,7 @@ def run_subexp(
     run_cmds(leader_cmd, cmd1, cmd2)
 
 
-@retry(tries=5, timeout=900)
+@retry(tries=5, timeout=350)
 def run_trace(
     path: str, 
     server: str,

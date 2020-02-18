@@ -3,7 +3,7 @@ from pathlib import Path
 
 from exp_util.env import experiment, experiments, run_subexp, run_trace
 from exp_util.data import Experiment, save_experiments, generate_summary, load_experiments
-from exp_util.plot import plot_bar
+from exp_util.plot import plot_bar, plot_cdf
 
 import os
 import time
@@ -75,53 +75,57 @@ def worthed_abr(args: Namespace) -> None:
     experiment_path = str(Path("experiments") / "worthed_abr")
     os.system(f"mkdir -p {experiment_path}")
 
-    for bandwidth in [3, 2, 1]:
-        for latency in [500]:
-            # pensieve vs worthed abr
-            subpath = str(Path(experiment_path) / "versus_pensieve")
-            for cc in ['cubic', 'bbr']:
-                server1 = f"--algo pensieve --name pensieve --cc {cc}" 
-                server2 = "--server-algo worthed --name abrcc --cc abbr"
+    for run_id in range(5):
+        for bandwidth in [4, 3, 2, 1]:
+            for latency in [500]:
+                # pensieve vs worthed abr
+                subpath = str(Path(experiment_path) / "versus_pensieve")
+                for cc in ['cubic', 'bbr']:
+                    server1 = f"--algo pensieve --name pensieve --cc {cc}" 
+                    server2 = "--server-algo worthed --name abrcc --cc abbr"
+                    
+                    path = str(Path(subpath) / f"{cc}_{bandwidth}_{latency}_run{run_id}")
+                    run_subexp(bandwidth, latency, path, server1, server2, burst=2000)
+                    experiments.append(Experiment(
+                        path = str(Path(path) / "leader_plots.log"),
+                        latency = latency,
+                        bandwidth = bandwidth,
+                        extra = ["versus", "pensieve", cc, "worthed"],
+                        run_id = run_id,
+                    ))
                 
-                path = str(Path(subpath) / f"{cc}_{bandwidth}_{latency}")
+
+                # self
+                subpath = str(Path(experiment_path) / "versus_self")
+                server1 = "--server-algo worthed --name abrcc1 --cc abbr"
+                server2 = "--server-algo worthed --name abrcc2 --cc abbr"
+                
+                path = str(Path(subpath) / f"{bandwidth}_{latency}_run{run_id}")
                 run_subexp(bandwidth, latency, path, server1, server2, burst=2000)
                 experiments.append(Experiment(
                     path = str(Path(path) / "leader_plots.log"),
                     latency = latency,
                     bandwidth = bandwidth,
-                    extra = ["versus", "pensieve", cc, "worthed"],
+                    extra = ["self", "worthed"],
+                    run_id = run_id,
                 ))
-            
+        
+                # pensieve vs pensieve
+                subpath = str(Path(experiment_path) / "pensieve")
+                for cc1, cc2 in [('cubic', 'bbr'), ('cubic', 'cubic'), ('bbr', 'bbr')]:
+                    server1 = f"--algo pensieve --name pensieve1 --cc {cc1}" 
+                    server2 = f"--algo pensieve --name pensieve2 --cc {cc2}"
 
-            # self
-            subpath = str(Path(experiment_path) / "versus_self")
-            server1 = "--server-algo worthed --name abrcc1 --cc abbr"
-            server2 = "--server-algo worthed --name abrcc2 --cc abbr"
-            
-            path = str(Path(subpath) / f"{bandwidth}_{latency}")
-            run_subexp(bandwidth, latency, path, server1, server2, burst=2000)
-            experiments.append(Experiment(
-                path = str(Path(path) / "leader_plots.log"),
-                latency = latency,
-                bandwidth = bandwidth,
-                extra = ["self", "worthed"],
-            ))
-    
-            # pensieve vs pensieve
-            subpath = str(Path(experiment_path) / "pensieve")
-            for cc1, cc2 in [('cubic', 'bbr'), ('cubic', 'cubic'), ('bbr', 'bbr')]:
-                server1 = f"--algo pensieve --name pensieve1 --cc {cc1}" 
-                server2 = f"--algo pensieve --name pensieve2 --cc {cc2}"
-
-                path = str(Path(subpath) / f"{cc1}_{cc2}_{bandwidth}_{latency}")
-                run_subexp(bandwidth, latency, path, server1, server2, burst=2000)
-                experiments.append(Experiment(
-                    path = str(Path(path) / "leader_plots.log"),
-                    latency = latency,
-                    bandwidth = bandwidth,
-                    extra = ["pensieve", "alone", f"{cc1}_{cc2}"],
-                ))
-            
+                    path = str(Path(subpath) / f"{cc1}_{cc2}_{bandwidth}_{latency}_run{run_id}")
+                    run_subexp(bandwidth, latency, path, server1, server2, burst=2000)
+                    experiments.append(Experiment(
+                        path = str(Path(path) / "leader_plots.log"),
+                        latency = latency,
+                        bandwidth = bandwidth,
+                        extra = ["pensieve", "alone", f"{cc1}_{cc2}"],
+                        run_id = run_id,
+                    ))
+                
     
     # traces
     subpath = str(Path(experiment_path) / "traces")
@@ -155,61 +159,134 @@ def target_abr(args: Namespace) -> None:
     experiments = []
     experiment_path = str(Path("experiments") / "target_abr")
     os.system(f"mkdir -p {experiment_path}")
+    runner_log = open(str(Path(experiment_path) / 'exp.log'), 'w')
     
-    for bandwidth in [3, 2, 1]:
-        for latency in [500]:
-            # pensieve vs worthed abr
-            subpath = str(Path(experiment_path) / "versus_pensieve")
-            for cc in ['cubic', 'bbr']:
+    for run_id in range(5):
+        for bandwidth in [4, 3, 2, 1]:
+            for latency in [500]:
+                # pensieve vs worthed abr
+                subpath = str(Path(experiment_path) / "versus_pensieve")
+                for cc in ['cubic', 'bbr']:
+                    for adapt in ['abbr', 'xbbr']:
+                        server1 = f"--algo pensieve --name pensieve --cc {cc}" 
+                        server2 = f"--server-algo target --name abrcc --cc {adapt}"
+                        
+                        path = str(Path(subpath) / f"{cc}_{adapt}_{bandwidth}_{latency}_run{run_id}")
+                        runner_log.write(f'> {path}\n')
+                        run_subexp(bandwidth, latency, path, server1, server2, burst=2000)
+                        experiments.append(Experiment(
+                            path = str(Path(path) / "leader_plots.log"),
+                            latency = latency,
+                            bandwidth = bandwidth,
+                            extra = ["versus", "pensieve", cc, adapt, "target"],
+                            run_id = run_id,
+                        ))
+                
+                # self
                 for adapt in ['abbr', 'xbbr']:
-                    server1 = f"--algo pensieve --name pensieve --cc {cc}" 
-                    server2 = f"--server-algo target --name abrcc --cc {adapt}"
+                    subpath = str(Path(experiment_path) / "versus_self")
+                    server1 = f"--server-algo target --name abrcc1 --cc {adapt}"
+                    server2 = f"--server-algo target --name abrcc2 --cc {adapt}"
                     
-                    path = str(Path(subpath) / f"{cc}_{adapt}_{bandwidth}_{latency}")
+                    path = str(Path(subpath) / f"{adapt}_{bandwidth}_{latency}_run{run_id}")
+                    runner_log.write(f'> {path}\n')
                     run_subexp(bandwidth, latency, path, server1, server2, burst=2000)
                     experiments.append(Experiment(
                         path = str(Path(path) / "leader_plots.log"),
                         latency = latency,
                         bandwidth = bandwidth,
-                        extra = ["versus", "pensieve", cc, adapt, "target"],
+                        extra = ["self", "target", adapt],
+                        run_id = run_id,
                     ))
-            
-            # self
-            for adapt in ['abbr', 'xbbr']:
-                subpath = str(Path(experiment_path) / "versus_self")
-                server1 = f"--server-algo target --name abrcc1 --cc {adapt}"
-                server2 = f"--server-algo target --name abrcc2 --cc {adapt}"
-                
-                path = str(Path(subpath) / f"{adapt}_{bandwidth}_{latency}")
-                run_subexp(bandwidth, latency, path, server1, server2, burst=2000)
-                experiments.append(Experiment(
-                    path = str(Path(path) / "leader_plots.log"),
-                    latency = latency,
-                    bandwidth = bandwidth,
-                    extra = ["self", "target", adapt],
-                ))
 
+        # traces
+        subpath = str(Path(experiment_path) / "traces")
+        for latency in [500]:
+            server0 = "--cc xbbr --server-algo target --name abrcc_xbbr"
+            server1 = "--cc abbr --server-algo target --name abrcc"
+            server2 = "--cc bbr --algo pensieve --name pensieve"
+            for name, server in [("pensieve", server2), ("abrcc", server1), ("abrcc_xbbr", server0)]:
+                traces = Path("network_traces")
+                for trace in [str(traces / "bus1.txt"), str(traces / "norway_train_6.txt")]:
+                    trace_name = trace.split('/')[-1].split('.')[0]
+                    path = str(Path(subpath) / f'{name}_{trace_name}_{latency}_run{run_id}')
+                    runner_log.write(f'> {path}\n')
+                    run_trace(path, f"{server} -l {latency} -t {trace}")
+                    experiments.append(Experiment(
+                        path = str(Path(path) / f"{name}_plots.log"),
+                        latency = latency,
+                        trace = trace,
+                        extra = ["traces", "target", trace],
+                        run_id = run_id,
+                    ))
+   
+    if args.dry:
+        print(experiments)
+    else:
+        save_experiments(experiment_path, experiments)
+        generate_summary(experiment_path, experiments)
+
+
+@experiment
+def traces(args: Namespace) -> None:
+    global run_trace, run_subexp
+    if args.dry:
+        run_trace  = lambda *args, **kwargs: None
+        run_subexp = lambda *args, **kwargs: None 
+
+    experiments = []
+    experiment_path = str(Path("experiments") / "traces")
+    os.system(f"mkdir -p {experiment_path}")
+    runner_log = open(str(Path(experiment_path) / 'exp.log'), 'w')
+    
     # traces
-    subpath = str(Path(experiment_path) / "traces")
+    subpath = Path(experiment_path)
     for latency in [500]:
-        server0 = "--cc xbbr --server-algo target --name abrcc_xbbr"
-        server1 = "--cc abbr --server-algo target --name abrcc"
-        server2 = "--cc bbr --algo pensieve --name pensieve"
-        for name, server in [("pensieve", server2), ("abrcc", server1), ("abrcc_xbbr", server0)]:
+        server0 = "--cc xbbr --server-algo target --name target_xbbr"
+        server1 = "--cc abbr --server-algo target --name target"
+        server2 = "--cc bbr --algo pensieve --name pensieve_bbr"
+        server3 = "--cc cubic --algo pensieve --name pensieve_cubic"
+        server4 = "--cc abbr --server-algo worthed --name worthed"
+        for name, server in [
+            ("target_xbbr", server0),
+            ("target", server1), 
+            ("pensieve_bbr", server2), 
+            ("pensieve_cubic", server3), 
+            ("worthed", server4), 
+        ]:
             traces = Path("network_traces")
-            for trace in [str(traces / "bus1.txt"), str(traces / "norway_train_6.txt")]:
+            for trace in [
+                str(traces / "car.txt"), 
+                str(traces / "bus.txt"), 
+                str(traces / "bus1.txt"), 
+                
+                str(traces / "norway_train_6.txt"),
+                str(traces / "norway_train_13.txt"),
+
+                str(traces / "norway_ferry_11.txt"), 
+                str(traces / "norway_ferry_20.txt"),
+                str(traces / "norway_ferry_6.txt"),
+                
+                str(traces / "norway_metro_6.txt"),
+                str(traces / "norway_tram_5.txt"),
+                str(traces / "norway_tram_14.txt"),
+                
+                str(traces / "norway_tram_16.txt"),
+                str(traces / "norway_tram_19.txt"),
+            ]:
                 trace_name = trace.split('/')[-1].split('.')[0]
                 path = str(Path(subpath) / f'{name}_{trace_name}_{latency}')
+                runner_log.write(f'> {path}\n')
                 run_trace(path, f"{server} -l {latency} -t {trace}")
                 experiments.append(Experiment(
                     path = str(Path(path) / f"{name}_plots.log"),
                     latency = latency,
                     trace = trace,
-                    extra = ["traces", "target", trace],
+                    extra = ["traces", name, trace],
                 ))
    
     if args.dry:
-        print(experiments)
+        print(len(experiments))
     else:
         save_experiments(experiment_path, experiments)
         generate_summary(experiment_path, experiments)
@@ -271,6 +348,24 @@ def generate_plots(args: Namespace) -> None:
         (["traces", "target", str(traces / "norway_train_6.txt")], ("abrcc_xbbr", "xtarget") ),
         (["traces", "worthed", str(traces / "norway_train_6.txt")], ("abrcc", "worthed") ),
         (["traces", "target", str(traces / "norway_train_6.txt")], ("pensieve", "pensieve") ),
+    ])
+
+
+@experiment
+def plot_traces(args: Namespace) -> None:
+    experiment_path = str(Path("experiments") / "plots")
+    os.system(f"mkdir -p {experiment_path}")
+    
+    experiments = sum([load_experiments(experiment) for experiment in [
+       str(Path("experiments") / "traces")
+    ]], [])
+
+    plot_cdf(str(Path(experiment_path) / "traces"), experiments, [
+        (["traces", "target_xbbr"], ("target_xbbr", "xtarget") ),
+        (["traces", "target"], ("target", "target") ),
+        (["traces", "pensieve_bbr"], ("pensieve_bbr", "pensieve_bbr") ),
+        (["traces", "pensieve_cubic"], ("pensieve_cubic", "pensieve_cubic") ),
+        (["traces", "worthed"], ("worthed", "worthed") ),
     ])
 
 
