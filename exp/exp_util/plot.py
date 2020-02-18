@@ -8,10 +8,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-Tags = List[str]
-Instance = Union[str, Callable]
+Tag = List[str]
+
 Name = str
-TagMapping = Tuple[List[str], Tuple[Instance, Name]]
+Instance = Union[str, Callable]
+Plane = int
+
+TagMapping = Tuple[Tag, Tuple[Instance, Name, Plane]]
 
 
 def plot_cdf(
@@ -42,6 +45,7 @@ def plot_cdf(
         for exp, instance_name in exp_inst: 
             instance: Instance = instance_name[0]
             name: str = instance_name[1]
+            plane: int = instance_name[2]
 
             if type(instance) == str:
                 for metric in exp.get_metrics():
@@ -104,7 +108,11 @@ def plot_bar(
 
     idx = 0
     instances = []
-    named_data_matrix = defaultdict(lambda: [[] for _ in range(len(plot_data))])
+    named_data_matrix = defaultdict(
+        lambda: defaultdict(
+            lambda: [[] for _ in range(len(plot_data))]
+        )
+    )
     for env, exp_inst in plot_data.items():
         # get plot path
         latency, bandwidth, trace = env
@@ -114,33 +122,36 @@ def plot_bar(
         for exp, instance_name in exp_inst: 
             instance: Instance = instance_name[0]
             name: str = instance_name[1]
+            plane: int = instance_name[2]
 
             if type(instance) == str:
                 for metric in exp.get_metrics():
                     if metric.instance == instance:
-                        metrics[metric.metric].append((name, metric.value))
+                        metrics[(metric.metric, plane)].append((name, metric.value))
             else:
                 func = instance
                 groups = defaultdict(list)
                 for metric in exp.get_metrics():
                     groups[metric.metric].append(metric.value)
                 for metric, group in groups.items():
-                    metrics[metric].append((name, func(group)))
+                    metrics[(metric, plane)].append((name, func(group)))
 
-        for metric_name, values in sorted(metrics.items()):
+        for metric_name_plane, values in sorted(metrics.items()):
+            metric_name, plane = metric_name_plane
+            
             # group values for multiple runs
             grouped_values = defaultdict(list)
             for name, value in values:
                 grouped_values[name].append(value)
-            print(grouped_values)
-            print()
+            # print(grouped_values)
+            # print()
     
             # average multiple runs
             avg_values = []
             for name, vals in grouped_values.items():
                 avg_values.append((name, sum(vals) / len(vals)))
 
-            named_data_matrix[metric_name][idx] += sorted(avg_values)
+            named_data_matrix[metric_name][plane][idx] += sorted(avg_values)
             if len(avg_values) > len(instances):
                 instances = [n for n, _ in sorted(avg_values)]
             
@@ -151,32 +162,46 @@ def plot_bar(
     for i, instance in enumerate(instances):
         pos[instance] = i
     
-    data_matrix = defaultdict(lambda: [
-        [0] * len(instances) for _ in range(len(plot_data))])
-    for metric, matrix in named_data_matrix.items():
-        for idx, line in enumerate(matrix):
-            for name, value in line:
-                data_matrix[metric][idx][pos[name]] = value
+    data_matrix = defaultdict(
+        lambda: defaultdict(lambda: [
+            [0] * len(instances) for _ in range(len(plot_data))
+        ])
+    )
+    for metric, plane_matrix in named_data_matrix.items():
+        for plane, matrix in sorted(plane_matrix.items()):
+            for idx, line in enumerate(matrix):
+                for name, value in line:
+                    data_matrix[metric][plane][idx][pos[name]] = value
 
     # plot stuff
-    idx = 0
     colors = ['b', 'g', 'r', 'y', 'c', 'm', 'orange', 'mediumspringgreen', 'peru']
-    for metric, matrix in data_matrix.items():
-        plot_name = f"{plot_base}_{metric}.png"
+    for metric, plane_matrix in data_matrix.items(): 
+        hatches = ['x', None]
+        max_plane = max(plane_matrix.keys())
+        if max_plane == 1:
+            hatches = [None]
+        for plane, matrix in sorted(plane_matrix.items()):
+            plot_name = f"{plot_base}_{metric}.png"
 
-        ax = plt.subplot(111)
-        x = np.arange(len(plot_data))
-        
-        transp = np.transpose(matrix)
-       
-        width = 1. / (len(instances) + 1)
-        for i in range(len(transp)):
-            ax.bar(x + width * i, transp[i], color = colors[i], width = width)
+            ax = plt.subplot(111)
+            x = np.arange(len(plot_data))
+            
+            transp = np.transpose(matrix)
+           
+            width = 1. / (len(instances) + 1)
+            for i in range(len(transp)):
+                ax.bar(
+                    x + width * i, 
+                    transp[i], 
+                    color = colors[i], 
+                    width = width * 0.8 ** (max_plane - plane),
+                    alpha = 0.7 ** (max_plane - plane + 1),
+                    hatch = hatches[plane - 1],
+                    # edgecolor = 'white',
+                )
         ax.get_xaxis().set_visible(False)
         plt.ylabel(metric)
         
         ax.legend(instances, loc=1)
         plt.savefig(plot_name)
         plt.cla()
-        
-        idx += 1

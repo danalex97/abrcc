@@ -301,53 +301,43 @@ def generate_plots(args: Namespace) -> None:
        str(Path("experiments") / "target_abr"),
        str(Path("experiments") / "worthed_abr")
     ]], [])
-    plot_bar(str(Path(experiment_path) / "performance_versus_cubic"), experiments, [
-        (["versus", "pensieve", "cubic", "worthed"], ("abrcc", "worthed") ),
-        (["versus", "pensieve", "cubic", "target", "abbr"], ("abrcc", "target") ),
-        (["versus", "pensieve", "cubic", "target", "xbbr"], ("abrcc", "xtarget") ),
-        (["alone", "pensieve", "cubic_cubic"], (max, "pensieve_cubic") ),
-        (["alone", "pensieve", "cubic_bbr"], ("pensieve2", "pensieve_bbr") ),
+    plot_bar(str(Path(experiment_path) / "versus_cubic"), experiments, [
+        # performance
+        (["versus", "pensieve", "cubic", "worthed"], ("abrcc", "worthed", 1) ),
+        (["versus", "pensieve", "cubic", "target", "abbr"], ("abrcc", "target", 1) ),
+        (["versus", "pensieve", "cubic", "target", "xbbr"], ("abrcc", "xtarget", 1) ),
+        (["alone", "pensieve", "cubic_cubic"], (max, "pensieve_cubic", 1) ),
+        (["alone", "pensieve", "cubic_bbr"], ("pensieve2", "pensieve_bbr", 1) ),
+    
+        # fairness
+        (["versus", "pensieve", "cubic", "worthed"], ("pensieve", "worthed", 2) ),
+        (["versus", "pensieve", "cubic", "target", "abbr"], ("pensieve", "target", 2) ),
+        (["versus", "pensieve", "cubic", "target", "xbbr"], ("pensieve", "xtarget", 2) ),
+        (["alone", "pensieve", "cubic_cubic"], (min, "pensieve_cubic", 2) ),
+        (["alone", "pensieve", "cubic_bbr"], ("pensieve1", "pensieve_bbr", 2) ),
     ])
-    plot_bar(str(Path(experiment_path) / "performance_versus_bbr"), experiments, [
-        (["versus", "pensieve", "bbr", "worthed"], ("abrcc", "worthed") ),
-        (["versus", "pensieve", "bbr", "target", "abbr"], ("abrcc", "target") ),
-        (["versus", "pensieve", "bbr", "target", "xbbr"], ("abrcc", "xtarget") ),
-        (["alone", "pensieve", "cubic_bbr"], ("pensieve1", "pensieve_cubic") ),
-        (["alone", "pensieve", "bbr_bbr"], (max, "pensieve_bbr") ),
+    plot_bar(str(Path(experiment_path) / "versus_bbr"), experiments, [
+        # performance
+        (["versus", "pensieve", "bbr", "worthed"], ("abrcc", "worthed", 1) ),
+        (["versus", "pensieve", "bbr", "target", "abbr"], ("abrcc", "target", 1) ),
+        (["versus", "pensieve", "bbr", "target", "xbbr"], ("abrcc", "xtarget", 1) ),
+        (["alone", "pensieve", "cubic_bbr"], ("pensieve1", "pensieve_cubic", 1) ),
+        (["alone", "pensieve", "bbr_bbr"], (max, "pensieve_bbr", 1) ),
+        
+        # fairness
+        (["versus", "pensieve", "bbr", "worthed"], ("pensieve", "worthed", 2) ),
+        (["versus", "pensieve", "bbr", "target", "abbr"], ("pensieve", "target", 2) ),
+        (["versus", "pensieve", "bbr", "target", "xbbr"], ("pensieve", "xtarget", 2) ),
+        (["alone", "pensieve", "cubic_bbr"], ("pensieve2", "pensieve_cubic", 2) ),
+        (["alone", "pensieve", "bbr_bbr"], (min, "pensieve_bbr", 2) ),
     ])
-    plot_bar(str(Path(experiment_path) / "fairness_versus_cubic"), experiments, [
-        (["versus", "pensieve", "cubic", "worthed"], ("pensieve", "worthed") ),
-        (["versus", "pensieve", "cubic", "target", "abbr"], ("pensieve", "target") ),
-        (["versus", "pensieve", "cubic", "target", "xbbr"], ("pensieve", "xtarget") ),
-        (["alone", "pensieve", "cubic_cubic"], (min, "pensieve_cubic") ),
-        (["alone", "pensieve", "cubic_bbr"], ("pensieve1", "pensieve_bbr") ),
-    ])
-    plot_bar(str(Path(experiment_path) / "fairness_versus_bbr"), experiments, [
-        (["versus", "pensieve", "bbr", "worthed"], ("pensieve", "worthed") ),
-        (["versus", "pensieve", "bbr", "target", "abbr"], ("pensieve", "target") ),
-        (["versus", "pensieve", "bbr", "target", "xbbr"], ("pensieve", "xtarget") ),
-        (["alone", "pensieve", "cubic_bbr"], ("pensieve2", "pensieve_cubic") ),
-        (["alone", "pensieve", "bbr_bbr"], (min, "pensieve_bbr") ),
-    ])
+
     plot_bar(str(Path(experiment_path) / "performance_self"), experiments, [
-        (["self", "target", "abbr"], (min, "target") ),
-        (["self", "target", "xbbr"], (min, "xtarget") ),
-        (["self", "worthed"], (min, "worthed") ),
-        (["alone", "pensieve", "cubic_cubic"], (min, "pensieve_cubic") ),
-        (["alone", "pensieve", "bbr_bbr"], (min, "pensieve_bbr") ),
-    ])
-    traces = Path("network_traces")
-    plot_bar(str(Path(experiment_path) / "performance_bus_1"), experiments, [
-        (["traces", "target", str(traces / "bus1.txt")], ("abrcc", "target") ),
-        (["traces", "target", str(traces / "bus1.txt")], ("abrcc_xbbr", "xtarget") ),
-        (["traces", "worthed", str(traces / "bus1.txt")], ("abrcc", "worthed") ),
-        (["traces", "target", str(traces / "bus1.txt")], ("pensieve", "pensieve") ),
-    ])
-    plot_bar(str(Path(experiment_path) / "performance_norway_train_6"), experiments, [
-        (["traces", "target", str(traces / "norway_train_6.txt")], ("abrcc", "target") ),
-        (["traces", "target", str(traces / "norway_train_6.txt")], ("abrcc_xbbr", "xtarget") ),
-        (["traces", "worthed", str(traces / "norway_train_6.txt")], ("abrcc", "worthed") ),
-        (["traces", "target", str(traces / "norway_train_6.txt")], ("pensieve", "pensieve") ),
+        (["self", "target", "abbr"], (min, "target", 1) ),
+        (["self", "target", "xbbr"], (min, "xtarget", 1) ),
+        (["self", "worthed"], (min, "worthed", 1) ),
+        (["alone", "pensieve", "cubic_cubic"], (min, "pensieve_cubic", 1) ),
+        (["alone", "pensieve", "bbr_bbr"], (min, "pensieve_bbr", 1) ),
     ])
 
 
@@ -361,11 +351,11 @@ def plot_traces(args: Namespace) -> None:
     ]], [])
 
     plot_cdf(str(Path(experiment_path) / "traces"), experiments, [
-        (["traces", "target_xbbr"], ("target_xbbr", "xtarget") ),
-        (["traces", "target"], ("target", "target") ),
-        (["traces", "pensieve_bbr"], ("pensieve_bbr", "pensieve_bbr") ),
-        (["traces", "pensieve_cubic"], ("pensieve_cubic", "pensieve_cubic") ),
-        (["traces", "worthed"], ("worthed", "worthed") ),
+        (["traces", "target_xbbr"], ("target_xbbr", "xtarget", 1) ),
+        (["traces", "target"], ("target", "target", 1) ),
+        (["traces", "pensieve_bbr"], ("pensieve_bbr", "pensieve_bbr", 1) ),
+        (["traces", "pensieve_cubic"], ("pensieve_cubic", "pensieve_cubic", 1) ),
+        (["traces", "worthed"], ("worthed", "worthed", 1) ),
     ])
 
 
