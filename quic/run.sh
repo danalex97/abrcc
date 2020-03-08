@@ -137,8 +137,8 @@ function usage() {
     printf "\t %- 30s %s\n" "-s | --server" "Run a quic server."
     printf "\t %- 30s %s\n" "-b | --build" "Build quic client and server."
     printf "\t %- 30s %s\n" "--chrome" "Run a quic client in Chrome."
-    printf "\t %- 30s %s\n" "--cc [congestion-control]" "Select congestion control from [bbr, abbr, xbbr, pcc, cubic, reno]."
-    printf "\t %- 30s %s\n" "--abr [server-abr-type]" "Select server-side abor from [bb, random, worthed, target]."
+    printf "\t %- 30s %s\n" "--cc [congestion-control]" "Select congestion control from [bbr, abbr, xbbr, pcc, cubic, reno, target]."
+    printf "\t %- 30s %s\n" "--abr [server-abr-type]" "Select server-side abor from [bb, random, worthed, target, target2]."
     printf "\t %- 30s %s\n" "--port [int]" "Change the port. (default 6121)"
     printf "\t %- 30s %s\n" "--profile [str]" "Change the chrome profile name to run."
     printf "\t %- 30s %s\n" "(-mp | --metrics-port) [int]" "Change the to which chrome talks to. (default 8080)"
@@ -182,6 +182,8 @@ function parse_command_line_options() {
                     CC=$1
                 elif [ $1 == "reno" ]; then 
                     CC=$1
+                elif [ $1 == "target" ]; then 
+                    CC=$1
                 else
                     echo "Congestion control $1 not recognized."
                 fi
@@ -195,6 +197,8 @@ function parse_command_line_options() {
                 elif [ $1 == "worthed" ]; then
                     ABR=$1
                 elif [ $1 == "target" ]; then 
+                    ABR=$1
+                elif [ $1 == "target2" ]; then 
                     ABR=$1
                 else
                     echo "Abr $1 not recognized."

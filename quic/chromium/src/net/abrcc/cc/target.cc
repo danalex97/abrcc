@@ -55,9 +55,6 @@ const float kModerateProbeRttMultiplier = 0.75;
 // we don't need to enter PROBE_RTT.
 const float kSimilarMinRttThreshold = 1.125;
 
-// ABRCC constants 
-const float minimum_proposals = 5;
-
 }  // namespace
 
 
@@ -65,95 +62,19 @@ const float minimum_proposals = 5;
  * ABRCC Extension -- BEGIN
  **/
 
-
 BbrTarget::BbrInterface* BbrTarget::BbrInterface::GetInstance() {
   return GET_SINGLETON(BbrTarget::BbrInterface);
 }
 
-void BbrTarget::BbrInterface::proposePacingGainCycle(const std::vector<float>& gain) {
-  if (no_adaptation) {
-    return;
-  }
-  
-  auto to_str = [](const std::vector<float>& v) {
-    std::string out;
-    out += "[";
-    for (auto &x : v) {
-      out += std::to_string(x);
-      out += ", ";
-    }
-    out.pop_back();
-    out += "]";
-    return out;
-  };
-
-  QuicWriterMutexLock lock(&pacing_cycle_mutex_);
-  kPacingGainProposals.push_back(gain);
-
-  QUIC_LOG(WARNING) << "new proposal " << to_str(gain);
-}
-
-void BbrTarget::BbrInterface::updatePacingGainCycle() {
-  if (no_adaptation) {
-    return;
-  }
-  
-  QuicWriterMutexLock lock(&pacing_cycle_mutex_);
-  QUIC_LOG(WARNING) << "[BBR Adapter] updating pacing gain cycle";
-
-  auto votes = std::map<
-    std::vector<float>, 
-    int, 
-    std::function<bool(const std::vector<float>&, const std::vector<float>&)>> {
-      [](const auto& a, const auto& b) {
-        for (int i = 0; i < int(std::min(a.size(), b.size())); ++i) {
-          if (a[i] < b[i]) {
-            return true;
-          } else if (a[i] > b[i]) {
-            return false;
-          }
-        }
-        return a.size() < b.size();
-      }
-  };
- 
-  int most_votes = 0;
-  std::vector<float> best_proposal;
-  for (auto &proposal : kPacingGainProposals) {
-    if (votes.find(proposal) == votes.end()) {
-      votes[proposal] = 0;
-    }
-    votes[proposal]++;
-
-    if (votes[proposal] > most_votes) {
-      most_votes = votes[proposal];
-      best_proposal = proposal;
-    }
-  }
-
-  auto to_str = [](const std::vector<float>& v) {
-    std::string out;
-    out += "[";
-    for (auto &x : v) {
-      out += std::to_string(x);
-      out += ", ";
-    }
-    out.pop_back();
-    out += "]";
-    return out;
-  };
-  
-  if (!best_proposal.empty() && kPacingGainProposals.size() >= minimum_proposals) {
-    QUIC_LOG(WARNING) << "[BBR Adapter] chosen proposal " << to_str(best_proposal) 
-                      << " with " << most_votes << " votes";
-  
-    kPacingGain = best_proposal; 
-    kPacingGainProposals.clear();
- }
-}
-
 std::vector<float> BbrTarget::BbrInterface::getPacingGainCycle() {
   return kPacingGain;
+}
+
+std::vector<int> BbrTarget::BbrInterface::popDeliveryRates() {
+  QuicWriterMutexLock lock(&delivery_rates_mutex_);
+  std::vector<int> out = deliveryRates;
+  deliveryRates = std::vector<int>();
+  return out;
 }
 
 int BbrTarget::BbrInterface::getGainCycleLength() {
@@ -169,19 +90,25 @@ void BbrTarget::BbrInterface::setParent(BbrTarget *parent) {
   this->parent = parent;
 }
 
-base::Optional<int> BbrTarget::BbrInterface::BandwidthEstimate() const {
-  if (parent == nullptr) {
-    return base::nullopt; 
-  }
-  return parent->BandwidthEstimate().ToKBitsPerSecond();
-}
-
 base::Optional<float> BbrTarget::BbrInterface::PacingGain() const {
   QuicReaderMutexLock lock(&pacing_cycle_mutex_);
   if (parent == nullptr) {
     return base::nullopt;
   }
   return parent->pacing_gain_;
+}
+
+base::Optional<int> BbrTarget::BbrInterface::getTargetRate() const { 
+  QuicReaderMutexLock lock(&target_rate_mutex_);
+  if (parent == nullptr) {
+    return base::nullopt;
+  }
+  return targetRate;
+}
+
+void BbrTarget::BbrInterface::setTargetRate(int rate) {
+  QuicWriterMutexLock lock(&target_rate_mutex_);
+  targetRate = rate;
 }
 
 base::Optional<int> BbrTarget::BbrInterface::RttEstimate() const {
@@ -193,28 +120,11 @@ base::Optional<int> BbrTarget::BbrInterface::RttEstimate() const {
     : base::nullopt;
 }
 
-void BbrTarget::BbrInterface::setRttProbing(bool rttProbing) {
-  if (no_adaptation) {
-    return;
-  }
-  
-  QuicWriterMutexLock lock(&rtt_probe_mutex_);
-  canProbeRtt = rttProbing;
-}
-
-bool BbrTarget::BbrInterface::allowRttProbing() {
-  QuicReaderMutexLock lock(&rtt_probe_mutex_);
-  return canProbeRtt;
-}
-
 BbrTarget::BbrInterface::BbrInterface() 
   : kPacingGain(std::vector<float>{1.25, 0.75, 1, 1, 1, 1, 1, 1})
-  , canProbeRtt(true)
-  , parent(nullptr) 
-{ 
-  auto *selector = CCSelector::GetInstance();
-  no_adaptation = selector->getNoAdaptation();
-}
+  , deliveryRates(std::vector<int>{})
+  , targetRate(base::nullopt)
+  , parent(nullptr) {} 
 
 BbrTarget::BbrInterface::~BbrInterface() {}
 
@@ -619,6 +529,16 @@ QuicTime::Delta BbrTarget::GetMinRtt() const {
 
 QuicByteCount BbrTarget::GetTargetCongestionWindow(float gain) const {
   QuicByteCount bdp = GetMinRtt() * BandwidthEstimate();
+  
+  // [Target] We modify this the Target received from the front-end
+  auto maybe_target_bandwidth = interface->getTargetRate();
+  if (maybe_target_bandwidth != base::nullopt) {
+    auto target_bandwidth = quic::QuicBandwidth::FromKBitsPerSecond(
+      (BandwidthEstimate().ToKBitsPerSecond() + maybe_target_bandwidth.value()) / 2
+    );
+    bdp = GetMinRtt() * target_bandwidth;
+  }
+
   QuicByteCount congestion_window = gain * bdp;
 
   // BDP estimate will be zero if no bandwidth samples are available yet.
@@ -695,6 +615,9 @@ bool BbrTarget::UpdateRoundTripCounter(QuicPacketNumber last_acked_packet) {
 bool BbrTarget::UpdateBandwidthAndMinRtt(
     QuicTime now,
     const AckedPacketVector& acked_packets) {
+  // Use lock to register delivery rates
+  QuicWriterMutexLock lock(&interface->delivery_rates_mutex_);
+  
   QuicTime::Delta sample_min_rtt = QuicTime::Delta::Infinite();
   for (const auto& packet : acked_packets) {
     BandwidthSample bandwidth_sample =
@@ -704,6 +627,11 @@ bool BbrTarget::UpdateBandwidthAndMinRtt(
       // packet has been acked or marked as lost previously.
       continue;
     }
+
+    // Register delivery rates
+    interface->deliveryRates.push_back(
+      bandwidth_sample.bandwidth.ToKBitsPerSecond()
+    );
 
     last_sample_is_app_limited_ = bandwidth_sample.state_at_send.is_app_limited;
     has_non_app_limited_sample_ |=
@@ -794,11 +722,6 @@ void BbrTarget::UpdateGainCyclePhase(QuicTime now,
   if (should_advance_gain_cycling) {
     cycle_current_offset_ = (cycle_current_offset_ + 1) % interface->getGainCycleLength();
     last_cycle_start_ = now;
-
-    // If we finished a gain cycle, then we look at the poposals
-    if (cycle_current_offset_ == 0) {
-      interface->updatePacingGainCycle();
-    }
   
     // Stay in low gain mode until the target BDP is hit.
     // Low gain mode will be exited immediately when the target BDP is achieved.
@@ -863,7 +786,7 @@ void BbrTarget::OnExitStartup(QuicTime now) {
 void BbrTarget::MaybeEnterOrExitProbeRtt(QuicTime now,
                                          bool is_round_start,
                                          bool min_rtt_expired) {
-  if (min_rtt_expired && !exiting_quiescence_ && mode_ != PROBE_RTT && interface->allowRttProbing()) {
+  if (min_rtt_expired && !exiting_quiescence_ && mode_ != PROBE_RTT) {
     if (InSlowStart()) {
       OnExitStartup(now);
     }
@@ -949,6 +872,16 @@ void BbrTarget::CalculatePacingRate() {
   }
 
   QuicBandwidth target_rate = pacing_gain_ * BandwidthEstimate();
+  
+  // [Target] Modify target_rate
+  auto maybe_target_bandwidth = interface->getTargetRate();
+  if (maybe_target_bandwidth != base::nullopt) {
+    auto target_bandwidth = quic::QuicBandwidth::FromKBitsPerSecond(
+      (BandwidthEstimate().ToKBitsPerSecond() + maybe_target_bandwidth.value()) / 2
+    );
+    target_rate = pacing_gain_ * target_bandwidth;
+  }
+
   if (is_at_full_bandwidth_) {
     pacing_rate_ = target_rate;
     return;

@@ -34,36 +34,34 @@ class QUIC_EXPORT_PRIVATE BbrTarget : public SendAlgorithmInterface {
     static BbrInterface* GetInstance();
 
     // controlling gain cycle
-    void proposePacingGainCycle(const std::vector<float>& gain);
     std::vector<float> getPacingGainCycle();
     int getGainCycleLength();
     QuicRoundTripCount kBandwidthWindowSize();
     
-    // should be called 
-    void updatePacingGainCycle();
-   
-    // allow/ban rtt probing
-    void setRttProbing(bool rttProbing); 
-    bool allowRttProbing();
-
     // attach parent when instance changes
     void setParent(BbrTarget* parent);
     
     // estimates
-    base::Optional<int> BandwidthEstimate() const;
     base::Optional<float> PacingGain() const;
     base::Optional<int> RttEstimate() const; 
+   
+    // delivery rate samples
+    std::vector<int> popDeliveryRates();
+   
+    // target 
+    void setTargetRate(int targetRate);
+    base::Optional<int> getTargetRate() const;
    private:
     BbrInterface();
 
-    std::vector< std::vector<float> > kPacingGainProposals;
     std::vector<float> kPacingGain;  
-    bool canProbeRtt;
+    std::vector<int> deliveryRates;
+    base::Optional<int> targetRate;
 
     BbrTarget *parent;
-    bool no_adaptation;
-    mutable QuicMutex rtt_probe_mutex_;
+    mutable QuicMutex delivery_rates_mutex_;
     mutable QuicMutex pacing_cycle_mutex_; 
+    mutable QuicMutex target_rate_mutex_;
 
     friend class BbrTarget;
   };

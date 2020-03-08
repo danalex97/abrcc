@@ -1141,36 +1141,26 @@ void TargetAbr2::registerMetrics(const abr_schema::Metrics &metrics) {
       last_buffer_level = *buffer_level;
     }
   }
-  
-  // [TODO] Not OK...
-  // update bandwidth estiamte
-  auto bandwidth = interface->BandwidthEstimate();
-  if (bandwidth != base::nullopt) {
-    // limit the bandwidth estimate downloards
-    auto bw_value = std::min(bandwidth.value(), StateTrackerConstants::bitrate_array.back());
-    auto current_gain = interface->PacingGain();
-    if (current_gain != base::nullopt && current_gain.value() > 1) {
-      // scale down(or up) bw value based on current gain
-      // we need this since the current gain is positive during aggresive cycles 
-      bw_value = (1.0 / current_gain.value()) * bw_value;
-    }
-    
-    last_bandwidth = abr_schema::Value(bw_value, last_timestamp);
-    if (average_bandwidth->empty() 
-        || bw_value != average_bandwidth->last()) {
-       // [TODO] what happens is the bandwidth is large constantly: i.e. bitrate_array.back()
-      
-      if (!average_bandwidth->empty() && bw_value <= average_bandwidth->value() * 0.7) {
-        // if the BW dropped fast, we drop the average as well
-        // note this takes into accout the scaling down of the pacing cycle
-        average_bandwidth->sample(bw_value);
-      }
-      average_bandwidth->sample(bw_value);
-    }
+ 
+  // [StateTracker] Update Bandwidth estimate
+  // Get the bandwidth estiamte as the maximum delivery rate 
+  // encountered from the last metrics registeration: i.e. 100ms
+  int best_bw_estimate = 0;
+  for (auto &delivery_rate : interface->popDeliveryRates()) {
+    best_bw_estimate = std::max(best_bw_estimate, delivery_rate);
   }
 
-  // [TODO] Not OK...
-  // update rtt estiamte
+  if (best_bw_estimate != 0) {
+    // limit the bandwidth estimate downloards
+    auto bw_value = std::min(best_bw_estimate, StateTrackerConstants::bitrate_array.back());
+    
+    // register last bandwidth
+    last_bandwidth = abr_schema::Value(bw_value, last_timestamp);
+    average_bandwidth->sample(bw_value); 
+    bw_estimator->sample(bw_value);
+  }
+ 
+  // [StateTracker] update rtt estiamte
   auto rtt = interface->RttEstimate();
   if (rtt != base::nullopt) {
     last_rtt = abr_schema::Value(rtt.value(), last_timestamp);
@@ -1181,14 +1171,6 @@ void TargetAbr2::registerMetrics(const abr_schema::Metrics &metrics) {
   }
   if (!average_bandwidth->empty()) {
     QUIC_LOG(WARNING) << " [bw avg] " << average_bandwidth->value();
-  }
-
-  // [TODO] Not OK..
-  // update future estiamte
-  if (interface->BandwidthEstimate() != base::nullopt) {
-    if (bw_estimator->empty() || last_bandwidth.value().value != bw_estimator->last()) {
-      bw_estimator->sample(last_bandwidth.value().value);
-    }
   }
 
   adjustCC();
@@ -1213,7 +1195,7 @@ int TargetAbr2::decideQuality(int index) {
   int step = TargetAbrConstants::step;
   while (
     bandwidth_target - step >= min_bw && 
-    qoe(bandwidth_target - step).first >= TargetAbrConstants::qoe_percentile * qoe_max_bw
+    qoe(bandwidth_target - step).first >= .95 * qoe_max_bw
   ) {
     bandwidth_target -= step;
   }
@@ -1222,6 +1204,9 @@ int TargetAbr2::decideQuality(int index) {
   QUIC_LOG(WARNING) << "[TargetAbr2] bandwidth current: " << bandwidth;
   QUIC_LOG(WARNING) << "[TargetAbr2] bandwidth estimator: " << estimator;
   QUIC_LOG(WARNING) << "[TargetAbr2] bandwidth target: " << bandwidth_target;
+
+  // Adjust target rate
+  interface->setTargetRate(bandwidth_target); 
 
   // Return next quality
   return qoe(TargetAbrConstants::safe_downscale * bandwidth).second;
