@@ -1208,6 +1208,8 @@ component("net") {
       "abrcc/cc/cc_selector.h",
       "abrcc/cc/bbr_adapter.cc",
       "abrcc/cc/bbr_adapter.h",
+      "abrcc/cc/target.cc",
+      "abrcc/cc/target.h",
       "third_party/quiche/src/quic/core/congestion_control/bbr_sender.cc",
       "third_party/quiche/src/quic/core/congestion_control/bbr_sender.h",
       "third_party/quiche/src/quic/core/congestion_control/cubic_bytes.cc",
@@ -3648,7 +3650,9 @@ if (!is_ios) {
       "abrcc/cc/cc_wrapper.h",
       "abrcc/cc/bbr_adapter.cc",
       "abrcc/cc/bbr_adapter.h",
-      
+      "abrcc/cc/target.cc",
+      "abrcc/cc/target.h",
+
       "abrcc/service/schema.cc",
       "abrcc/service/schema.h",
       "abrcc/service/metrics_service.cc",

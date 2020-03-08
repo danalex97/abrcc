@@ -32,6 +32,8 @@ void CCSelector::setCongestionControlType(const std::string& cc_type) {
     type = kCubicBytes; 
   } else if (cc_type == "reno") {
     type = kRenoBytes;
+  } else if (cc_type == "target") {
+    type = kTarget;
   }
 }
 

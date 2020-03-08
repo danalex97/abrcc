@@ -215,6 +215,9 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   // on low bandwidth connections.
   sample.rtt = ack_time - sent_packet.sent_time;
   SentPacketToSendTimeState(sent_packet, &sample.state_at_send);
+  
+  // QUIC_LOG(WARNING) << "sample bw: " << sample.bandwidth << '\n';
+  
   return sample;
 }
 

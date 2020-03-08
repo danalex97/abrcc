@@ -7,6 +7,7 @@
 #include "net/abrcc/cc/cc_wrapper.h"
 #include "net/abrcc/cc/cc_selector.h"
 #include "net/abrcc/cc/bbr_adapter.h"
+#include "net/abrcc/cc/target.h"
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/tcp_cubic_sender_bytes.h"
@@ -44,6 +45,12 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
     case kAbbr:
       QUIC_LOG(WARNING) << "Using Adapter BBR";
       instance = new BbrAdapter(clock->ApproximateNow(), rtt_stats, unacked_packets,
+                           initial_congestion_window, max_congestion_window,
+                           random, stats);
+      break;
+    case kTarget:
+      QUIC_LOG(WARNING) << "Using Target CC";
+      instance = new BbrTarget(clock->ApproximateNow(), rtt_stats, unacked_packets,
                            initial_congestion_window, max_congestion_window,
                            random, stats);
       break;
