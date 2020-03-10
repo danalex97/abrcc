@@ -86,7 +86,7 @@ def plot_cdf(
         plt.ylabel('CDF')
         plt.xlabel(metric)
         
-        plt.savefig(plot_name)
+        plt.savefig(plot_name, dpi=900)
         ax.cla()
 
 
@@ -203,5 +203,5 @@ def plot_bar(
         plt.ylabel(metric)
         
         ax.legend(instances, loc=1)
-        plt.savefig(plot_name)
+        plt.savefig(plot_name, dpi=900)
         plt.cla()
