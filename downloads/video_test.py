@@ -26,7 +26,8 @@ def server() -> None:
 
 
 def run(args: Namespace) -> None:
-    template = generate_template(args.manifest)
+    manifest = f'../videos/{args.name}/tracks/manifest.mpd'
+    template = generate_template(manifest)
     
     os.system('mkdir tmp')
     tmp = 'tmp/template.html'
@@ -40,5 +41,5 @@ def run(args: Namespace) -> None:
 
 if __name__ == "__main__":
     parser = ArgumentParser(description='Test a DASH.js video from a manifest.') 
-    parser.add_argument('-m', '--manifest', default='../videos/bojack/tracks/manifest.mpd', type=str, help='Manifest path.')
+    parser.add_argument('-n', '--name', default='bojack', type=str, help='Manifest path.')
     run(parser.parse_args()) 
