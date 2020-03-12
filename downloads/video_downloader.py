@@ -64,21 +64,24 @@ def run(args: Namespace) -> None:
 
     # Create common manifest
     base = None
-    id_ctr = 1
     for rate, track_id in tracks.items():
         segment_dir = f'videos/{args.video}/tracks/video_{rate}'
         manifest = f'{segment_dir}/video_{rate}_dash.mpd'
         
         tree = et.parse(manifest)
         tree = tree.getroot()
+        
+        representation = tree[1][0][1]
+        representation.set('id', f"video_{rate}")
+
         if base is None:
             base = tree
+            segment_template = tree[1][0][0]
+            segment_template.set('initialization', '$RepresentationID$/outinit.mp4')
+            segment_template.set('media', '$RepresentationID$/out$Number$.m4s')
         else:
-            representation = tree[1][0][1]
-            representation.set('id', str(id_ctr + 1))
-            id_ctr += 1
             base[1][0].append(representation)
-    
+
     manifest = f'videos/{args.video}/tracks/manifest.mpd'
     print(f'> Creating manifest {manifest}')
     
