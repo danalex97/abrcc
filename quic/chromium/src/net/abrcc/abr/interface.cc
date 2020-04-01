@@ -1,9 +1,6 @@
 #include "net/abrcc/abr/interface.h"
 #include <string>
 
-// Qualities: 0 -> 5
-const int QUALITIES = 6;
-
 namespace abr_schema {
 
 Decision::Decision(int index, int quality, int timestamp) : index(index)
@@ -29,7 +26,7 @@ std::string Decision::resourcePath() {
 }
 
 std::string Decision::videoPath() {
-  return "/video" + std::to_string(QUALITIES - quality) + "/" + std::to_string(index) + ".m4s"; 
+  return "/video" + std::to_string(quality) + "/" + std::to_string(index) + ".m4s"; 
 }
 
 std::string Decision::serialize() {

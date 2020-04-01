@@ -44,6 +44,7 @@ struct DashBackendConfig {
   std::string base_path;
   PlayerConfig player_config;
   std::vector<std::unique_ptr<VideoConfig>> video_configs;
+  int segments;
 
   DashBackendConfig();
   DashBackendConfig(const DashBackendConfig&) = delete;
@@ -56,6 +57,7 @@ struct DashBackendConfig {
     converter->RegisterStringField("base_path", &DashBackendConfig::base_path);
     converter->RegisterRepeatedMessage<VideoConfig>("video_paths", &DashBackendConfig::video_configs);
     converter->RegisterNestedField<PlayerConfig>("player", &DashBackendConfig::player_config);
+    converter->RegisterIntField("segments", &DashBackendConfig::segments);
   }
 };
 

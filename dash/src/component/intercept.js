@@ -2,7 +2,7 @@ import { logging } from '../common/logger';
 
 
 const logger = logging('Intercept');
-export const MAX_QUALITY = 6;
+export const MAX_QUALITY = 5; // [TODO]: eliminate
 
 
 export function makeHeader(quality) {
@@ -146,9 +146,7 @@ export class Interceptor extends InterceptorUtil {
                     let index = processor.index;
                     let quality = processor.quality; 
                     
-                    // [TODO] refactor nicer
-                    if (url.includes('Header')) {
-                        // [TODO] refactor nicer
+                    if (url.includes('init')) {
                         index = makeHeader(MAX_QUALITY - quality + 1); 
                     }
     

@@ -16,17 +16,18 @@ def main(args: Namespace) -> None:
     
     config = {
         "domain" : "www.example.org",
-        "base_path" : "/sites/",
+        "base_path" : "/../", # [TODO] make absolute path
         "player" : {
             "index" : "/index.html",
-            "manifest" : "/{args.video}/manifest.mpd",
+            "manifest" : "/manifest.mpd",
             "player" : "/dist/bundle.js"
         },
+        "segments" : len(vmaf_json[str(qualities[0])]),
         "video_paths" : [
             {
                 "resource" : "/video" + str(len(qualities) - 1 - i),
                 "quality" : q,
-                "path" : f"/sites/{args.video}/video_{q}",
+                "path" : f"/video_{q}",
                 "info" : [
                     vmaf_json[str(q)][str(i + 1)]
                     for i in range(len(vmaf_json[str(q)]))
@@ -36,6 +37,7 @@ def main(args: Namespace) -> None:
     }
 
     # save the video
+    os.system(f'rm -rf {cur_dir}/../quic/sites/{args.video}')
     os.system(f'cp -r {cur_dir}/videos/{args.video}/tracks {cur_dir}/../quic/sites/{args.video}')
     os.system(f'rm -rf {cur_dir}/../quic/sites/{args.video}/tracks')
 

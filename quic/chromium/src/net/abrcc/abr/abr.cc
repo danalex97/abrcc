@@ -39,7 +39,7 @@ namespace {
 
 }
 
-const int QUALITIES = 6;
+const int QUALITIES = 5; // [TODO] remove
 const int SECOND = 1000; 
 const std::vector<int> bitrateArray = {300, 750, 1200, 1850, 2850, 4300}; // in Kbps
 
@@ -51,7 +51,6 @@ namespace quic {
 
 SegmentProgressAbr::SegmentProgressAbr() : decision_index(1), last_timestamp(0) {}
 SegmentProgressAbr::~SegmentProgressAbr() {}
-
 
 static void log_segment(abr_schema::Segment &segment) {
   switch (segment.state) {
@@ -1228,6 +1227,7 @@ AbrInterface* getAbr(
   std::string dir_path = config_path.substr(0, config_path.find_last_of("/"));
   std::string base_path = dir_path + config->base_path;
   std::string video_info_path = base_path + config->player_config.video_info;
+  
   if (abr_type == "bb") {
     QUIC_LOG(WARNING) << "BB abr selected";
     return new BBAbr();

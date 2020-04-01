@@ -15,6 +15,7 @@ TC=/sbin/tc
 RESET=""
 BURST="20000"
 CERTS=""
+VIDEO="bojack"
 DASH_ARGS=""
 DASH_COMPRESS=""
 VERBOSE=""
@@ -66,7 +67,11 @@ function build_dash_client_npm {
     run_cmd mkdir -p $DST
     run_cmd cp -r $SRC/dist $DST
     run_cmd cp $SRC/index.html $DST
-    run_cmd cp $SRC/manifest.mpd $DST
+
+    run_cmd rm $SRC/manifest.mpd
+    run_cmd cp $DIR/sites/$VIDEO/manifest.mpd $SRC
+    run_cmd cp $DIR/sites/$VIDEO/manifest.mpd $DST
+    
     # [TODO] not great
     run_cmd cp $DIR/../exp/video_info/video_info.csv $DST
 
@@ -83,7 +88,7 @@ function quic_server {
 
     run_cmd $OUT_DIR/dash_server \
         $VERBOSE \
-        --quic_config_path=$DIR/config.json \
+        --quic_config_path=$DIR/sites/$VIDEO/config.json \
         --cc_type=$CC \
         --abr_type=$ABR \
         --port=$PORT \
@@ -136,6 +141,7 @@ function usage() {
     echo -e "\nOptions: "
     printf "\t %- 30s %s\n" "-s | --server" "Run a quic server."
     printf "\t %- 30s %s\n" "-b | --build" "Build quic client and server."
+    printf "\t %- 30s %s\n" "-vid | --video" "Specify name of video to be served."
     printf "\t %- 30s %s\n" "--chrome" "Run a quic client in Chrome."
     printf "\t %- 30s %s\n" "--cc [congestion-control]" "Select congestion control from [bbr, abbr, xbbr, pcc, cubic, reno, target]."
     printf "\t %- 30s %s\n" "--abr [server-abr-type]" "Select server-side abor from [bb, random, worthed, target, target2]."
@@ -161,6 +167,10 @@ function parse_command_line_options() {
                 build net
                 build dash_server
                 exit 0
+                ;;
+            -vid | --video) 
+                shift
+                VIDEO=$1
                 ;;
             -s | --server)
                 FUNC=quic_server

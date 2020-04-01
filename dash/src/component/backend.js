@@ -41,6 +41,7 @@ class Request {
         }
 
         let xhr = new XMLHttpRequest();
+        logger.log('GET', path + resource);
         xhr.open('GET', path + resource);
         if (responseType !== undefined) {
             xhr.responseType = responseType;
@@ -250,7 +251,7 @@ export class HeaderRequest extends Request {
     }
 
     send() {
-        let resource = `/video${this.quality}/Header.m4s`;
+        let resource = `/video${this.quality}/init.mp4`;
         return this._nativeGet(this.shim.basePath, resource, "arraybuffer");
     }
 }

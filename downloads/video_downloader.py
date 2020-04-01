@@ -88,14 +88,15 @@ def run(args: Namespace) -> None:
         run_cmd(f'rm -rf {segment_dir}')
         run_cmd(f'mkdir -p {segment_dir}')
 
-        run_cmd(f'MP4Box -dash {args.segment} -dash-profile live -segment-name out {mp4_video}', verbose=True)
+        run_cmd(f'MP4Box -dash {args.segment} -dash-profile live -segment-name "" {mp4_video}', verbose=True)
         run_cmd(f'mv video_{rate}_dash.mpd {segment_dir}')
-        run_cmd(f'mv out* {segment_dir}')
-
+        run_cmd(f'mv *.m4s {segment_dir}')
+        run_cmd(f'mv init.mp4 {segment_dir}')
+    
         segments = int(run_cmd(f'ls {segment_dir} | grep "m4s" | wc -l'))
         segment_info[rate] = {}
         for segment in range(1, segments + 1):
-            segment_info_raw = run_cmd(f'MP4Box -std -diso {segment_dir}/out{segment}.m4s 2>&1 | grep "SegmentIndexBox"')
+            segment_info_raw = run_cmd(f'MP4Box -std -diso {segment_dir}/{segment}.m4s 2>&1 | grep "SegmentIndexBox"')
             timescale = int(get_attr(segment_info_raw, 'timescale'))
             earliest_time = int(get_attr(segment_info_raw, 'earliest_presentation_time'))
             
@@ -115,7 +116,8 @@ def run(args: Namespace) -> None:
         tree = tree.getroot()
         
         representation = tree[1][0][1]
-        representation.set('id', f"video_{rate}")
+        pl = sorted(list(tracks.keys())).index(rate)
+        representation.set('id', f"video{pl}")
         
         # Save video representation information
         info[rate] = {
@@ -125,10 +127,11 @@ def run(args: Namespace) -> None:
         if base is None:
             base = tree
             segment_template = tree[1][0][0]
-            segment_template.set('initialization', '$RepresentationID$/outinit.mp4')
-            segment_template.set('media', '$RepresentationID$/out$Number$.m4s')
+            segment_template.set('initialization', '$RepresentationID$/init.mp4')
+            segment_template.set('media', '$RepresentationID$/$Number$.m4s')
         else:
             base[1][0].append(representation)
+        run_cmd(f'rm {manifest}')
             
     # Generate manifest
     manifest = f'videos/{args.video}/tracks/manifest.mpd'

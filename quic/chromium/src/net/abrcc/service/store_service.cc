@@ -32,13 +32,13 @@ static void staticRegisterResource(
   const std::string& resource_path, 
   const std::string& resource
 ) {
-  QUIC_LOG(INFO) << "[register resource] " << domain << " -> " << resource 
+  QUIC_LOG(WARNING) << "[register resource] " << domain << " -> " << resource 
                  << " : " << resource_path;
 
   std::ifstream stream(resource_path);
   std::string data((std::istreambuf_iterator<char>(stream)),
                     std::istreambuf_iterator<char>());
-  
+ 
   if (data.size() == 0) {
     std::ifstream stream(resource_path, std::ios::binary);
     std::string bin_data((std::istreambuf_iterator<char>(stream)),
@@ -46,7 +46,7 @@ static void staticRegisterResource(
     data = bin_data;  
   }
 
-  QUIC_LOG(INFO) << "[data] " << data.size() << '\n';
+  QUIC_LOG(WARNING) << "[data] " << data.size() << '\n';
   
   SpdyHeaderBlock response_headers;
   response_headers[":status"] = QuicTextUtils::Uint64ToString(200);
@@ -62,7 +62,7 @@ static void staticRegisterVideo(
   const std::string& resource,
   const int length 
 ) {
-  staticRegisterResource(service, domain, resource_path + "/Header.m4s", resource + "/Header.m4s");
+  staticRegisterResource(service, domain, resource_path + "/init.mp4", resource + "/init.mp4");
   for (int i = 1; i <= length; ++i) {
     std::string file = "/" + QuicTextUtils::Uint64ToString(i) + ".m4s";
     staticRegisterResource(service, domain, resource_path + file, resource + file);
@@ -119,7 +119,7 @@ void StoreService::VideoFromConfig(
    
     QUIC_LOG(INFO) << "Caching resource " << resource << " at path " << path;
     
-    int video_length = 49;
+    int video_length = config->segments;
     threads.push_back(
       registerVideoAsync(config->domain, path, resource, video_length)
     );
