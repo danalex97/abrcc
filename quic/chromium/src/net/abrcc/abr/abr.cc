@@ -48,7 +48,8 @@ const int SEGMENT_TIME = 3594;
 
 namespace quic {
 
-SegmentProgressAbr::SegmentProgressAbr() : decision_index(1), last_timestamp(0) {}
+SegmentProgressAbr::SegmentProgressAbr(const std::shared_ptr<DashBackendConfig>& config) : 
+  config(config), decision_index(1), last_timestamp(0) {}
 SegmentProgressAbr::~SegmentProgressAbr() {}
 
 static void log_segment(abr_schema::Segment &segment) {
@@ -141,7 +142,8 @@ abr_schema::Decision SegmentProgressAbr::decide() {
   }
 }
 
-RandomAbr::RandomAbr() : SegmentProgressAbr() {}
+RandomAbr::RandomAbr(const std::shared_ptr<DashBackendConfig>& config) 
+  : SegmentProgressAbr(config) {}
 RandomAbr::~RandomAbr() {}
 
 int RandomAbr::decideQuality(int index) {
@@ -152,7 +154,8 @@ int RandomAbr::decideQuality(int index) {
   return random_quality;
 }
 
-BBAbr::BBAbr() : SegmentProgressAbr()
+BBAbr::BBAbr(const std::shared_ptr<DashBackendConfig>& config) 
+               : SegmentProgressAbr(config)
                , last_player_time(abr_schema::Value(0, 0)) 
                , last_buffer_level(abr_schema::Value(0, 0)) {} 
 BBAbr::~BBAbr() {}
@@ -331,8 +334,8 @@ namespace WorthedAbrConstants {
   const int segments_upjump_banned = 2;
 }
 
-WorthedAbr::WorthedAbr() 
-  : SegmentProgressAbr()
+WorthedAbr::WorthedAbr(const std::shared_ptr<DashBackendConfig>& config) 
+  : SegmentProgressAbr(config)
   , StateTracker()
   , ban(0)
   , is_rtt_probing(true) {} 
@@ -698,21 +701,11 @@ namespace TargetAbrConstants {
   
   // constants for deciding quality
   const double safe_downscale = .8;
-
-  // consts use for vmaf computation
-  std::map<int, std::string> vmaf_video_mapping = {
-    { 0, "320x180x30_vmaf_score" }, 
-    { 1, "640x360x30_vmaf_score" },
-    { 2, "768x432x30_vmaf_score" },    
-    { 3, "1024x576x30_vmaf_score" },  
-    { 4, "1280x720x30_vmaf_score" }
-  };
 }
 
-TargetAbr::TargetAbr(const std::string &video_info_path) 
-  : SegmentProgressAbr() 
+TargetAbr::TargetAbr(const std::shared_ptr<DashBackendConfig>& config) 
+  : SegmentProgressAbr(config) 
   , StateTracker()
-  , video_info(structs::CsvReader<double>(video_info_path))
   , bw_estimator(new structs::LineFitEstimator<double>(
       TargetAbrConstants::bandwidth_window,
       TargetAbrConstants::time_delta,
@@ -724,8 +717,13 @@ TargetAbr::TargetAbr(const std::string &video_info_path)
 TargetAbr::~TargetAbr() {}
 
 int TargetAbr::vmaf(const int quality, const int index) {
-  // [TODO]
-  return 0;
+  for (auto &video_config : config->video_configs) {
+    std::string resource = "/video" + std::to_string(quality);
+    if (resource == video_config->resource) {
+      return video_config->video_info[index]->vmaf;  
+    }
+  }
+  assert(false);
 }
 
 namespace {
@@ -816,15 +814,11 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   std::unordered_map<state_t, value_t, std::function<size_t (const state_t&)> > dp(0, hash);
   std::unordered_set<state_t, std::function<size_t (const state_t&)> > curr_states(0, hash);
   
-  QUIC_LOG(WARNING) << "WOW3";
-
   int buffer_unit = 40;
   int max_buffer = 40 * ::SECOND / buffer_unit;
   state_t null_state, start_state(last_index, start_buffer / buffer_unit, current_quality);
   dp[start_state] = value_t(0, current_vmaf, null_state);
   curr_states.insert(start_state);
- 
-  QUIC_LOG(WARNING) << "WOW4";
   
   int max_segment = 0;
   for (int current_index = last_index; current_index < start_index + TargetAbrConstants::horizon; ++current_index) {
@@ -988,9 +982,8 @@ void TargetAbr::adjustCC() {
  * TargetAbr2 - begin
  **/
 
-TargetAbr2::TargetAbr2(const std::string &video_info_path) 
-  : SegmentProgressAbr() 
-  , video_info(structs::CsvReader<double>(video_info_path))
+TargetAbr2::TargetAbr2(const std::shared_ptr<DashBackendConfig>& config) 
+  : SegmentProgressAbr(config) 
   , bw_estimator(new structs::LineFitEstimator<double>(
       TargetAbrConstants::bandwidth_window,
       TargetAbrConstants::time_delta,
@@ -1008,8 +1001,13 @@ TargetAbr2::TargetAbr2(const std::string &video_info_path)
 TargetAbr2::~TargetAbr2() {}
 
 int TargetAbr2::vmaf(const int quality, const int index) {
-  auto& key = TargetAbrConstants::vmaf_video_mapping[quality];
-  return static_cast<int>(video_info.get(key, index - 1));
+  for (auto &video_config : config->video_configs) {
+    std::string resource = "/video" + std::to_string(quality);
+    if (resource == video_config->resource) {
+      return video_config->video_info[index]->vmaf;  
+    }
+  }
+  assert(false);
 }
 
 // [TODO] Extract common TargetAbr functions...
@@ -1223,31 +1221,26 @@ void TargetAbr2::adjustCC() {
 
 AbrInterface* getAbr(
   const std::string& abr_type, 
-  const std::shared_ptr<DashBackendConfig>& config,
-  const std::string& config_path
+  const std::shared_ptr<DashBackendConfig>& config
 ) {
-  std::string dir_path = config_path.substr(0, config_path.find_last_of("/"));
-  std::string base_path = dir_path + config->base_path;
-  std::string video_info_path = ""; // [TODO] replace
-  
   if (abr_type == "bb") {
     QUIC_LOG(WARNING) << "BB abr selected";
-    return new BBAbr();
+    return new BBAbr(config);
   } else if (abr_type == "random") {
     QUIC_LOG(WARNING) << "Random abr selected";
-    return new RandomAbr();
+    return new RandomAbr(config);
   } else if (abr_type == "worthed") {
     QUIC_LOG(WARNING) << "Worthed abr selected";
-    return new WorthedAbr();
+    return new WorthedAbr(config);
   } else if (abr_type == "target") {
     QUIC_LOG(WARNING) << "Target abr selected";
-    return new TargetAbr(video_info_path);
+    return new TargetAbr(config);
   } else if (abr_type == "target2") {
     QUIC_LOG(WARNING) << "Target2 abr selected";
-    return new TargetAbr2(video_info_path);
+    return new TargetAbr2(config);
   }
   QUIC_LOG(WARNING) << "Defaulting to BB abr";
-  return new BBAbr();
+  return new BBAbr(config);
 }
 
 }

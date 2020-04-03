@@ -12,7 +12,6 @@
 #include "net/abrcc/service/schema.h"
 
 #include "net/abrcc/structs/averages.h"
-#include "net/abrcc/structs/csv.h"
 
 #include <unordered_map>
 
@@ -20,7 +19,7 @@ namespace quic {
 
 class SegmentProgressAbr : public AbrInterface {
  public:
-  SegmentProgressAbr();
+  SegmentProgressAbr(const std::shared_ptr<DashBackendConfig>& config);
   ~SegmentProgressAbr() override;
 
   void registerMetrics(const abr_schema::Metrics &) override;
@@ -28,6 +27,7 @@ class SegmentProgressAbr : public AbrInterface {
 
   virtual int decideQuality(int index) = 0; 
  protected:
+  const std::shared_ptr<DashBackendConfig>& config;
   std::unordered_map<int, abr_schema::Segment> last_segment;  
   std::unordered_map<int, abr_schema::Decision> decisions; 
   int decision_index;
@@ -39,7 +39,7 @@ class SegmentProgressAbr : public AbrInterface {
 
 class RandomAbr : public SegmentProgressAbr {
  public: 
-  RandomAbr();
+  RandomAbr(const std::shared_ptr<DashBackendConfig>& config);
   ~RandomAbr() override;
 
  int decideQuality(int index) override;
@@ -47,7 +47,7 @@ class RandomAbr : public SegmentProgressAbr {
 
 class BBAbr : public SegmentProgressAbr {
  public:
-  BBAbr();
+  BBAbr(const std::shared_ptr<DashBackendConfig>& config);
   ~BBAbr() override;
 
   void registerMetrics(const abr_schema::Metrics &) override;
@@ -78,7 +78,7 @@ class StateTracker {
 
 class WorthedAbr : public SegmentProgressAbr, public StateTracker {
  public:
-  WorthedAbr();
+  WorthedAbr(const std::shared_ptr<DashBackendConfig>& config);
   ~WorthedAbr() override;
 
   void registerMetrics(const abr_schema::Metrics &) override;
@@ -96,7 +96,7 @@ class WorthedAbr : public SegmentProgressAbr, public StateTracker {
 
 class TargetAbr : public SegmentProgressAbr, public StateTracker {
  public:
-  TargetAbr(const std::string& video_info_path);
+  TargetAbr(const std::shared_ptr<DashBackendConfig>& config);
   ~TargetAbr() override;
  
   void registerMetrics(const abr_schema::Metrics &) override;
@@ -107,7 +107,6 @@ class TargetAbr : public SegmentProgressAbr, public StateTracker {
 
   void adjustCC();
 
-  structs::CsvReader<double> video_info;
   std::unique_ptr<structs::MovingAverage<double>> bw_estimator;  
 
   int bandwidth_target;
@@ -116,7 +115,7 @@ class TargetAbr : public SegmentProgressAbr, public StateTracker {
 
 class TargetAbr2 : public SegmentProgressAbr {
  public:
-  TargetAbr2(const std::string& video_info_path);
+  TargetAbr2(const std::shared_ptr<DashBackendConfig>& config);
   ~TargetAbr2() override;
  
   void registerMetrics(const abr_schema::Metrics &) override;
@@ -127,7 +126,6 @@ class TargetAbr2 : public SegmentProgressAbr {
 
   void adjustCC();
 
-  structs::CsvReader<double> video_info;
   std::unique_ptr<structs::MovingAverage<double>> bw_estimator;  
 
   int bandwidth_target;
@@ -146,8 +144,7 @@ class TargetAbr2 : public SegmentProgressAbr {
 
 AbrInterface* getAbr(
   const std::string& abr_type, 
-  const std::shared_ptr<DashBackendConfig>& config,
-  const std::string& config_path
+  const std::shared_ptr<DashBackendConfig>& config
 );
 
 }

@@ -54,7 +54,7 @@ struct VideoConfig {
     converter->RegisterStringField("resource", &VideoConfig::resource);
     converter->RegisterStringField("path", &VideoConfig::path);
     converter->RegisterIntField("quality", &VideoConfig::quality);
-    converter->RegisterRepeatedMessage<VideoInfo>("video_info", &VideoConfig::video_info);
+    converter->RegisterRepeatedMessage<VideoInfo>("info", &VideoConfig::video_info);
   }
 };
 
