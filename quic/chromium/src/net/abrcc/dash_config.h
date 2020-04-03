@@ -9,7 +9,6 @@ struct PlayerConfig {
   std::string index;
   std::string manifest;
   std::string player;
-  std::string video_info;
 
   PlayerConfig();
   PlayerConfig(const PlayerConfig&) = delete;
@@ -20,13 +19,31 @@ struct PlayerConfig {
     converter->RegisterStringField("index", &PlayerConfig::index);
     converter->RegisterStringField("manifest", &PlayerConfig::manifest);
     converter->RegisterStringField("player", &PlayerConfig::player);
-    converter->RegisterStringField("video_info", &PlayerConfig::video_info);
+  }
+};
+
+struct VideoInfo {
+  double start_time;
+  double vmaf;
+  int size;
+
+  VideoInfo();
+  VideoInfo(const VideoInfo&) = delete;
+  VideoInfo& operator=(const VideoInfo&) = delete;
+  ~VideoInfo();
+
+  static void RegisterJSONConverter(base::JSONValueConverter<VideoInfo>* converter) {
+    converter->RegisterDoubleField("start_time", &VideoInfo::start_time);
+    converter->RegisterDoubleField("vmaf", &VideoInfo::vmaf);
+    converter->RegisterIntField("size", &VideoInfo::size);
   }
 };
 
 struct VideoConfig {
   std::string resource;
   std::string path;
+  int quality;
+  std::vector<std::unique_ptr<VideoInfo>> video_info;
 
   VideoConfig();
   VideoConfig(const VideoConfig&) = delete;
@@ -36,6 +53,8 @@ struct VideoConfig {
   static void RegisterJSONConverter(base::JSONValueConverter<VideoConfig>* converter) {
     converter->RegisterStringField("resource", &VideoConfig::resource);
     converter->RegisterStringField("path", &VideoConfig::path);
+    converter->RegisterIntField("quality", &VideoConfig::quality);
+    converter->RegisterRepeatedMessage<VideoInfo>("video_info", &VideoConfig::video_info);
   }
 };
 

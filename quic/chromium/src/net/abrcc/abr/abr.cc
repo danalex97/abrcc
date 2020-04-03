@@ -29,7 +29,6 @@ namespace {
  
   // [TODO] use the storage service for this
   std::map<int, std::vector<int>> SEGMENTS = std::map<int, std::vector<int>>{
-    {5, std::vector<int>{2354772, 2123065, 2177073, 2160877, 2233056, 1941625, 2157535, 2290172, 2055469, 2169201, 2173522, 2102452, 2209463, 2275376, 2005399, 2152483, 2289689, 2059512, 2220726, 2156729, 2039773, 2176469, 2221506, 2044075, 2186790, 2105231, 2395588, 1972048, 2134614, 2164140, 2113193, 2147852, 2191074, 2286761, 2307787, 2143948, 1919781, 2147467, 2133870, 2146120, 2108491, 2184571, 2121928, 2219102, 2124950, 2246506, 1961140, 2155012, 1433658}},
     {4, std::vector<int>{1728879, 1431809, 1300868, 1520281, 1472558, 1224260, 1388403, 1638769, 1348011, 1429765, 1354548, 1519951, 1422919, 1578343, 1231445, 1471065, 1491626, 1358801, 1537156, 1336050, 1415116, 1468126, 1505760, 1323990, 1383735, 1480464, 1547572, 1141971, 1498470, 1561263, 1341201, 1497683, 1358081, 1587293, 1492672, 1439896, 1139291, 1499009, 1427478, 1402287, 1339500, 1527299, 1343002, 1587250, 1464921, 1483527, 1231456, 1364537, 889412}},
     {3, std::vector<int>{1034108, 957685, 877771, 933276, 996749, 801058, 905515, 1060487, 852833, 913888, 939819, 917428, 946851, 1036454, 821631, 923170, 966699, 885714, 987708, 923755, 891604, 955231, 968026, 874175, 897976, 905935, 1076599, 758197, 972798, 975811, 873429, 954453, 885062, 1035329, 1026056, 943942, 728962, 938587, 908665, 930577, 858450, 1025005, 886255, 973972, 958994, 982064, 830730, 846370, 598850}},
     {2, std::vector<int>{668286, 611087, 571051, 617681, 652874, 520315, 561791, 709534, 584846, 560821, 607410, 594078, 624282, 687371, 526950, 587876, 617242, 581493, 639204, 586839, 601738, 616206, 656471, 536667, 587236, 590335, 696376, 487160, 622896, 641447, 570392, 620283, 584349, 670129, 690253, 598727, 487812, 575591, 605884, 587506, 566904, 641452, 599477, 634861, 630203, 638661, 538612, 550906, 391450}},
@@ -41,7 +40,7 @@ namespace {
 
 const int QUALITIES = 5; // [TODO] remove
 const int SECOND = 1000; 
-const std::vector<int> bitrateArray = {300, 750, 1200, 1850, 2850, 4300}; // in Kbps
+const std::vector<int> bitrateArray = {300, 750, 1200, 1850, 2850}; // [TODO] remove
 
 const int RESERVOIR = 5 * SECOND;
 const int CUSHION = 10 * SECOND;
@@ -706,8 +705,7 @@ namespace TargetAbrConstants {
     { 1, "640x360x30_vmaf_score" },
     { 2, "768x432x30_vmaf_score" },    
     { 3, "1024x576x30_vmaf_score" },  
-    { 4, "1280x720x30_vmaf_score" },
-    { 5, "1280x720x60_vmaf_score" }
+    { 4, "1280x720x30_vmaf_score" }
   };
 }
 
@@ -726,8 +724,8 @@ TargetAbr::TargetAbr(const std::string &video_info_path)
 TargetAbr::~TargetAbr() {}
 
 int TargetAbr::vmaf(const int quality, const int index) {
-  auto& key = TargetAbrConstants::vmaf_video_mapping[quality];
-  return static_cast<int>(video_info.get(key, index - 1));
+  // [TODO]
+  return 0;
 }
 
 namespace {
@@ -806,7 +804,7 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   int current_vmaf = TargetAbr::vmaf(current_quality, last_index); 
   int start_index = last_index + 1;
   int start_buffer = last_buffer_level.value;
-
+  
   // DP
   std::function<size_t (const state_t &)> hash = [](const state_t& state) {
     size_t seed = 0;
@@ -817,6 +815,8 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   };
   std::unordered_map<state_t, value_t, std::function<size_t (const state_t&)> > dp(0, hash);
   std::unordered_set<state_t, std::function<size_t (const state_t&)> > curr_states(0, hash);
+  
+  QUIC_LOG(WARNING) << "WOW3";
 
   int buffer_unit = 40;
   int max_buffer = 40 * ::SECOND / buffer_unit;
@@ -824,6 +824,8 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   dp[start_state] = value_t(0, current_vmaf, null_state);
   curr_states.insert(start_state);
  
+  QUIC_LOG(WARNING) << "WOW4";
+  
   int max_segment = 0;
   for (int current_index = last_index; current_index < start_index + TargetAbrConstants::horizon; ++current_index) {
     if (current_index + 1 >= TargetAbrConstants::segments) {
@@ -1226,7 +1228,7 @@ AbrInterface* getAbr(
 ) {
   std::string dir_path = config_path.substr(0, config_path.find_last_of("/"));
   std::string base_path = dir_path + config->base_path;
-  std::string video_info_path = base_path + config->player_config.video_info;
+  std::string video_info_path = ""; // [TODO] replace
   
   if (abr_type == "bb") {
     QUIC_LOG(WARNING) << "BB abr selected";

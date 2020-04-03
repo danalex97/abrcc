@@ -1,7 +1,22 @@
 from argparse import ArgumentParser, Namespace
+from video_downloader import run_cmd
+from typing import Dict
 
 import os
 import json
+
+
+def process_info(
+    info: Dict[str, float],
+    quality: int, 
+    segment: int,
+    tracks_path: str,
+) -> Dict[str, float]:
+    quality = int(run_cmd(
+        f"du -b '{tracks_path}/video_{quality}/{segment}.m4s' | cut -f1"
+    ))
+    info['size'] = quality
+    return info
 
 
 def main(args: Namespace) -> None:
@@ -29,7 +44,7 @@ def main(args: Namespace) -> None:
                 "quality" : q,
                 "path" : f"/video_{q}",
                 "info" : [
-                    vmaf_json[str(q)][str(i + 1)]
+                    process_info(vmaf_json[str(q)][str(i + 1)], q, i + 1, tracks_path)
                     for i in range(len(vmaf_json[str(q)]))
                 ],
             } for (i, q) in list(enumerate(qualities))
