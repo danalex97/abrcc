@@ -25,31 +25,45 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
-namespace {
- 
-  // [TODO] use the storage service for this
-  std::map<int, std::vector<int>> SEGMENTS = std::map<int, std::vector<int>>{
-    {4, std::vector<int>{1728879, 1431809, 1300868, 1520281, 1472558, 1224260, 1388403, 1638769, 1348011, 1429765, 1354548, 1519951, 1422919, 1578343, 1231445, 1471065, 1491626, 1358801, 1537156, 1336050, 1415116, 1468126, 1505760, 1323990, 1383735, 1480464, 1547572, 1141971, 1498470, 1561263, 1341201, 1497683, 1358081, 1587293, 1492672, 1439896, 1139291, 1499009, 1427478, 1402287, 1339500, 1527299, 1343002, 1587250, 1464921, 1483527, 1231456, 1364537, 889412}},
-    {3, std::vector<int>{1034108, 957685, 877771, 933276, 996749, 801058, 905515, 1060487, 852833, 913888, 939819, 917428, 946851, 1036454, 821631, 923170, 966699, 885714, 987708, 923755, 891604, 955231, 968026, 874175, 897976, 905935, 1076599, 758197, 972798, 975811, 873429, 954453, 885062, 1035329, 1026056, 943942, 728962, 938587, 908665, 930577, 858450, 1025005, 886255, 973972, 958994, 982064, 830730, 846370, 598850}},
-    {2, std::vector<int>{668286, 611087, 571051, 617681, 652874, 520315, 561791, 709534, 584846, 560821, 607410, 594078, 624282, 687371, 526950, 587876, 617242, 581493, 639204, 586839, 601738, 616206, 656471, 536667, 587236, 590335, 696376, 487160, 622896, 641447, 570392, 620283, 584349, 670129, 690253, 598727, 487812, 575591, 605884, 587506, 566904, 641452, 599477, 634861, 630203, 638661, 538612, 550906, 391450}},
-    {1, std::vector<int>{450283, 398865, 350812, 382355, 411561, 318564, 352642, 437162, 374758, 362795, 353220, 405134, 386351, 434409, 337059, 366214, 360831, 372963, 405596, 350713, 386472, 399894, 401853, 343800, 359903, 379700, 425781, 277716, 400396, 400508, 358218, 400322, 369834, 412837, 401088, 365161, 321064, 361565, 378327, 390680, 345516, 384505, 372093, 438281, 398987, 393804, 331053, 314107, 255954}},
-    {0, std::vector<int>{181801, 155580, 139857, 155432, 163442, 126289, 153295, 173849, 150710, 139105, 141840, 156148, 160746, 179801, 140051, 138313, 143509, 150616, 165384, 140881, 157671, 157812, 163927, 137654, 146754, 153938, 181901, 111155, 153605, 149029, 157421, 157488, 143881, 163444, 179328, 159914, 131610, 124011, 144254, 149991, 147968, 161857, 145210, 172312, 167025, 160064, 137507, 118421, 112270}},
-  };
 
-}
-
-const int QUALITIES = 5; // [TODO] remove
 const int SECOND = 1000; 
-const std::vector<int> bitrateArray = {300, 750, 1200, 1850, 2850}; // [TODO] remove
 
 const int RESERVOIR = 5 * SECOND;
 const int CUSHION = 10 * SECOND;
-const int SEGMENT_TIME = 3594;
+const int SEGMENT_TIME = 3594; // [TODO] remove
+const int QUALITIES = 5; // [TODO] remove
 
 namespace quic {
 
 SegmentProgressAbr::SegmentProgressAbr(const std::shared_ptr<DashBackendConfig>& config) : 
-  config(config), decision_index(1), last_timestamp(0) {}
+  config(config), decision_index(1), last_timestamp(0) {
+
+  // compute segments
+  segments = std::vector< std::vector<VideoInfo> >();
+  for (int i = 0; i < int(config->video_configs.size()); ++i) {
+    for (auto &video_config : config->video_configs) {
+      std::string resource = "/video" + std::to_string(i);
+      if (resource == video_config->resource) {
+        std::vector<VideoInfo> info;
+        for (auto &x : video_config->video_info) {
+          info.push_back(VideoInfo(
+            x->start_time,
+            x->vmaf,
+            x->size
+          ));  
+        }
+        segments.push_back(info);
+      }
+    }
+  }
+
+  // compute bitrate array
+  bitrate_array = std::vector<int>();
+  for (auto &video_config : config->video_configs) {
+    bitrate_array.push_back(video_config->quality);
+  }
+  sort(bitrate_array.begin(), bitrate_array.end());
+}
 SegmentProgressAbr::~SegmentProgressAbr() {}
 
 static void log_segment(abr_schema::Segment &segment) {
@@ -66,7 +80,6 @@ static void log_segment(abr_schema::Segment &segment) {
       break;
   }
 }
-
 
 void SegmentProgressAbr::update_segment(abr_schema::Segment segment) {
   last_segment[segment.index] = segment;
@@ -178,7 +191,7 @@ void BBAbr::registerMetrics(const abr_schema::Metrics &metrics) {
 int BBAbr::decideQuality(int index) {
   double bitrate = 0;
   int quality = 0;
-  int n = bitrateArray.size();
+  int n = bitrate_array.size();
   
   if (index == 1) {
     return 0;
@@ -198,17 +211,17 @@ int BBAbr::decideQuality(int index) {
   QUIC_LOG(WARNING) << " [last buffer level] " << buffer_level;
 
   if (buffer_level <= RESERVOIR) {
-    bitrate = bitrateArray[0];
+    bitrate = bitrate_array[0];
   } else if (buffer_level >= RESERVOIR + CUSHION) {
-    bitrate = bitrateArray[n - 1];
+    bitrate = bitrate_array[n - 1];
   } else {
-    bitrate = bitrateArray[0] + 1.0 * (bitrateArray[n - 1] - bitrateArray[0]) 
+    bitrate = bitrate_array[0] + 1.0 * (bitrate_array[n - 1] - bitrate_array[0]) 
                                 * (buffer_level - RESERVOIR) / CUSHION;
   }
 
   for (int i = n - 1; i >= 0; --i) {
     quality = i;
-    if (bitrate >= bitrateArray[i]) {
+    if (bitrate >= bitrate_array[i]) {
       break;
     }
   }
@@ -226,18 +239,18 @@ int BBAbr::decideQuality(int index) {
  **/
 
 namespace StateTrackerConstants { 
-  const std::vector<int> bitrate_array = ::bitrateArray;
   const int bandwidth_window = 10;
 }
 
-StateTracker::StateTracker() 
+StateTracker::StateTracker(std::vector<int> bitrate_array) 
  : interface(BbrAdapter::BbrInterface::GetInstance()) 
  , last_player_time(abr_schema::Value(0, 0)) 
  , last_buffer_level(abr_schema::Value(0, 0)) 
  , average_bandwidth(new structs::WilderEMA<double>(StateTrackerConstants::bandwidth_window))
  , last_bandwidth(base::nullopt) 
  , last_rtt(base::nullopt) 
- , last_timestamp(0) {} 
+ , last_timestamp(0)
+ , _bitrate_array(bitrate_array) {}
 
 StateTracker::~StateTracker() {}
 
@@ -262,7 +275,7 @@ void StateTracker::registerMetrics(const abr_schema::Metrics &metrics) {
   auto bandwidth = interface->BandwidthEstimate();
   if (bandwidth != base::nullopt) {
     // limit the bandwidth estimate downloards
-    auto bw_value = std::min(bandwidth.value(), StateTrackerConstants::bitrate_array.back());
+    auto bw_value = std::min(bandwidth.value(), _bitrate_array.back());
     auto current_gain = interface->PacingGain();
     if (current_gain != base::nullopt && current_gain.value() > 1) {
       // scale down(or up) bw value based on current gain
@@ -311,18 +324,12 @@ void StateTracker::registerMetrics(const abr_schema::Metrics &metrics) {
  **/
 
 namespace WorthedAbrConstants { 
-  const std::vector<int> bitrate_array = ::bitrateArray;
-  std::map<int, std::vector<int> > segment_sizes = ::SEGMENTS;
-  
-  const int default_bandwidth = bitrate_array[0];
-  const int qualities = ::QUALITIES;
   const int segment_size_ms = 4 * ::SECOND;
   const double rebuf_penalty = 4.3;
   const double safe_downscale = 0.75;
 
   const int horizon = 5;
   const int horizon_stochastic = 4;
-  const int segments = 49;
 
   const int reward_delta_stochastic = 4000;
   const int reward_delta = 5000;
@@ -336,13 +343,13 @@ namespace WorthedAbrConstants {
 
 WorthedAbr::WorthedAbr(const std::shared_ptr<DashBackendConfig>& config) 
   : SegmentProgressAbr(config)
-  , StateTracker()
+  , StateTracker(bitrate_array)
   , ban(0)
   , is_rtt_probing(true) {} 
 
 WorthedAbr::~WorthedAbr() {}
 
-static double compute_reward(
+double WorthedAbr::compute_reward(
   std::vector<int> qualities, 
   int start_index, 
   int bandwidth,
@@ -362,11 +369,11 @@ static double compute_reward(
     int chunk_quality = qualities[i];
     int current_index = start_index + i;
 
-    if (current_index > int(WorthedAbrConstants::segment_sizes[chunk_quality].size())) {
+    if (current_index > int(segments[chunk_quality].size())) {
       continue;
     }
 
-    double size_kb = 8. * WorthedAbrConstants::segment_sizes[chunk_quality][current_index] / 1000.;
+    double size_kb = 8. * segments[chunk_quality][current_index].size / 1000.;
     double download_time_ms = size_kb / bandwidth * 1000;
 
     // simulate buffer changes
@@ -379,9 +386,8 @@ static double compute_reward(
     current_buffer += WorthedAbrConstants::segment_size_ms;
     
     // compute the reward
-    bitrate_sum += WorthedAbrConstants::bitrate_array[chunk_quality];
-    smoothness_diff += abs(WorthedAbrConstants::bitrate_array[chunk_quality] 
-                             - WorthedAbrConstants::bitrate_array[last_quality]);
+    bitrate_sum += bitrate_array[chunk_quality];
+    smoothness_diff += abs(bitrate_array[chunk_quality] - bitrate_array[last_quality]);
     last_quality = chunk_quality;
   }
   
@@ -417,7 +423,7 @@ static std::vector<std::vector<int>> cartesian(int depth, int max, double percen
   return out;
 }
 
-static std::pair<double, int> compute_reward_and_quality(
+std::pair<double, int> WorthedAbr::compute_reward_and_quality(
   int start_index, 
   int bandwidth,
   int start_buffer,
@@ -429,10 +435,12 @@ static std::pair<double, int> compute_reward_and_quality(
   double percent = stochastic ? .2 : 1;
   int quality = 0;
   
-  int depth = std::min(WorthedAbrConstants::segments - start_index, WorthedAbrConstants::horizon);
+  int depth = std::min(int(segments[quality].size()) - start_index, WorthedAbrConstants::horizon);
   depth = stochastic ? std::min(depth, WorthedAbrConstants::horizon_stochastic) : depth;
-  for (auto &next : cartesian(depth, WorthedAbrConstants::qualities, percent)) {
-    double reward = compute_reward(next, start_index, bandwidth, start_buffer, current_quality);
+  for (auto &next : cartesian(depth, segments.size(), percent)) {
+    double reward = compute_reward(
+      next, start_index, bandwidth, start_buffer, current_quality
+    );
     if (reward > best) {
       best = reward;
       if (!next.empty()) {
@@ -473,7 +481,7 @@ std::pair<int, int> WorthedAbr::computeRates(bool stochastic) {
   //  - lastest decision
   int bandwidth_kbps = last_bandwidth != base::nullopt 
     ? last_bandwidth.value().value
-    : WorthedAbrConstants::default_bandwidth;
+    : bitrate_array[0];
   int last_index = this->decision_index - 1; 
   int last_quality = this->decisions[last_index].quality;
   // int buffer_level = adjustedBufferLevel(last_index);
@@ -498,7 +506,7 @@ std::pair<int, int> WorthedAbr::computeRates(bool stochastic) {
                                  : WorthedAbrConstants::reward_delta;
 
   double current_bandwidth_kbps = bandwidth_kbps * WorthedAbrConstants::safe_downscale;
-  double max_bandwidth_kbps = 2 * WorthedAbrConstants::bitrate_array[WorthedAbrConstants::qualities - 1];
+  double max_bandwidth_kbps = 2 * bitrate_array.back();
   double reward = reward_safe;
   while (current_bandwidth_kbps <= max_bandwidth_kbps) {
     current_bandwidth_kbps += scale_step_kbps;
@@ -520,10 +528,9 @@ std::pair<int, int> WorthedAbr::computeRates(bool stochastic) {
   return std::make_pair(rate_safe, rate_worthed);
 }
 
-
-static double partial_bw_safe(double bw) {
+double WorthedAbr::partial_bw_safe(double bw) {
   double bw_mbit = bw / 1000.;
-  double bw_max  = WorthedAbrConstants::bitrate_array.back() / 1000.; 
+  double bw_max  = bitrate_array.back() / 1000.; 
 
   if (bw_mbit > bw_max) {
     bw_mbit = bw_max;
@@ -534,9 +541,9 @@ static double partial_bw_safe(double bw) {
   return log(bw_max + 1 - bw_mbit) / 2 / log(bw_max + 1);  
 }
 
-static double factor(double bw, double delta) {
+double WorthedAbr::factor(double bw, double delta) {
   double bw_mbit = bw / 1000.;
-  double bw_max  = WorthedAbrConstants::bitrate_array.back() / 1000.; 
+  double bw_max  = bitrate_array.back() / 1000.; 
   double delta_mbit = delta / 1000.;
 
   if (bw_mbit > bw_max) {
@@ -552,7 +559,7 @@ static double factor(double bw, double delta) {
   return factor;
 }
   
-static double aggresivity(double bw, double delta) {
+double WorthedAbr::aggresivity(double bw, double delta) {
   double aggr_factor = factor(bw, delta);
   double value = partial_bw_safe(bw);
 
@@ -630,7 +637,7 @@ int WorthedAbr::decideQuality(int index) {
     buffer_level = 0;
   }
 
-  int bandwidth = (int)average_bandwidth->value_or(WorthedAbrConstants::default_bandwidth);
+  int bandwidth = (int)average_bandwidth->value_or(bitrate_array[0]);
   int quality = compute_reward_and_quality(
     last_index + 1,
     bandwidth * WorthedAbrConstants::safe_downscale, 
@@ -674,13 +681,6 @@ int WorthedAbr::decideQuality(int index) {
  **/
 
 namespace TargetAbrConstants { 
-  const std::vector<int> bitrate_array = ::bitrateArray;
-  std::map<int, std::vector<int> > segment_sizes = ::SEGMENTS;
-  
-  const int qualities = ::QUALITIES;
-  const int segments = 49;
-  const int default_bandwidth = bitrate_array[0];
-  
   const int reservoir = 5 * ::SECOND;
   const int horizon = 10;  
 
@@ -705,25 +705,19 @@ namespace TargetAbrConstants {
 
 TargetAbr::TargetAbr(const std::shared_ptr<DashBackendConfig>& config) 
   : SegmentProgressAbr(config) 
-  , StateTracker()
+  , StateTracker(bitrate_array)
   , bw_estimator(new structs::LineFitEstimator<double>(
       TargetAbrConstants::bandwidth_window,
       TargetAbrConstants::time_delta,
       TargetAbrConstants::projection_window
     ))
-  , bandwidth_target(TargetAbrConstants::default_bandwidth) {} 
+  , bandwidth_target(bitrate_array[0]) {} 
 
 
 TargetAbr::~TargetAbr() {}
 
 int TargetAbr::vmaf(const int quality, const int index) {
-  for (auto &video_config : config->video_configs) {
-    std::string resource = "/video" + std::to_string(quality);
-    if (resource == video_config->resource) {
-      return video_config->video_info[index]->vmaf;  
-    }
-  }
-  assert(false);
+  return segments[quality][index].vmaf;
 }
 
 namespace {
@@ -822,19 +816,20 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   
   int max_segment = 0;
   for (int current_index = last_index; current_index < start_index + TargetAbrConstants::horizon; ++current_index) {
-    if (current_index + 1 >= TargetAbrConstants::segments) {
+    if (current_index + 2 >= int(segments[0].size())) {
       continue;  
     }
 
     std::unordered_set<state_t, std::function<size_t (const state_t&)> > next_states(0, hash);
     for (auto &from : curr_states) {
-      int max_quality = std::min(TargetAbrConstants::qualities - 1, from.quality + 1);
+      // QUIC_LOG(WARNING) << from;
+      int max_quality = std::min(int(segments.size()) - 1, from.quality + 1);
       int min_quality = std::max(0, from.quality - 2);
       for (int chunk_quality = min_quality; chunk_quality <= max_quality; ++chunk_quality) {
         double current_buffer = from.buffer * buffer_unit;
         double rebuffer = 0;
         
-        double size_kb = 8. * WorthedAbrConstants::segment_sizes[chunk_quality][current_index + 1] / ::SECOND;
+        double size_kb = 8. * segments[chunk_quality][current_index + 1].size / ::SECOND;
         double download_time_ms = size_kb / bandwidth * ::SECOND;
 
         // simulate buffer changes
@@ -876,7 +871,7 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   // find best series of segments
   state_t best = null_state;
   for (int buffer = 0; buffer <= max_buffer; ++buffer) {
-    for (int chunk_quality = 0; chunk_quality < TargetAbrConstants::qualities; ++chunk_quality) {
+    for (int chunk_quality = 0; chunk_quality < int(segments.size()); ++chunk_quality) {
       state_t cand(max_segment, buffer, chunk_quality);
       if (dp.find(cand) != dp.end() && (best == null_state || dp[cand].qoe >= dp[best].qoe)) { 
         best = cand;
@@ -899,8 +894,8 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   std::reverse(states.begin(), states.end());
   state_t first = states.size() > 1 ? states[1] : states[0];
  
-  QUIC_LOG(WARNING) << "[TargetAbr] first: " << first << ' ' << dp[first];
-  QUIC_LOG(WARNING) << "[TargetAbr] best: " << best << ' ' << dp[best];
+  // QUIC_LOG(WARNING) << "[TargetAbr] first: " << first << ' ' << dp[first];
+  // QUIC_LOG(WARNING) << "[TargetAbr] best: " << best << ' ' << dp[best];
   return std::make_pair(dp[best].qoe, first.quality);
 }
 
@@ -923,10 +918,12 @@ int TargetAbr::decideQuality(int index) {
     return 0; 
   }
 
-  int bandwidth = (int)average_bandwidth->value_or(TargetAbrConstants::default_bandwidth);
+  int bandwidth = (int)average_bandwidth->value_or(bitrate_array[0]);
+  QUIC_LOG(WARNING) << bandwidth << '\n';
 
   // Get search range for bandwidth target
   int estimator = (int)bw_estimator->value_or(bandwidth);
+  QUIC_LOG(WARNING) << estimator << '\n';
   int min_bw = int(fmin(estimator, bandwidth) * (1. - TargetAbrConstants::qoe_delta));
   int max_bw = int(estimator * (1. + TargetAbrConstants::qoe_delta));
   
@@ -939,6 +936,7 @@ int TargetAbr::decideQuality(int index) {
     bandwidth_target - step >= min_bw && 
     qoe(bandwidth_target - step).first >= TargetAbrConstants::qoe_percentile * qoe_max_bw
   ) {
+    //QUIC_LOG(WARNING) << "[TargetAbr]:" << bandwidth_target << ", " << max_bw << "]";
     bandwidth_target -= step;
   }
 
@@ -989,7 +987,7 @@ TargetAbr2::TargetAbr2(const std::shared_ptr<DashBackendConfig>& config)
       TargetAbrConstants::time_delta,
       TargetAbrConstants::projection_window
     ))
-  , bandwidth_target(TargetAbrConstants::default_bandwidth) 
+  , bandwidth_target(bitrate_array[0]) 
   , interface(BbrTarget::BbrInterface::GetInstance()) 
   , last_player_time(abr_schema::Value(0, 0)) 
   , last_buffer_level(abr_schema::Value(0, 0)) 
@@ -1001,13 +999,7 @@ TargetAbr2::TargetAbr2(const std::shared_ptr<DashBackendConfig>& config)
 TargetAbr2::~TargetAbr2() {}
 
 int TargetAbr2::vmaf(const int quality, const int index) {
-  for (auto &video_config : config->video_configs) {
-    std::string resource = "/video" + std::to_string(quality);
-    if (resource == video_config->resource) {
-      return video_config->video_info[index]->vmaf;  
-    }
-  }
-  assert(false);
+  return segments[quality][index].vmaf;
 }
 
 // [TODO] Extract common TargetAbr functions...
@@ -1035,22 +1027,22 @@ std::pair<double, int> TargetAbr2::qoe(const double bandwidth) {
   state_t null_state, start_state(last_index, start_buffer / buffer_unit, current_quality);
   dp[start_state] = value_t(0, current_vmaf, null_state);
   curr_states.insert(start_state);
- 
+
   int max_segment = 0;
   for (int current_index = last_index; current_index < start_index + TargetAbrConstants::horizon; ++current_index) {
-    if (current_index + 1 >= TargetAbrConstants::segments) {
+    if (current_index + 2 >= int(segments[0].size())) {
       continue;  
     }
 
     std::unordered_set<state_t, std::function<size_t (const state_t&)> > next_states(0, hash);
     for (auto &from : curr_states) {
-      int max_quality = std::min(TargetAbrConstants::qualities - 1, from.quality + 1);
+      int max_quality = std::min(int(segments.size()) - 1, from.quality + 1);
       int min_quality = std::max(0, from.quality - 2);
       for (int chunk_quality = min_quality; chunk_quality <= max_quality; ++chunk_quality) {
         double current_buffer = from.buffer * buffer_unit;
         double rebuffer = 0;
         
-        double size_kb = 8. * WorthedAbrConstants::segment_sizes[chunk_quality][current_index + 1] / ::SECOND;
+        double size_kb = 8. * segments[chunk_quality][current_index + 1].size / ::SECOND;
         double download_time_ms = size_kb / bandwidth * ::SECOND;
 
         // simulate buffer changes
@@ -1076,7 +1068,6 @@ std::pair<double, int> TargetAbr2::qoe(const double bandwidth) {
         qoe -= 1. * TargetAbrConstants::beta * fabs(current_vmaf - last_vmaf);
         qoe -= 1. * TargetAbrConstants::gamma * rebuffer / ::SECOND;
 
-        // update dp value with maximum qoe
         if (dp.find(next) == dp.end() || dp[next].qoe < qoe) {
           dp[next] = value_t(qoe, current_vmaf, from); 
           next_states.insert(next);
@@ -1092,7 +1083,7 @@ std::pair<double, int> TargetAbr2::qoe(const double bandwidth) {
   // find best series of segments
   state_t best = null_state;
   for (int buffer = 0; buffer <= max_buffer; ++buffer) {
-    for (int chunk_quality = 0; chunk_quality < TargetAbrConstants::qualities; ++chunk_quality) {
+    for (int chunk_quality = 0; chunk_quality < int(segments.size()); ++chunk_quality) {
       state_t cand(max_segment, buffer, chunk_quality);
       if (dp.find(cand) != dp.end() && (best == null_state || dp[cand].qoe >= dp[best].qoe)) { 
         best = cand;
@@ -1151,7 +1142,7 @@ void TargetAbr2::registerMetrics(const abr_schema::Metrics &metrics) {
 
   if (best_bw_estimate != 0) {
     // limit the bandwidth estimate downloards
-    auto bw_value = std::min(best_bw_estimate, StateTrackerConstants::bitrate_array.back());
+    auto bw_value = std::min(best_bw_estimate, int(bitrate_array.back()));
     
     // register last bandwidth
     last_bandwidth = abr_schema::Value(bw_value, last_timestamp);
@@ -1180,7 +1171,8 @@ int TargetAbr2::decideQuality(int index) {
     return 0; 
   }
 
-  int bandwidth = (int)average_bandwidth->value_or(TargetAbrConstants::default_bandwidth);
+  int bandwidth = (int)average_bandwidth->value_or(bitrate_array[0]);
+  
 
   // Get search range for bandwidth target
   int estimator = (int)bw_estimator->value_or(bandwidth);

@@ -30,8 +30,12 @@ class SegmentProgressAbr : public AbrInterface {
   const std::shared_ptr<DashBackendConfig>& config;
   std::unordered_map<int, abr_schema::Segment> last_segment;  
   std::unordered_map<int, abr_schema::Decision> decisions; 
+  
   int decision_index;
   int last_timestamp;
+ 
+  std::vector< std::vector<VideoInfo> > segments;
+  std::vector<int> bitrate_array;
  private:
   void update_segment(abr_schema::Segment segment);
   bool should_send(int index);
@@ -59,7 +63,7 @@ class BBAbr : public SegmentProgressAbr {
 
 class StateTracker {
  public:
-  StateTracker();
+  StateTracker(std::vector<int> bitrate_array);
   virtual ~StateTracker();
 
   void registerMetrics(const abr_schema::Metrics &);
@@ -74,6 +78,7 @@ class StateTracker {
   base::Optional<abr_schema::Value> last_rtt;
  private:
   int last_timestamp;
+  std::vector<int> _bitrate_array;
 };
 
 class WorthedAbr : public SegmentProgressAbr, public StateTracker {
@@ -84,6 +89,29 @@ class WorthedAbr : public SegmentProgressAbr, public StateTracker {
   void registerMetrics(const abr_schema::Metrics &) override;
   int decideQuality(int index) override;
  private:
+  // reward computation
+  double compute_reward(
+    std::vector<int> qualities, 
+    int start_index, 
+    int bandwidth,
+    int start_buffer,
+    int current_quality
+  );
+  std::pair<double, int> compute_reward_and_quality(
+    int start_index, 
+    int bandwidth,
+    int start_buffer,
+    int current_quality,
+    bool stochastic,
+    int last_decision
+  );
+
+  // aggresivity
+  double partial_bw_safe(double bw);
+  double factor(double bw, double delta);
+  double aggresivity(double bw, double delta);
+  
+  // utilities
   int adjustedBufferLevel(int index);
   
   std::pair<int, int> computeRates(bool stochastic);

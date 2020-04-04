@@ -28,7 +28,8 @@ struct VideoInfo {
   int size;
 
   VideoInfo();
-  VideoInfo(const VideoInfo&) = delete;
+  VideoInfo(double start_time, double vmaf, int size);
+  VideoInfo(const VideoInfo&);
   VideoInfo& operator=(const VideoInfo&) = delete;
   ~VideoInfo();
 
