@@ -9,17 +9,15 @@ const logger = logging('Festive');
 const diminuation_factor = 0.85;
 const alpha = 12;
 const horizon = 5;
-
-
-// [TODO] should come from manifest
-const bitrateArray = [300, 750, 1200, 1850, 2850, 4300];
 const switchUpThreshold = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-const n = bitrateArray.length;
 
 
 export class Festive extends AbrAlgorithm {
-    constructor() {
+    constructor(video) {
         super();
+
+        this.bitrateArray = video.bitrateArray;
+        this.n = this.bitrateArray.length;
 
         this.bandwidth = new ThrpPredictorGetter();
         
@@ -30,10 +28,10 @@ export class Festive extends AbrAlgorithm {
     }
 
     selectQuality(bitrate) {
-        let quality = n;
-        for (let i = n - 1; i >= 0; i--) {
+        let quality = this.n;
+        for (let i = this.n - 1; i >= 0; i--) {
             quality = i;
-            if (bitrate >= bitrateArray[i]) {
+            if (bitrate >= this.bitrateArray[i]) {
                 break;
             }
         }
@@ -41,7 +39,8 @@ export class Festive extends AbrAlgorithm {
     }
 
     getEfficiencyScore(b, b_ref, w) {
-        return Math.abs(bitrateArray[b] / Math.min(w, bitrateArray[b_ref]) - 1);
+        return Math.abs(this.bitrateArray[b] 
+            / Math.min(w, this.bitrateArray[b_ref]) - 1);
     }
 
     getStabilityScore(b, b_ref, b_cur) {
@@ -118,7 +117,7 @@ export class Festive extends AbrAlgorithm {
         logger.log(`quality ${quality}`, `b_target ${b_target}`);
 
         // update quality log
-        this.qualityLog[index] = bitrateArray[quality];
+        this.qualityLog[index] = this.bitrateArray[quality];
         this.prevQuality = quality;
         this.lastIndex = index;
 

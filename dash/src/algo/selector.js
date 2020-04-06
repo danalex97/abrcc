@@ -19,10 +19,10 @@ export function GetAlgorithm(name, shim, video) {
         return new Bola(video);
     }
     if (name == 'pensieve') {
-        return new RemoteAbr(shim, video);
+        return new RemoteAbr(shim);
     }
     if (name == 'robustMpc') {
-        return new RemoteAbr(shim, video);
+        return new RemoteAbr(shim);
     }
     return null;
 }

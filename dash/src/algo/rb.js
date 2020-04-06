@@ -8,14 +8,12 @@ import { logging } from '../common/logger';
 const logger = logging('RB');
 
 
-// [TODO] should come from manifest
-const bitrateArray = [300, 750, 1200, 1850, 2850, 4300];
-const n = bitrateArray.length;
-
-
 export class RB extends AbrAlgorithm {
-    constructor() {
+    constructor(video) {
         super();
+
+        this.bitrateArray = video.bitrateArray;
+        this.n = this.bitrateArray.length;
 
         this.bandwidth = new ThrpPredictorGetter();
     }
@@ -26,9 +24,9 @@ export class RB extends AbrAlgorithm {
 
         let bitrate = 0;
         let quality = 0;
-        for (let i = n - 1; i >= 0; i--) {
+        for (let i = this.n - 1; i >= 0; i--) {
             quality = i;
-            if (bandwidth >= bitrateArray[i]) {
+            if (bandwidth >= this.bitrateArray[i]) {
                 break;
             }
         }
