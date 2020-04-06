@@ -15,16 +15,17 @@ const logger = logging('App');
 
 
 export class FrontEndApp extends App {
-    constructor(player, recordMetrics, shim, name) {
+    constructor(player, recordMetrics, shim, name, video) {
         super(player);
-    
+        logger.log(video);
+
         this.tracker = new StatsTracker(player);
         this.interceptor = new Interceptor();
-        this.shim = shim; 
+        this.shim = shim;
         
         this.statsController = new StatsController();
         this.qualityController = new QualityController();
-        this.algorithm = GetAlgorithm(name, shim);
+        this.algorithm = GetAlgorithm(name, shim, video);
 
         this.recordMetrics = recordMetrics;
 

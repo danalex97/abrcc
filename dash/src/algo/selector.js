@@ -5,24 +5,24 @@ import { Bola } from '../algo/bola';
 import { RemoteAbr } from '../algo/remote';
 
 
-export function GetAlgorithm(name, shim) {
+export function GetAlgorithm(name, shim, video) {
     if (name == 'bb') {
-        return new BB();
+        return new BB(video);
     }
     if (name == 'rb') {
-        return new RB();
+        return new RB(video);
     }
     if (name == 'festive') {
-        return new Festive();
+        return new Festive(video);
     }
     if (name == 'bola') {
-        return new Bola();
+        return new Bola(video);
     }
     if (name == 'pensieve') {
-        return new RemoteAbr(shim);
+        return new RemoteAbr(shim, video);
     }
     if (name == 'robustMpc') {
-        return new RemoteAbr(shim);
+        return new RemoteAbr(shim, video);
     }
     return null;
 }

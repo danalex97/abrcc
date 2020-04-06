@@ -4,8 +4,11 @@ import { FrontEndApp } from './apps/front_end';
 
 // config import may fail if config was not generated
 import * as config from '../dist/config.json';
+import * as video_config from '../dist/video.json';
 
 import { ArgsParser } from './common/args';
+import { VideoInfo } from './common/video';
+
 import { GetServerSideRule } from './component/abr';
 import { BackendShim } from './component/backend';
 import { MediaPlayer, Debug } from 'dashjs';
@@ -68,6 +71,7 @@ function startPlayer(app, player, video, url, parser) {
 
 function init() {
     let parser = new ArgsParser(config.args);
+    let video_info = new VideoInfo(video_config);
 
     let url = `https://${parser.site}:${parser.quicPort}/manifest.mpd`;
     let player = MediaPlayer().create();
@@ -79,7 +83,9 @@ function init() {
         app = new ServerSideApp(player, parser.recordMetrics, shim);
     }
     if (!parser.serverSide) {
-        app = new FrontEndApp(player, parser.recordMetrics, shim, parser.frontEnd);
+        app = new FrontEndApp(
+            player, parser.recordMetrics, shim, parser.frontEnd, video_info
+        );
     }
     if (parser.recordMetrics) {
         shim

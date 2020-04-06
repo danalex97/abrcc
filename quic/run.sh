@@ -49,6 +49,13 @@ function build_dash_client_npm {
     log "Building dash client..."
     pushd $DIR/../dash > /dev/null
 
+    SRC=$DIR/../dash
+    DST=$DIR/sites/$SITE
+
+    # copy config to dash
+    run_cmd rm $SRC/dist/video.json
+    run_cmd cp $DIR/sites/$VIDEO/config.json $SRC/dist/video.json 
+
     if [ ! -z $METRICS_PORT ]; then 
         DASH_ARGS="${DASH_ARGS} record metrics-port=${METRICS_PORT}"
     fi
@@ -61,8 +68,6 @@ function build_dash_client_npm {
         run_cmd ls -lh dist
     fi
 
-    SRC=$DIR/../dash
-    DST=$DIR/sites/$SITE
     run_cmd run_cmd rm -rf $DST
     run_cmd mkdir -p $DST
     run_cmd cp -r $SRC/dist $DST
@@ -72,9 +77,6 @@ function build_dash_client_npm {
     run_cmd cp $DIR/sites/$VIDEO/manifest.mpd $SRC
     run_cmd cp $DIR/sites/$VIDEO/manifest.mpd $DST
     
-    # [TODO] not great
-    run_cmd cp $DIR/../exp/video_info/video_info.csv $DST
-
     popd > /dev/null
     log "Dash client built."
 }
