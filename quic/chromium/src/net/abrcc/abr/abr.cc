@@ -30,8 +30,6 @@ const int SECOND = 1000;
 
 const int RESERVOIR = 5 * SECOND;
 const int CUSHION = 10 * SECOND;
-const int SEGMENT_TIME = 3594; // [TODO] remove
-const int QUALITIES = 5; // [TODO] remove
 
 namespace quic {
 
@@ -160,7 +158,7 @@ RandomAbr::RandomAbr(const std::shared_ptr<DashBackendConfig>& config)
 RandomAbr::~RandomAbr() {}
 
 int RandomAbr::decideQuality(int index) {
-  int random_quality = rand() % QUALITIES;
+  int random_quality = rand() % segments.size();
   if (index == 1) {
     random_quality = 0;
   }
@@ -204,7 +202,11 @@ int BBAbr::decideQuality(int index) {
 
     double proportion = 1.0 * last_segment[index - 1].loaded / last_segment[index - 1].total;
     int download_time = 1.0 * (current_time - start_time) * (1 - proportion) / proportion;
-    int bonus = SEGMENT_TIME - download_time; 
+    
+    if (index < int(segments[0].size())) {
+      last_segment_time_length = int(SECOND * (segments[0][index + 1].start_time - segments[0][index].start_time));
+    }
+    int bonus = last_segment_time_length - download_time; 
   
     buffer_level += bonus;  
   } 
@@ -464,7 +466,10 @@ int WorthedAbr::adjustedBufferLevel(int index) {
 
     double proportion = 1.0 * last_segment[index - 1].loaded / last_segment[index - 1].total;
     int download_time = 1.0 * (current_time - start_time) * (1 - proportion) / proportion;
-    int bonus = SEGMENT_TIME - download_time; 
+    if (index < int(segments[0].size())) {
+      last_segment_time_length = int(SECOND * (segments[0][index + 1].start_time - segments[0][index].start_time));
+    }
+    int bonus = last_segment_time_length - download_time; 
 
     buffer_level += bonus;  
   } 

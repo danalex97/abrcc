@@ -33,7 +33,8 @@ class SegmentProgressAbr : public AbrInterface {
   
   int decision_index;
   int last_timestamp;
- 
+  int last_segment_time_length;
+
   std::vector< std::vector<VideoInfo> > segments;
   std::vector<int> bitrate_array;
  private:
