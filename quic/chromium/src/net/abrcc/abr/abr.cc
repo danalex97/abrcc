@@ -620,7 +620,7 @@ void WorthedAbr::registerMetrics(const abr_schema::Metrics &metrics) {
 
 
 int WorthedAbr::decideQuality(int index) {
-  if (index == 1) {
+  if (index <= 2 || index > int(segments[0].size())) {
     return 0; 
   }
   
@@ -813,7 +813,7 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   state_t null_state, start_state(last_index, start_buffer / buffer_unit, current_quality);
   dp[start_state] = value_t(0, current_vmaf, null_state);
   curr_states.insert(start_state);
-  
+ 
   int max_segment = 0;
   for (int current_index = last_index; current_index < start_index + TargetAbrConstants::horizon; ++current_index) {
     if (current_index + 2 >= int(segments[0].size())) {
@@ -894,8 +894,8 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   std::reverse(states.begin(), states.end());
   state_t first = states.size() > 1 ? states[1] : states[0];
  
-  // QUIC_LOG(WARNING) << "[TargetAbr] first: " << first << ' ' << dp[first];
-  // QUIC_LOG(WARNING) << "[TargetAbr] best: " << best << ' ' << dp[best];
+  QUIC_LOG(WARNING) << "[TargetAbr] first: " << first << ' ' << dp[first];
+  QUIC_LOG(WARNING) << "[TargetAbr] best: " << best << ' ' << dp[best];
   return std::make_pair(dp[best].qoe, first.quality);
 }
 
@@ -914,7 +914,7 @@ void TargetAbr::registerMetrics(const abr_schema::Metrics &metrics) {
 } 
 
 int TargetAbr::decideQuality(int index) {
-  if (index <= 1) {
+  if (index <= 1 || index > int(segments[0].size())) {
     return 0; 
   }
 
@@ -923,6 +923,11 @@ int TargetAbr::decideQuality(int index) {
 
   // Get search range for bandwidth target
   int estimator = (int)bw_estimator->value_or(bandwidth);
+  if (estimator < 0) {
+    // overflow
+    estimator = bandwidth;
+  }
+
   QUIC_LOG(WARNING) << estimator << '\n';
   int min_bw = int(fmin(estimator, bandwidth) * (1. - TargetAbrConstants::qoe_delta));
   int max_bw = int(estimator * (1. + TargetAbrConstants::qoe_delta));
@@ -1167,7 +1172,7 @@ void TargetAbr2::registerMetrics(const abr_schema::Metrics &metrics) {
 } 
 
 int TargetAbr2::decideQuality(int index) {
-  if (index <= 1) {
+  if (index <= 1 || index > int(segments[0].size())) {
     return 0; 
   }
 
