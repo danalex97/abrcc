@@ -1116,8 +1116,8 @@ std::pair<double, int> TargetAbr2::qoe(const double bandwidth) {
   std::reverse(states.begin(), states.end());
   state_t first = states.size() > 1 ? states[1] : states[0];
  
-  QUIC_LOG(WARNING) << "[TargetAbr2] first: " << first << ' ' << dp[first];
-  QUIC_LOG(WARNING) << "[TargetAbr2] best: " << best << ' ' << dp[best];
+  // QUIC_LOG(WARNING) << "[TargetAbr2] first: " << first << ' ' << dp[first];
+  // QUIC_LOG(WARNING) << "[TargetAbr2] best: " << best << ' ' << dp[best];
   return std::make_pair(dp[best].qoe, first.quality);
 }
 
@@ -1182,10 +1182,13 @@ int TargetAbr2::decideQuality(int index) {
   }
 
   int bandwidth = (int)average_bandwidth->value_or(bitrate_array[0]);
-  
+  int estimator = (int)bw_estimator->value_or(bandwidth);
+  if (estimator < 0) {
+    // overflow
+    estimator = bandwidth;
+  }
 
   // Get search range for bandwidth target
-  int estimator = (int)bw_estimator->value_or(bandwidth);
   int min_bw = int(fmin(estimator, bandwidth) * (1. - TargetAbrConstants::qoe_delta));
   int max_bw = int(estimator * (1. + TargetAbrConstants::qoe_delta));
   
