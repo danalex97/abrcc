@@ -20,7 +20,7 @@ export class FrontEndApp extends App {
         logger.log(video);
 
         this.tracker = new StatsTracker(player);
-        this.interceptor = new Interceptor();
+        this.interceptor = new Interceptor(video);
         this.shim = shim;
         
         this.statsController = new StatsController();

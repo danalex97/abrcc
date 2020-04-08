@@ -24,6 +24,8 @@ export class RemoteAbr extends AbrAlgorithm {
     }
    
     getDecision(metrics, index, timestamp) {
+        logger.log(metrics);
+        
         this.bandwidth.update(metrics, this.ctx);
         this.buffer.update(metrics);
         this.rebuffer.update(metrics);
@@ -34,6 +36,8 @@ export class RemoteAbr extends AbrAlgorithm {
         let buffer = this.buffer.value;
         let rebuffer = this.rebuffer.value;
         let last_fetch_time = this.fetch_time.value;
+        
+        logger.log(bandwidth, buffer, rebuffer, last_fetch_time);
 
         // get decision via sync request
         let decision = undefined;
