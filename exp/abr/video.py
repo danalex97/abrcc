@@ -73,4 +73,4 @@ def get_chunk_time(video: str, quality: int, index: int) -> float:
 def get_vmaf(video: str, index: int, bitrate: int) -> float:
     if index > get_video_chunks(video) or index < 0:
         return 0
-    return __get_json(video)[get_video_bit_rate(video, quality)][index - 1]["vmaf"]
+    return __get_json(video)[bitrate][index - 1]["vmaf"]
