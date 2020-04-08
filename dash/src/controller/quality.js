@@ -38,13 +38,13 @@ export class QualityController {
         // i.e. the index that is calculated via the advance function.
         if (index === undefined) {
             index = this._index;
-        }
+        } 
         
         // handle callbacks
         this._onGetQuality(index);
 
-        // get the decision
-        let decision = this._cache.piece(this._index);
+        // get the decision for index(note: not this._index)
+        let decision = this._cache.piece(index);
         
         if (decision !== undefined) {
             // If the quality we decided upon is 'undefined', this means that 
