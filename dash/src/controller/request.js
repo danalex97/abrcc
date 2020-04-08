@@ -3,7 +3,7 @@ import { BackendShim } from '../component/backend';
 
 
 const logger = logging('RequestController');
-const MAX_INDEX = 49; // [TODO] remove
+const MAX_INDEX = 149; // [TODO] remove
 
 
 export class RequestController {

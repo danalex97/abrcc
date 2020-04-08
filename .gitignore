@@ -1,3 +1,5 @@
+*.mpd 
+
 quic/chromium/src/*
 !quic/chromium/src/.gitignore
 !quic/chromium/src/net/

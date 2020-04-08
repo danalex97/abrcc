@@ -71,12 +71,12 @@ function cacheHit(object, res) {
 
 
 export class ServerSideApp extends App {
-    constructor(player, recordMetrics, shim) {
+    constructor(player, recordMetrics, shim, videoInfo) {
         super(player);
 
         this.shim = shim;
         this.tracker = new StatsTracker(player);
-        this.interceptor = new Interceptor();
+        this.interceptor = new Interceptor(videoInfo);
         
         this.requestController = new RequestController(this.shim, POOL_SIZE);
         this.qualityController = new QualityController();

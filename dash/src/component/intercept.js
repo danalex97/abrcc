@@ -2,7 +2,6 @@ import { logging } from '../common/logger';
 
 
 const logger = logging('Intercept');
-export const MAX_QUALITY = 5; // [TODO]: eliminate
 
 
 export function makeHeader(quality) {
@@ -11,7 +10,8 @@ export function makeHeader(quality) {
 
 
 class UrlProcessor {
-    constructor(_url) {
+    constructor(_max_rates, _url) {
+        this.max_rates = _max_rates;
         let url = `${_url}`;
         for (let prefix of ['http://', 'https://']) {
             if (url.includes(prefix)) {
@@ -23,7 +23,7 @@ class UrlProcessor {
 
     get quality() {
         try {
-            return MAX_QUALITY - parseInt(this.url.split('/')[1].split('video')[1]) + 1;
+            return this.max_rates - parseInt(this.url.split('/')[1].split('video')[1]) + 1;
         } catch(err) {
             return undefined;
         }
@@ -79,8 +79,10 @@ export class InterceptorUtil {
 
 
 export class Interceptor extends InterceptorUtil {
-    constructor() {
+    constructor(videoInfo) {
         super();
+
+        this._videoInfo = videoInfo;
 
         this._onRequest = (ctx, index) => {};
         
@@ -121,7 +123,8 @@ export class Interceptor extends InterceptorUtil {
     
     start() {
         let interceptor = this;
-        let oldOpen = window.XMLHttpRequest.prototype.open; 
+        let oldOpen = window.XMLHttpRequest.prototype.open;
+        let max_rates = interceptor._videoInfo.bitrates.length;
 
         // override the open method
         function newXHROpen(method, url, async, user, password) {
@@ -130,7 +133,7 @@ export class Interceptor extends InterceptorUtil {
 
             // modify url
             if (url.includes('video') && url.endsWith('.m4s') && !url.includes('Header')) {
-                let processor = new UrlProcessor(url);
+                let processor = new UrlProcessor(max_rates, url);
                 let index = processor.index;
                 
                 if (interceptor._done[index] === undefined) {
@@ -142,12 +145,12 @@ export class Interceptor extends InterceptorUtil {
             }
             ctx.send = function() {
                 if (url.includes('video') && url.endsWith('.m4s')) {
-                    let processor = new UrlProcessor(url);
+                    let processor = new UrlProcessor(max_rates, url);
                     let index = processor.index;
                     let quality = processor.quality; 
                     
                     if (url.includes('init')) {
-                        index = makeHeader(MAX_QUALITY - quality + 1); 
+                        index = makeHeader(max_rates - quality + 1); 
                     }
     
                     if (interceptor._toIntercept[index] !== undefined) {

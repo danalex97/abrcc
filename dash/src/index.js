@@ -80,7 +80,9 @@ function init() {
 
     let shim = new BackendShim(parser.site, parser.metricsPort, parser.quicPort);
     if (parser.serverSide) {
-        app = new ServerSideApp(player, parser.recordMetrics, shim);
+        app = new ServerSideApp(
+            player, parser.recordMetrics, shim, video_info
+        );
     }
     if (!parser.serverSide) {
         app = new FrontEndApp(
