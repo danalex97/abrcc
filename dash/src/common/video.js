@@ -5,7 +5,7 @@ export class VideoInfo {
         for (let conf of config.video_paths) {
             this.bitrates.push(conf.quality);
         }
-        this.bitrates.sort();
+        this.bitrates.sort((a, b) => a - b);
 
         // save video information
         this.info = {};

@@ -10,7 +10,7 @@ export function timestamp(value) {
     let ref = getReferenceTime();
     if (value instanceof Date) {
         return Math.max(value.getTime() - ref, 0); 
-    } else if (Number.isInteger()) {
+    } else if (Number.isInteger(value) || !isNaN(parseFloat(value))) {
         return Math.max(value - ref, 0);
     } else {
         throw new TypeError(`[time.js] {value} has unknown type`)

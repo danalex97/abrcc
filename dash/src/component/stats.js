@@ -29,7 +29,6 @@ export class Metrics {
                 .withTimestamp(timestamp(raw_metrics.scheduling.t))
                 .withQuality(raw_metrics.scheduling.quality)
             ).withDroppedFrames(new Value(raw_metrics.dropped.droppedFrames)
-                .withTimestamp(timestamp(raw_metrics.dropped.time))
             ).withPlayerTime(new Value(Math.round(raw_metrics.info.time * 1000))
             ).withBufferLevel(new Value(Math.round(raw_metrics.buffer_level.level))
                 .withTimestamp(timestamp(raw_metrics.buffer_level.t))

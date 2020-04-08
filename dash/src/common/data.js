@@ -1,7 +1,6 @@
 import { timestamp as create_timestamp } from '../common/time';
 
 
-const MAX_QUALITY = 5; // 0 -> 5
 export const SEGMENT_STATE = {
     'DOWNLOADED': 'downloaded',
     'PROGRESS': 'progress',
