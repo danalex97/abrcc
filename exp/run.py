@@ -39,10 +39,10 @@ def run(args: Namespace) -> None:
     if args.algo in PYTHON_ABR_ALGORITHMS:
         if args.algo == 'robustMpc':
             from abr.robust_mpc import RobustMpc
-            server.add_post('/decision', RobustMpc())
+            server.add_post('/decision', RobustMpc(args.video))
         elif args.algo == 'pensieve':
             from abr.pensieve import Pensieve
-            server.add_post('/decision', Pensieve())
+            server.add_post('/decision', Pensieve(args.video))
 
     # Add controller for launching the QUIC server and browser 
     controller = Controller(
@@ -71,6 +71,7 @@ def run(args: Namespace) -> None:
         .add_post('/init', controller.on_init())
         .add_post('/start', controller.on_start())
         .add_post('/metrics', Monitor(
+            video = args.video,
             path = path, 
             name = name,
             plot = args.plot or (args.leader_port != None), 
@@ -97,6 +98,7 @@ def run(args: Namespace) -> None:
 if __name__ == "__main__":
     parser = ArgumentParser(description='Run a single video instance.')
     parser.add_argument('--name', type=str, default='default', help='Instance name. Must be specified when running with a leader.')
+    parser.add_argument('--video', type=str, default='bojack', help='Video name.')
     parser.add_argument('--site', type=str, default='www.example.org', help='Site name of instance served in chrome')
     parser.add_argument('--quic-port', type=int, default=6010, help="Port for QUIC server.")
     parser.add_argument('--port', type=int, default=8080, help='Port(default 8080).')

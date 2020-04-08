@@ -1,50 +1,76 @@
 from pathlib import Path
+from typing import List, Dict
+
 import os
-import pandas as pd
+import json
 
 
-__size_video1 = [2354772, 2123065, 2177073, 2160877, 2233056, 1941625, 2157535, 2290172, 2055469, 2169201, 2173522, 2102452, 2209463, 2275376, 2005399, 2152483, 2289689, 2059512, 2220726, 2156729, 2039773, 2176469, 2221506, 2044075, 2186790, 2105231, 2395588, 1972048, 2134614, 2164140, 2113193, 2147852, 2191074, 2286761, 2307787, 2143948, 1919781, 2147467, 2133870, 2146120, 2108491, 2184571, 2121928, 2219102, 2124950, 2246506, 1961140, 2155012, 1433658]
-__size_video2 = [1728879, 1431809, 1300868, 1520281, 1472558, 1224260, 1388403, 1638769, 1348011, 1429765, 1354548, 1519951, 1422919, 1578343, 1231445, 1471065, 1491626, 1358801, 1537156, 1336050, 1415116, 1468126, 1505760, 1323990, 1383735, 1480464, 1547572, 1141971, 1498470, 1561263, 1341201, 1497683, 1358081, 1587293, 1492672, 1439896, 1139291, 1499009, 1427478, 1402287, 1339500, 1527299, 1343002, 1587250, 1464921, 1483527, 1231456, 1364537, 889412]
-__size_video3 = [1034108, 957685, 877771, 933276, 996749, 801058, 905515, 1060487, 852833, 913888, 939819, 917428, 946851, 1036454, 821631, 923170, 966699, 885714, 987708, 923755, 891604, 955231, 968026, 874175, 897976, 905935, 1076599, 758197, 972798, 975811, 873429, 954453, 885062, 1035329, 1026056, 943942, 728962, 938587, 908665, 930577, 858450, 1025005, 886255, 973972, 958994, 982064, 830730, 846370, 598850]
-__size_video4 = [668286, 611087, 571051, 617681, 652874, 520315, 561791, 709534, 584846, 560821, 607410, 594078, 624282, 687371, 526950, 587876, 617242, 581493, 639204, 586839, 601738, 616206, 656471, 536667, 587236, 590335, 696376, 487160, 622896, 641447, 570392, 620283, 584349, 670129, 690253, 598727, 487812, 575591, 605884, 587506, 566904, 641452, 599477, 634861, 630203, 638661, 538612, 550906, 391450]
-__size_video5 = [450283, 398865, 350812, 382355, 411561, 318564, 352642, 437162, 374758, 362795, 353220, 405134, 386351, 434409, 337059, 366214, 360831, 372963, 405596, 350713, 386472, 399894, 401853, 343800, 359903, 379700, 425781, 277716, 400396, 400508, 358218, 400322, 369834, 412837, 401088, 365161, 321064, 361565, 378327, 390680, 345516, 384505, 372093, 438281, 398987, 393804, 331053, 314107, 255954]
-__size_video6 = [181801, 155580, 139857, 155432, 163442, 126289, 153295, 173849, 150710, 139105, 141840, 156148, 160746, 179801, 140051, 138313, 143509, 150616, 165384, 140881, 157671, 157812, 163927, 137654, 146754, 153938, 181901, 111155, 153605, 149029, 157421, 157488, 143881, 163444, 179328, 159914, 131610, 124011, 144254, 149991, 147968, 161857, 145210, 172312, 167025, 160064, 137507, 118421, 112270]
+__JSON_CACHE = {}
+def __get_json(video: str) -> Dict[int, List[Dict[str, float]]]:
+    global __JSON_CACHE
 
-
-__VIDEO_SIZE = {
-  0 : __size_video6,
-  1 : __size_video5,
-  2 : __size_video4,
-  3 : __size_video3,
-  4 : __size_video2,
-  5 : __size_video1,
-}
-
-
-VIDEO_BIT_RATE = [300, 750, 1200, 1850, 2850, 4300]  # Kbps
-TOTAL_VIDEO_CHUNKS = 49
-
-
-def get_chunk_size(quality: int, index: int) -> int:
-    if index >= TOTAL_VIDEO_CHUNKS or index < 0:
-        return 0
-    return __VIDEO_SIZE[quality][index] 
-
-
-PENSIEVE_VIDEO_CSV = None
-def get_vmaf(index: int, bitrate: int) -> float:
-    global PENSIEVE_VIDEO_CSV
-    if PENSIEVE_VIDEO_CSV is None:
+    if video not in __JSON_CACHE:
         directory = Path(os.path.dirname(os.path.realpath(__file__)))
-        pensieve_path = str(directory / '..'  / 'video_info' / 'video_info.csv')
-        PENSIEVE_VIDEO_CSV = pd.read_csv(pensieve_path)
-    video_mappings = {
-        '300': '320x180x30_vmaf_score',
-        '750': '640x360x30_vmaf_score',
-        '1200': '768x432x30_vmaf_score',    
-        '1850': '1024x576x30_vmaf_score',  
-        '2850': '1280x720x30_vmaf_score',
-        '4300': '1280x720x60_vmaf_score',
-    }
-    str_bitrate = str(int(bitrate))
-    return float(PENSIEVE_VIDEO_CSV.loc[index - 1, video_mappings[str_bitrate]])
+        directory = directory / '..'  / '..' / 'quic'
+        json_path = str(directory / 'sites' / video / 'config.json')
+        print(json_path)
+
+        info = {}
+        with open(json_path, 'r') as json_file:
+            text = json_file.read()
+            raw_son = json.loads(text)
+            
+            for son in raw_son["video_paths"]:
+                info[son["quality"]] = son["info"]
+            __JSON_CACHE[video] = info
+
+    return __JSON_CACHE[video]
+    
+
+def get_video_chunks(video: str) -> int:
+    return len(list(__get_json(video).values())[0]) 
+
+
+__BITRATE_CACHE = {}
+def get_video_bit_rate(video: str, quality: int) -> int:
+    global __BITRATE_CACHE 
+    if video not in __BITRATE_CACHE:
+        vals = list(__get_json(video).keys())
+        __BITRATE_CACHE[video] = list(sorted(vals))
+    return __BITRATE_CACHE[video][quality]
+
+
+def get_chunk_size(video: str, quality: int, index: int) -> int:
+    if index > get_video_chunks(video) or index < 0:
+        return 0
+    return __get_json(video)[get_video_bit_rate(video, quality)][index - 1]["size"]
+
+
+def get_max_video_bit_rate(video: str) -> int:
+    return max(list(__get_json(video).keys()))
+
+
+def get_nbr_video_bit_rate(video: str) -> int:
+    return len(list(__get_json(video).keys()))
+
+
+def __get_start_time(video: str, quality: int, index: int) -> float:
+    if index > get_video_chunks(video) or index < 0:
+        return 0
+    return __get_json(video)[get_video_bit_rate(video, quality)][index - 1]["start_time"]
+
+
+def get_chunk_time(video: str, quality: int, index: int) -> float:
+    if index > get_video_chunks(video) or index < 0:
+        return 0
+    if index == get_video_chunks(video):
+        index -= 1
+    t1 = __get_start_time(video, quality, index)
+    t2 = __get_start_time(video, quality, index + 1)  
+    return t2 - t1
+
+
+def get_vmaf(video: str, index: int, bitrate: int) -> float:
+    if index > get_video_chunks(video) or index < 0:
+        return 0
+    return __get_json(video)[get_video_bit_rate(video, quality)][index - 1]["vmaf"]

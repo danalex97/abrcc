@@ -4,7 +4,9 @@ import timeit
 
 from typing import List
 
-from abr.video import TOTAL_VIDEO_CHUNKS, VIDEO_BIT_RATE, get_chunk_size
+from abr.video import get_video_chunks, get_chunk_size
+from abr.video import get_max_video_bit_rate, get_nbr_video_bit_rate, get_video_bit_rate
+from abr.video import get_chunk_time
 from server.server import Component, JSONType
 
 
@@ -12,12 +14,13 @@ M_IN_K = 1000.0
 REBUF_PENALTY = 4.3
 SMOOTH_PENALTY = 1
 HORIZON = 5
-SEGMENT_SIZE = 4
 MIN_BW_EST_MBPS = 0.1
 
 
 class RobustMpc(Component):
-    def __init__(self)-> None:
+    def __init__(self, video: str)-> None:
+        self.video = video
+
         self.last_rebuffer_time: float = 0
         self.last_bit_rate: float = 0
         self.last_quality: int = 0
@@ -35,15 +38,15 @@ class RobustMpc(Component):
         last_bit_rate = self.last_bit_rate
         
         rebuffer_time = total_rebuffer - self.last_rebuffer_time
-        smooth_diff = abs(VIDEO_BIT_RATE[last_quality] - last_bit_rate)
+        smooth_diff = abs(get_video_bit_rate(self.video, last_quality) - last_bit_rate)
 
         # compute reward
-        reward = (VIDEO_BIT_RATE[last_quality] / M_IN_K 
+        reward = (get_video_bit_rate(self.video, last_quality) / M_IN_K 
                   - REBUF_PENALTY * rebuffer_time / M_IN_K
                   - SMOOTH_PENALTY * smooth_diff / M_IN_K)
         
         # update state
-        self.last_bit_rate = VIDEO_BIT_RATE[last_quality] 
+        self.last_bit_rate = get_video_bit_rate(self.video, last_quality)
         self.last_rebuffer_time = total_rebuffer 
 
         # compute bandwidth measurement  
@@ -52,7 +55,7 @@ class RobustMpc(Component):
 
         # compute number of video chunks left
         index = json['index']
-        video_chunk_remain = TOTAL_VIDEO_CHUNKS - index
+        video_chunk_remain = get_video_chunks(self.video) - index
 
         # past error
         if len(self.past_bandwidth_ests) == 0:
@@ -73,8 +76,9 @@ class RobustMpc(Component):
         start_buffer = float(json['buffer']) / M_IN_K 
         print(f"[robustMpc] > current buffer {start_buffer}")
         max_reward, best_rate = 0, 0
-        for full_combo in itertools.product(range(len(VIDEO_BIT_RATE)), repeat=HORIZON):
-            combo = full_combo[:min(TOTAL_VIDEO_CHUNKS - index, HORIZON)]
+        rates = get_nbr_video_bit_rate(self.video)
+        for full_combo in itertools.product(range(rates), repeat=HORIZON):
+            combo = full_combo[:min(get_video_chunks(self.video) - index, HORIZON)]
 
             curr_rebuffer_time = 0
             curr_buffer = start_buffer
@@ -86,7 +90,8 @@ class RobustMpc(Component):
                 chunk_quality = combo[position]
                 curr_index = index + position
 
-                size = 8 * get_chunk_size(chunk_quality, curr_index) / M_IN_K ** 2 # in mb
+                size = (8 * get_chunk_size(self.video, chunk_quality, curr_index) 
+                        / M_IN_K ** 2) # in mb
                 download_time = size / future_bandwidth # in s
 
                 # simulate future buffer
@@ -95,12 +100,12 @@ class RobustMpc(Component):
                     curr_buffer = 0
                 else:
                     curr_buffer -= download_time
-                curr_buffer += SEGMENT_SIZE
+                curr_buffer += get_chunk_time(self.video, chunk_quality, curr_index)
                 
                 # linear reward for the buffer
-                bitrate_sum += VIDEO_BIT_RATE[chunk_quality]
-                smoothness_diff += abs(VIDEO_BIT_RATE[chunk_quality] 
-                                        - VIDEO_BIT_RATE[last_quality])
+                bitrate_sum += get_video_bit_rate(self.video, chunk_quality)
+                smoothness_diff += abs(get_video_bit_rate(self.video, chunk_quality)
+                                        - get_video_bit_rate(self.video, last_quality))
                 
                 last_quality = chunk_quality
 

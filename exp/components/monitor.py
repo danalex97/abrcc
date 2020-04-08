@@ -7,7 +7,7 @@ from typing import List, Optional, Generator, Dict
 
 from server.data import Metrics, Segment, Value
 from server.server import post_after, post_after_async, Component, JSONType
-from abr.video import get_vmaf, get_chunk_size
+from abr.video import get_video_bit_rate, get_vmaf, get_chunk_size
 
 
 PENALTY_REBUF = 4.3
@@ -27,16 +27,14 @@ class MetricsProcessor:
     segments: List[Segment] 
     index: int 
 
-    def __init__(self, logging: bool = False) -> None:
+    def __init__(self, video: str, logging: bool = False) -> None:
+        self.video = video 
         self.metrics = []
         self.timestamps = [0]
         self.segments = []
         self.index = 1
         self.logging = logging
         self.vmaf_previous = 0
-
-        # [TODO] remove hardcoding
-        self.qualities = [300, 750, 1200, 1850, 2850, 4300]
 
     def advance(self, segment: Segment) -> None:
         self.index += 1
@@ -72,8 +70,9 @@ class MetricsProcessor:
         if len(buffer_levels) > 0 and min([l.value for l in buffer_levels]) >= rebuffer * 1500:
             rebuffer = 0
 
-        quality = self.qualities[segment.quality]
-        switch = (abs(self.qualities[self.segments[-1].quality] - self.qualities[self.segments[-2].quality])
+        quality = get_video_bit_rate(self.video, segment.quality)
+        switch = (abs(get_video_bit_rate(self.video, self.segments[-1].quality) 
+                    - get_video_bit_rate(self.video, self.segments[-2].quality))
             if len(self.segments) > 1 else 0)
        
         # Compute raw qoe
@@ -82,7 +81,7 @@ class MetricsProcessor:
             - PENALTY_QSWITCH * switch / K_in_M)
      
         # Get vmaf
-        vmaf = get_vmaf(self.index, quality)
+        vmaf = get_vmaf(self.video, self.index, quality)
         
         # [TODO] Check this is ok
         # Compute vmaf qoe
@@ -94,7 +93,7 @@ class MetricsProcessor:
         # Current bw estimate - note this is an estiamte because the backend can transmit 
         # 2 segments at the same time: hence the actual value may be around 20% bigger/smaller
         # [TODO] this can be fixed by using e.g. progress segments 
-        segment_size = 8 * get_chunk_size(segment.quality, self.index - 1)
+        segment_size = 8 * get_chunk_size(self.video, segment.quality, self.index - 1)
         time = timestamp - last_timestamp
         bw = segment_size / time / 1000. # mbps
 
@@ -121,11 +120,13 @@ class MetricsProcessor:
 
 
 class Monitor(Component):
+    video: str
     path: Path
     name: str
     processor: MetricsProcessor
 
     def __init__(self, 
+        video: str,
         path: Path, 
         name: str,
         plot: bool = False,
@@ -135,7 +136,7 @@ class Monitor(Component):
         self.path = path / f'{name}_metrics.log' 
         self.port = port
         self.name = name
-        self.processor = MetricsProcessor()
+        self.processor = MetricsProcessor(video)
 
         self.plot = plot
         self.request_port = request_port
