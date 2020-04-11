@@ -76,7 +76,7 @@ def worthed_abr(args: Namespace) -> None:
     os.system(f"mkdir -p {experiment_path}")
 
     for run_id in range(5):
-        for bandwidth in [4, 3, 2, 1]:
+        for bandwidth in [3, 2, 1]:
             for latency in [500]:
                 # pensieve vs worthed abr
                 subpath = str(Path(experiment_path) / "versus_pensieve")
@@ -162,7 +162,7 @@ def target_abr(args: Namespace) -> None:
     runner_log = open(str(Path(experiment_path) / 'exp.log'), 'w')
     
     for run_id in range(5):
-        for bandwidth in [4, 3, 2, 1]:
+        for bandwidth in [3, 2, 1]:
             for latency in [500]:
                 # pensieve vs worthed abr
                 subpath = str(Path(experiment_path) / "versus_pensieve")
@@ -225,6 +225,83 @@ def target_abr(args: Namespace) -> None:
     else:
         save_experiments(experiment_path, experiments)
         generate_summary(experiment_path, experiments)
+
+
+@experiment
+def target_abr2(args: Namespace) -> None:
+    global run_trace, run_subexp
+    if args.dry:
+        run_trace  = lambda *args, **kwargs: None
+        run_subexp = lambda *args, **kwargs: None 
+
+    experiments = []
+    experiment_path = str(Path("experiments") / "target_abr2")
+    os.system(f"mkdir -p {experiment_path}")
+    runner_log = open(str(Path(experiment_path) / 'exp.log'), 'w')
+    
+    for run_id in range(1):
+        for bandwidth in [3, 2, 1]:
+            for latency in [500]:
+                # pensieve vs target
+                subpath = str(Path(experiment_path) / "versus_pensieve")
+                for cc in ['cubic', 'bbr']:
+                    for adapt in ['target']:
+                        server1 = f"--algo pensieve --name pensieve --cc {cc}" 
+                        server2 = f"--server-algo target2 --name abrcc --cc {adapt}"
+                        
+                        path = str(Path(subpath) / f"{cc}_{adapt}_{bandwidth}_{latency}_run{run_id}")
+                        runner_log.write(f'> {path}\n')
+                        run_subexp(bandwidth, latency, path, server1, server2, burst=2000)
+                        experiments.append(Experiment(
+                            path = str(Path(path) / "leader_plots.log"),
+                            latency = latency,
+                            bandwidth = bandwidth,
+                            extra = ["versus", "pensieve", cc, "target2"],
+                            run_id = run_id,
+                        ))
+                
+                # self
+                for adapt in ['target']:
+                    subpath = str(Path(experiment_path) / "versus_self")
+                    server1 = f"--server-algo target2 --name abrcc1 --cc {adapt}"
+                    server2 = f"--server-algo target2 --name abrcc2 --cc {adapt}"
+                    
+                    path = str(Path(subpath) / f"{adapt}_{bandwidth}_{latency}_run{run_id}")
+                    runner_log.write(f'> {path}\n')
+                    run_subexp(bandwidth, latency, path, server1, server2, burst=2000)
+                    experiments.append(Experiment(
+                        path = str(Path(path) / "leader_plots.log"),
+                        latency = latency,
+                        bandwidth = bandwidth,
+                        extra = ["self", "target2"],
+                        run_id = run_id,
+                    ))
+
+        # traces
+        subpath = str(Path(experiment_path) / "traces")
+        for latency in [500]:
+            server1 = "--cc target --server-algo target2 --name abrcc"
+            for name, server in [("abrcc", server1)]:
+                traces = Path("network_traces")
+                for trace in [str(traces / "bus1.txt"), str(traces / "norway_train_6.txt")]:
+                    trace_name = trace.split('/')[-1].split('.')[0]
+                    path = str(Path(subpath) / f'{name}_{trace_name}_{latency}_run{run_id}')
+                    runner_log.write(f'> {path}\n')
+                    run_trace(path, f"{server} -l {latency} -t {trace}")
+                    experiments.append(Experiment(
+                        path = str(Path(path) / f"{name}_plots.log"),
+                        latency = latency,
+                        trace = trace,
+                        extra = ["traces", "target2", trace],
+                        run_id = run_id,
+                    ))
+   
+    if args.dry:
+        print(experiments)
+    else:
+        save_experiments(experiment_path, experiments)
+        generate_summary(experiment_path, experiments)
+
 
 
 @experiment
@@ -299,20 +376,23 @@ def generate_plots(args: Namespace) -> None:
     
     experiments = sum([load_experiments(experiment) for experiment in [
        str(Path("experiments") / "target_abr"),
-       str(Path("experiments") / "worthed_abr")
+       str(Path("experiments") / "worthed_abr"),
+       str(Path("experiments") / "target_abr2")
     ]], [])
     plot_bar(str(Path(experiment_path) / "versus_cubic"), experiments, [
         # performance
         (["versus", "pensieve", "cubic", "worthed"], ("abrcc", "worthed", 1) ),
         (["versus", "pensieve", "cubic", "target", "abbr"], ("abrcc", "target", 1) ),
-        (["versus", "pensieve", "cubic", "target", "xbbr"], ("abrcc", "xtarget", 1) ),
+        (["versus", "pensieve", "cubic", "target2"], ("abrcc", "target2", 1) ),
+        #(["versus", "pensieve", "cubic", "target", "xbbr"], ("abrcc", "xtarget", 1) ),
         (["alone", "pensieve", "cubic_cubic"], (max, "pensieve_cubic", 1) ),
         (["alone", "pensieve", "cubic_bbr"], ("pensieve2", "pensieve_bbr", 1) ),
     
         # fairness
         (["versus", "pensieve", "cubic", "worthed"], ("pensieve", "worthed", 2) ),
         (["versus", "pensieve", "cubic", "target", "abbr"], ("pensieve", "target", 2) ),
-        (["versus", "pensieve", "cubic", "target", "xbbr"], ("pensieve", "xtarget", 2) ),
+        (["versus", "pensieve", "cubic", "target2"], ("pensieve", "target2", 2) ),
+        #(["versus", "pensieve", "cubic", "target", "xbbr"], ("pensieve", "xtarget", 2) ),
         (["alone", "pensieve", "cubic_cubic"], (min, "pensieve_cubic", 2) ),
         (["alone", "pensieve", "cubic_bbr"], ("pensieve1", "pensieve_bbr", 2) ),
     ])
@@ -320,21 +400,24 @@ def generate_plots(args: Namespace) -> None:
         # performance
         (["versus", "pensieve", "bbr", "worthed"], ("abrcc", "worthed", 1) ),
         (["versus", "pensieve", "bbr", "target", "abbr"], ("abrcc", "target", 1) ),
-        (["versus", "pensieve", "bbr", "target", "xbbr"], ("abrcc", "xtarget", 1) ),
+        (["versus", "pensieve", "bbr", "target2"], ("abrcc", "target2", 1) ),
+        #(["versus", "pensieve", "bbr", "target", "xbbr"], ("abrcc", "xtarget", 1) ),
         (["alone", "pensieve", "cubic_bbr"], ("pensieve1", "pensieve_cubic", 1) ),
         (["alone", "pensieve", "bbr_bbr"], (max, "pensieve_bbr", 1) ),
         
         # fairness
         (["versus", "pensieve", "bbr", "worthed"], ("pensieve", "worthed", 2) ),
         (["versus", "pensieve", "bbr", "target", "abbr"], ("pensieve", "target", 2) ),
-        (["versus", "pensieve", "bbr", "target", "xbbr"], ("pensieve", "xtarget", 2) ),
+        (["versus", "pensieve", "bbr", "target2"], ("pensieve", "target2", 2) ),
+        #(["versus", "pensieve", "bbr", "target", "xbbr"], ("pensieve", "xtarget", 2) ),
         (["alone", "pensieve", "cubic_bbr"], ("pensieve2", "pensieve_cubic", 2) ),
         (["alone", "pensieve", "bbr_bbr"], (min, "pensieve_bbr", 2) ),
     ])
 
     plot_bar(str(Path(experiment_path) / "performance_self"), experiments, [
         (["self", "target", "abbr"], (min, "target", 1) ),
-        (["self", "target", "xbbr"], (min, "xtarget", 1) ),
+        # (["self", "target", "xbbr"], (min, "xtarget", 1) ),
+        (["self", "target2"], (min, "target2", 1) ),
         (["self", "worthed"], (min, "worthed", 1) ),
         (["alone", "pensieve", "cubic_cubic"], (min, "pensieve_cubic", 1) ),
         (["alone", "pensieve", "bbr_bbr"], (min, "pensieve_bbr", 1) ),
@@ -351,8 +434,8 @@ def plot_traces(args: Namespace) -> None:
     ]], [])
 
     plot_cdf(str(Path(experiment_path) / "traces"), experiments, [
-        (["traces", "target_xbbr"], ("target_xbbr", "xtarget", 1) ),
-        (["traces", "target"], ("target", "target", 1) ),
+        #(["traces", "target_xbbr"], ("target_xbbr", "xtarget", 1) ),
+        #(["traces", "target"], ("target", "target", 1) ),
         (["traces", "pensieve_bbr"], ("pensieve_bbr", "pensieve_bbr", 1) ),
         (["traces", "pensieve_cubic"], ("pensieve_cubic", "pensieve_cubic", 1) ),
         (["traces", "worthed"], ("worthed", "worthed", 1) ),
@@ -365,23 +448,24 @@ def test(args: Namespace) -> None:
     experiment_path = str(Path("experiments") / "test")
     os.system(f"mkdir -p {experiment_path}")
     
-    for bandwidth in [3, 2, 1]:
-        for latency in [500]:
+    for bandwidth in [1]:
+        for latency in [200]:
             # pensieve vs worthed abr
             subpath = str(Path(experiment_path) / "versus_pensieve")
-            for cc in ['cubic', 'bbr']:
-                server1 = f"--algo pensieve --name pensieve --cc {cc}" 
-                server2 = "--server-algo target --name abrcc --cc xbbr"
+            for cc in ['bbr']:
+                video = 'cook'
+                server1 = f"--server-algo target2 --name target --cc target --video {video}"
+                server2 = f"--algo robustMpc --name rmpc --cc {cc} --video {video}" 
                 
                 path = str(Path(subpath) / f"{cc}_{bandwidth}_{latency}")
-                run_subexp(bandwidth, latency, path, server1, server2, burst=2000, force_run=True)
+                run_subexp(bandwidth, latency, path, server1, server2, burst=2000, force_run=True, video=video)
                 experiments.append(Experiment(
                     path = str(Path(path) / "leader_plots.log"),
                     latency = latency,
                     bandwidth = bandwidth,
                     extra = ["versus", "pensieve", cc, "target"],
                 ))
- 
+
 
 if __name__ == "__main__":
     parser = ArgumentParser(description=

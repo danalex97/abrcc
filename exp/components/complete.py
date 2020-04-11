@@ -22,21 +22,25 @@ class OnComplete(Component):
                 f.write('\n')
   
     async def export_plots(self) -> None: 
-        for name, plot in self.plots.items():
-            ref_dataset = (list(plot.datasets.values())[0]
-                if len(plot.datasets) > 0 else None)
-            if not ref_dataset:
-                continue
-            xs = ref_dataset.x
+        try:
+            # [TODO] Fix plot exports
+            for name, plot in self.plots.items():
+                ref_dataset = (list(plot.datasets.values())[0]
+                    if len(plot.datasets) > 0 else None)
+                if not ref_dataset:
+                    continue
+                xs = ref_dataset.x
 
-            with open(self.plots_path, 'a') as f:
-                for x in xs:
-                    out = {'x' : x} 
-                    out[name] = {}
-                    for ds_name, dataset in plot.datasets.items():
-                        out[name][ds_name] = dataset.y[x]
-                    f.write(json.dumps(out))
+                with open(self.plots_path, 'a') as f:
+                    for x in xs:
+                        out = {'x' : x} 
+                        out[name] = {}
+                        for ds_name, dataset in plot.datasets.items():
+                            out[name][ds_name] = dataset.y[x]
+                        f.write(json.dumps(out))
                     f.write('\n')
+        except:
+            pass
         if len(self.plots) > 0:
             for plot in self.plots.values():
                 await plot.draw()

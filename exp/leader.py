@@ -138,6 +138,7 @@ def run(args: Namespace) -> None:
 
     server = Server('experiment', args.port)
     plots = attach_plot_components(
+        args.video,
         server,
         trace=getattr(args, 'trace', None),
         bandwidth=getattr(args, 'bandwidth', None),
@@ -155,6 +156,7 @@ def run(args: Namespace) -> None:
 if __name__ == "__main__":
     parser = ArgumentParser(description='Run an experiment leader.')
     parser.add_argument('instances', type=int, help='Number of instances.')
+    parser.add_argument('--video', type=str, help='Video to run.')
     parser.add_argument('--port', type=int, default=8800, help='Port(default 8800).')
     parser.add_argument('--path', type=str, default='logs/default', help='Experiment folder path.')
     parser.add_argument('-l', '--delay', type=float,  help='Delay of the link.')

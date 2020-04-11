@@ -10,6 +10,7 @@ from matplotlib.figure import Figure
 from typing import Optional, Dict, Tuple, List 
 from timeit import default_timer as timer
 
+from abr.video import get_approx_video_length, get_video_chunks
 from server.server import do_nothing, Server, Component, JSONType
 from server.data import Value
 
@@ -45,8 +46,8 @@ class Dataset:
         self.axes = axes
         self.name = name 
 
-        self.x = list(range(0, range_size))
-        self.y = [0] * range_size
+        self.x = list(range(0, range_size + 1))
+        self.y = [0] * (range_size + 1)
        
         self.data, = self.axes.plot(self.x, self.y, label=name)
 
@@ -221,11 +222,15 @@ class BandwidthPlot(LivePlot):
 
 
 def attach_plot_components(
+    video: str, 
     server: Server,
     trace: Optional[str] = None,
     bandwidth: Optional[int] = None,
     no_plot: bool = False, 
 ) -> Dict[str, LivePlot]:
+    segments = get_video_chunks(video)
+    max_playback = int(1.25 * get_approx_video_length(video))
+
     if no_plot:
         (server
             .add_post('/raw_qoe', do_nothing) 
@@ -236,16 +241,17 @@ def attach_plot_components(
             .add_post('/bw', do_nothing))
         return {}
     plots = {
-        'raw_qoe' : LivePlot(figure_name='qoe', y_label='raw qoe'),
-        'rebuffer' : LivePlot(figure_name='rebuffer', y_label='rebuffer'),
-        'quality' : LivePlot(figure_name='quality', y_label='quality'),
-        'vmaf' : LivePlot(figure_name='vmaf', y_label='vmaf'),
-        'vmaf_qoe' : LivePlot(figure_name='vmaf_qoe', y_label='vmaf qoe'),
+        'raw_qoe' : LivePlot(figure_name='qoe', y_label='raw qoe', range_size=segments),
+        'rebuffer' : LivePlot(figure_name='rebuffer', y_label='rebuffer', range_size=segments),
+        'quality' : LivePlot(figure_name='quality', y_label='quality', range_size=segments),
+        'vmaf' : LivePlot(figure_name='vmaf', y_label='vmaf', range_size=segments),
+        'vmaf_qoe' : LivePlot(figure_name='vmaf_qoe', y_label='vmaf qoe', range_size=segments),
         'bw' : BandwidthPlot(
             figure_name='bw', 
             y_label='bw estimation(mbps)',
             trace=trace,
             bandwidth=bandwidth,
+            range_size=max_playback,
         ),
     }
     (server

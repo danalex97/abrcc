@@ -95,6 +95,9 @@ class MetricsProcessor:
         # [TODO] this can be fixed by using e.g. progress segments 
         segment_size = 8 * get_chunk_size(self.video, segment.quality, self.index - 1)
         time = timestamp - last_timestamp
+        # [TODO] can I do something smarted
+        if time <= 0:
+           time = 1
         bw = segment_size / time / 1000. # mbps
 
         return {

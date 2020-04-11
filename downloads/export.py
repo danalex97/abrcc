@@ -40,7 +40,7 @@ def main(args: Namespace) -> None:
         "segments" : len(vmaf_json[str(qualities[0])]),
         "video_paths" : [
             {
-                "resource" : "/video" + str(len(qualities) - 1 - i),
+                "resource" : "/video" + str(i),
                 "quality" : q,
                 "path" : f"/video_{q}",
                 "info" : [

@@ -18,6 +18,8 @@ def run_cmd(command: str, verbose: bool = False) -> str:
 
 def get_tracks(url: str) -> Dict[int, int]:
     raw_info = run_cmd(f'youtube-dl -F {url}')
+    print(raw_info)
+    
     out = {}
     for line in raw_info.split('\n')[3:-1]:
         info = [s for s in line.split('  ') if s != '']
@@ -35,15 +37,15 @@ def get_tracks(url: str) -> Dict[int, int]:
         rate = int(rest[2][:-1])
         if track_format == 'mp4':
             out[rate] = track_id
-    
-    max_rate = 1024
+   
+    max_rate = 2500
     to_delete = []
     for rate in out.keys():
         if rate > max_rate:
             to_delete.append(rate)
     for rate in to_delete:
         del out[rate]
-    
+
     return out
 
 
@@ -55,7 +57,8 @@ def convert_to_yuv(raw_video: str, width: int, height: int, rate: int) -> None:
     video = f"videos/{raw_video}/tmp/video_{rate}.mp4"
     scale = f"-vf scale={width}:{height}"
     fmt = f"-pix_fmt yuv420p"
-    run_cmd(f"ffmpeg -y -i {video} {fmt} -framerate 10 -vsync 0 {scale} output_{rate}.yuv")
+    # run_cmd(f"ffmpeg -y -i {video} {fmt} -framerate 10 -vsync 0 {scale} output_{rate}.yuv")
+    run_cmd(f"ffmpeg -y -i {video} {fmt} -vsync 0 {scale} output_{rate}.yuv")
     
     run_cmd(f"mv output_{rate}.yuv {where}")
 
@@ -77,7 +80,7 @@ def run(args: Namespace) -> None:
         print(f'> Downloading {fmt}')
         if not os.path.isfile(fmt):
             print(run_cmd(f'youtube-dl -f {track_id} -o {fmt} {args.url}', verbose=True))
-
+    
     # Convert tracks
     segment_info = {}
     for rate, track_id in tracks.items():
@@ -178,8 +181,8 @@ def run(args: Namespace) -> None:
                 cmd_t = f"-t {t}"
                 sizes = f"-s:v {width}x{height}"
                 fmt = "-pix_fmt yuv420p" 
-                run_cmd(f"ffmpeg {sizes} -r 10 -i {video} {cmd_ss} {cmd_t} {fmt} cut1.yuv")
-                run_cmd(f"ffmpeg {sizes} -r 10 -i {video_ref} {cmd_ss} {cmd_t} {fmt} cut2.yuv")
+                run_cmd(f"ffmpeg {sizes} -r 10 -i {video} {cmd_ss} {cmd_t} {fmt} cut1.yuv", verbose=True)
+                run_cmd(f"ffmpeg {sizes} -r 10 -i {video_ref} {cmd_ss} {cmd_t} {fmt} cut2.yuv", verbose=True)
                 
                 command = f"vmaf/run_vmaf yuv420p {width} {height} cut2.yuv cut1.yuv --out-fmt json"
                 raw_vmaf_data = run_cmd(command)

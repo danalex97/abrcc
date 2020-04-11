@@ -3,11 +3,10 @@ import { BackendShim } from '../component/backend';
 
 
 const logger = logging('RequestController');
-const MAX_INDEX = 149; // [TODO] remove
 
 
 export class RequestController {
-    constructor(shim, pool) {
+    constructor(videoInfo, shim, pool) {
         this._current = 0;
         this._pool = pool;
         this._shim = shim;
@@ -19,7 +18,7 @@ export class RequestController {
         this._pieceSuccess = (index, body) => {};
 
         this._pieceRequests = {};
-        this._max_index = MAX_INDEX;
+        this._max_index = videoInfo.bitrateArray.length;
     }
 
     getPieceRequest(index) {

@@ -61,6 +61,7 @@ class Controller:
         port: int,
         path: Path,
         leader_port: Optional[int] = None,
+        video: Optional[str] = None,
     ) -> None:
         self.dash = dash
         self.only_server = only_server
@@ -79,7 +80,8 @@ class Controller:
                 sum([['-d', str(d)] for d in dash] if dash else [], ['-s']) + 
                 ['--site', site, '--profile', name, '--cc', cc] + 
                 (['--certs'] if not leader_port else []) +
-                (['--abr', abr] if abr else []),
+                (['--abr', abr] if abr else []) + 
+                (['--video', video] if video else []),
             path=path,
             name=name,
             frontend=self.chrome,

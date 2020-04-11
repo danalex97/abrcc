@@ -70,6 +70,11 @@ def get_chunk_time(video: str, quality: int, index: int) -> float:
     return t2 - t1
 
 
+def get_approx_video_length(video: str) -> float:
+    last_segm = get_video_chunks(video) - 1
+    return __get_start_time(video, 0, last_segm) + 2 * get_chunk_time(video, 0, last_segm)
+
+
 def get_vmaf(video: str, index: int, bitrate: int) -> float:
     if index > get_video_chunks(video) or index < 0:
         return 0

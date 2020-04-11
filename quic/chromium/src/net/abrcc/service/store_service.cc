@@ -46,7 +46,7 @@ static void staticRegisterResource(
     data = bin_data;  
   }
 
-  QUIC_LOG(WARNING) << "[data] " << data.size() << '\n';
+  QUIC_LOG(WARNING) << "[data] " << resource << ' ' << data.size() << '\n';
   
   SpdyHeaderBlock response_headers;
   response_headers[":status"] = QuicTextUtils::Uint64ToString(200);

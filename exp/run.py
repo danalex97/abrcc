@@ -63,6 +63,7 @@ def run(args: Namespace) -> None:
         port = args.port,
         path = path,
         leader_port = args.leader_port,
+        video = args.video,
     )
        
     # Handle controller communication and metrics
@@ -82,6 +83,7 @@ def run(args: Namespace) -> None:
     
     # Handle live plots
     plots = attach_plot_components(
+        args.video,
         server,
         trace=getattr(args, 'trace', None),
         no_plot=not args.plot,

@@ -23,7 +23,7 @@ class UrlProcessor {
 
     get quality() {
         try {
-            return this.max_rates - parseInt(this.url.split('/')[1].split('video')[1]) + 1;
+            return parseInt(this.url.split('/')[1].split('video')[1]);
         } catch(err) {
             return undefined;
         }
@@ -133,6 +133,8 @@ export class Interceptor extends InterceptorUtil {
 
             // modify url
             if (url.includes('video') && url.endsWith('.m4s') && !url.includes('Header')) {
+                logger.log('To modify', url);
+                
                 let processor = new UrlProcessor(max_rates, url);
                 let index = processor.index;
                 
@@ -145,14 +147,12 @@ export class Interceptor extends InterceptorUtil {
             }
             ctx.send = function() {
                 if (url.includes('video') && url.endsWith('.m4s')) {
+                    logger.log(url);
+
                     let processor = new UrlProcessor(max_rates, url);
                     let index = processor.index;
                     let quality = processor.quality; 
                     
-                    if (url.includes('init')) {
-                        index = makeHeader(max_rates - quality + 1); 
-                    }
-    
                     if (interceptor._toIntercept[index] !== undefined) {
                         logger.log("intercepted", url);
 

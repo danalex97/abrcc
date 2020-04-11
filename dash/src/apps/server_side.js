@@ -78,7 +78,7 @@ export class ServerSideApp extends App {
         this.tracker = new StatsTracker(player);
         this.interceptor = new Interceptor(videoInfo);
         
-        this.requestController = new RequestController(this.shim, POOL_SIZE);
+        this.requestController = new RequestController(videoInfo, this.shim, POOL_SIZE);
         this.qualityController = new QualityController();
         this.statsController = new StatsController();
         
@@ -203,7 +203,7 @@ export class ServerSideApp extends App {
             .start();
         
         // Listen for stream finishing
-        onEvent("endOfStream", (context) => {
+        let eos = (context) => {
             logger.log('End of stream');
             if (this.recordMetrics) {
                 let logs = exportLogs();  
@@ -213,7 +213,10 @@ export class ServerSideApp extends App {
                     .addComplete()
                     .send();
             }
-        });
+        };
+        onEvent("endOfStream", (context) => eos(context));
+        onEvent("PLAYBACK_ENDED", (context) => eos(context));
+
 
         this.tracker.registerCallback((metrics) => {
             // Log metrics

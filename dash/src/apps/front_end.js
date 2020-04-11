@@ -15,17 +15,16 @@ const logger = logging('App');
 
 
 export class FrontEndApp extends App {
-    constructor(player, recordMetrics, shim, name, video) {
+    constructor(player, recordMetrics, shim, name, videoInfo) {
         super(player);
-        logger.log(video);
 
         this.tracker = new StatsTracker(player);
-        this.interceptor = new Interceptor(video);
+        this.interceptor = new Interceptor(videoInfo);
         this.shim = shim;
         
         this.statsController = new StatsController();
         this.qualityController = new QualityController();
-        this.algorithm = GetAlgorithm(name, shim, video);
+        this.algorithm = GetAlgorithm(name, shim, videoInfo);
 
         this.recordMetrics = recordMetrics;
 
@@ -58,7 +57,7 @@ export class FrontEndApp extends App {
                 controller.addPiece(decision);
             });
 
-        onEvent("endOfStream", (context) => {
+        let eos = (context) => {
             logger.log('End of stream');
             if (this.recordMetrics) {
                 let logs = exportLogs();  
@@ -68,12 +67,15 @@ export class FrontEndApp extends App {
                     .addComplete()
                     .send();
             }
-        });
+        };
+        onEvent("endOfStream", (context) => eos(context));
+        onEvent("PLAYBACK_ENDED", (context) => eos(context));
 
         this.interceptor
             .onRequest((ctx, index) => {
                 this.algorithm.newRequest(ctx);
 
+                logger.log('Advance', index + 1);
                 this.qualityController.advance(index + 1);
                 this.tracker.getMetrics(); 
             })

@@ -125,7 +125,13 @@ bool SegmentProgressAbr::should_send(int index) {
     // segment has already been downloaded or loaded
     return true;
   }
-  
+
+  // Adaptation for small segments
+  if (1.0 * segment.loaded / segment.total >= 0.5 && segment.total < 100000) {
+    // segment has been downloaded more than 80%
+    return true;
+  }
+
   if (1.0 * segment.loaded / segment.total >= 0.8) {
     // segment has been downloaded more than 80%
     return true;

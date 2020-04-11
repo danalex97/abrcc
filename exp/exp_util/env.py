@@ -1,6 +1,6 @@
 from argparse import Namespace
 from subprocess import Popen
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 from wrapt_timeout_decorator import timeout as timeout_func
 from functools import wraps
 
@@ -79,12 +79,15 @@ def run_subexp(
     server2: str, 
     force_run: bool = False,
     burst: int = 20000,
+    video: Optional[str] = None,
 ) -> None:
     if os.path.isdir(path) and not force_run:
         return   
     leader_cmd = (
         f"python3 leader.py -b {bandwidth} -l {latency} --port 8800 2 --path {path} --plot --burst {burst}"
     )
+    if video:
+        leader_cmd += f' --video {video}'
     cmd1 = (
         f"python3 run.py --port 8001 --quic-port 4001 -lp 8800 {server1} --path {path}"
     )
