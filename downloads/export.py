@@ -45,7 +45,7 @@ def main(args: Namespace) -> None:
                 "path" : f"/video_{q}",
                 "info" : [
                     process_info(vmaf_json[str(q)][str(i + 1)], q, i + 1, tracks_path)
-                    for i in range(len(vmaf_json[str(q)]))
+                    for i in range(len(vmaf_json[str(q)]) - 1)
                 ],
             } for (i, q) in list(enumerate(qualities))
         ],

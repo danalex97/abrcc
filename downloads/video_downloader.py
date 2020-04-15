@@ -23,7 +23,8 @@ def get_tracks(url: str) -> Dict[int, int]:
     out = {}
     for line in raw_info.split('\n')[3:-1]:
         info = [s for s in line.split('  ') if s != '']
-        
+        print(line)
+
         track_id = int(info[0])
         track_format = info[1]
         
@@ -39,6 +40,7 @@ def get_tracks(url: str) -> Dict[int, int]:
             out[rate] = track_id
    
     max_rate = 2500
+
     to_delete = []
     for rate in out.keys():
         if rate > max_rate:
@@ -80,9 +82,10 @@ def run(args: Namespace) -> None:
         print(f'> Downloading {fmt}')
         if not os.path.isfile(fmt):
             print(run_cmd(f'youtube-dl -f {track_id} -o {fmt} {args.url}', verbose=True))
-    
+
     # Convert tracks
     segment_info = {}
+    ctr = 0
     for rate, track_id in tracks.items():
         run_cmd(f'mkdir -p videos/{args.video}/tracks')
         mp4_video = f'videos/{args.video}/tmp/video_{rate}.mp4'
@@ -90,9 +93,24 @@ def run(args: Namespace) -> None:
         segment_dir = f'videos/{args.video}/tracks/video_{rate}'
         run_cmd(f'rm -rf {segment_dir}')
         run_cmd(f'mkdir -p {segment_dir}')
+        
+        # Intermediate video -- H264 format
+        inter1 = f'videos/{args.video}/tmp/intermediate.264'
+        run_cmd(f'x264 --output {inter1} --fps 24 --preset slow' + 
+                f' --bitrate {rate} --vbv-maxrate {2*rate} --vbv-bufsize {4*rate}' +
+                f' --min-keyint {args.segment*24} --keyint {args.segment*24}' +
+                f' --scenecut 0 --no-scenecut --pass 1 {mp4_video}')
+        
+        # Intermediate video -- mp4 format
+        inter2 = f'videos/{args.video}/tmp/intermediate.mp4'
+        run_cmd(f'rm -f {inter2}')
+        run_cmd(f'MP4Box -add {inter1} -fps 24 {inter2}')
 
-        run_cmd(f'MP4Box -dash {args.segment} -dash-profile live -segment-name "" {mp4_video}', verbose=True)
-        run_cmd(f'mv video_{rate}_dash.mpd {segment_dir}')
+        # To segemnts
+        #run_cmd(f'MP4Box -dash {args.segment*1000} -frag {args.segment*1000} -rap -segment-name "" {inter2}', verbose=True)
+        #run_cmd(f'MP4Box -dash {args.segment*1000} -segment-name "" {inter2}', verbose=True)
+        run_cmd(f'MP4Box -dash {args.segment*1000} -dash-profile live -rap -segment-name "" {inter2}', verbose=True)
+        run_cmd(f'mv intermediate_dash.mpd {segment_dir}')
         run_cmd(f'mv *.m4s {segment_dir}')
         run_cmd(f'mv init.mp4 {segment_dir}')
     
@@ -107,18 +125,34 @@ def run(args: Namespace) -> None:
             segment_info[rate][segment] = {
                 'start_time' : earliest_time / timescale,
             }
-
+    
     # Create common manifest
     base = None
     info = {}
     for rate, track_id in tracks.items():
         segment_dir = f'videos/{args.video}/tracks/video_{rate}'
-        manifest = f'{segment_dir}/video_{rate}_dash.mpd'
-        
+        manifest = f'{segment_dir}/intermediate_dash.mpd'
+
+        # Remove unused manifest files
+        content = None
+        with open(manifest, 'r') as f:
+            content = f.read()
+            content = '\n'.join([l for l in content.split('\n') 
+                if "Initialization" not in l])
+        os.system(f'rm {manifest}')
+        with open(manifest, 'w') as f:
+            f.write(content)
+
         tree = et.parse(manifest)
         tree = tree.getroot()
-        
-        representation = tree[1][0][1]
+       
+        root = tree[1][0]
+        representation = None
+        for child in root:
+            if 'Representation' in child.tag:
+                representation = child
+            
+        print(representation)
         pl = sorted(list(tracks.keys())).index(rate)
         representation.set('id', f"video{pl}")
         
@@ -134,8 +168,7 @@ def run(args: Namespace) -> None:
             segment_template.set('media', '$RepresentationID$/$Number$.m4s')
         else:
             base[1][0].append(representation)
-        run_cmd(f'rm {manifest}')
-            
+     
     # Generate manifest
     manifest = f'videos/{args.video}/tracks/manifest.mpd'
     print(f'> Creating manifest {manifest}')
@@ -145,6 +178,9 @@ def run(args: Namespace) -> None:
         manifest_content = tostring(base).decode('UTF-8')
         print(manifest_content)
         f.write(manifest_content)
+    
+    if not args.vmaf:
+        return
 
     # Generate JSON vmaf information
     if not os.path.isfile(f'videos/{args.video}/vmaf.json'):
@@ -217,4 +253,5 @@ if __name__ == "__main__":
     parser.add_argument('url', type=str, help='Video url.')
     parser.add_argument('video', type=str, help='Name of the video.')
     parser.add_argument('-s', '--segment-size', dest='segment', type=int, default=5000, help='Segment size in ms.')
+    parser.add_argument('-vmaf', action='store_true', dest='vmaf', help='Segment size in ms.')
     run(parser.parse_args())   
