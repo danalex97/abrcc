@@ -8,12 +8,11 @@ import json
 __JSON_CACHE = {}
 def __get_json(video: str) -> Dict[int, List[Dict[str, float]]]:
     global __JSON_CACHE
-
+    
     if video not in __JSON_CACHE:
         directory = Path(os.path.dirname(os.path.realpath(__file__)))
         directory = directory / '..'  / '..' / 'quic'
         json_path = str(directory / 'sites' / video / 'config.json')
-        print(json_path)
 
         info = {}
         with open(json_path, 'r') as json_file:

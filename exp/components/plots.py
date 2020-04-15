@@ -228,7 +228,7 @@ def attach_plot_components(
     bandwidth: Optional[int] = None,
     no_plot: bool = False, 
 ) -> Dict[str, LivePlot]:
-    segments = get_video_chunks(video)
+    segments = get_video_chunks(video) + 1
     max_playback = int(1.25 * get_approx_video_length(video))
 
     if no_plot:
