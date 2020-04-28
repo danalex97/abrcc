@@ -31,10 +31,12 @@ function getPlayer() {
     window._onEventContext = {};
     let originallog = console.info;
 
-    console.info = function() {
+    let handler = function() {
         window._onText(Array.from(arguments));
         dash_logger.log(...arguments);
-    }
+    };
+    console.info = handler;
+    console.warn = handler;
 })();
 
 export function onEvent(event, callback) {

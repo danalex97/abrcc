@@ -18,7 +18,7 @@ export class RequestController {
         this._pieceSuccess = (index, body) => {};
 
         this._pieceRequests = {};
-        this._max_index = videoInfo.bitrateArray.length;
+        this._max_index = videoInfo.info[videoInfo.bitrateArray[0]].length;
     }
 
     getPieceRequest(index) {

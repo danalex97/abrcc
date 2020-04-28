@@ -33,7 +33,12 @@ export class RebufferTimeGetter extends MetricGetter {
             let ts_diff = this.biggestPlayerTime.timestamp - this.smallestPlayerTime.timestamp;
             let value_diff = this.biggestPlayerTime.value - this.smallestPlayerTime.value;
             
-            return ts_diff - value_diff;
+            let value = ts_diff - value_diff < 0
+            if (value < 0) {
+                return 0;
+            } else {
+                return value;
+            }
         }
         return 0;
     }

@@ -71,6 +71,13 @@ export class FrontEndApp extends App {
         onEvent("endOfStream", (context) => eos(context));
         onEvent("PLAYBACK_ENDED", (context) => eos(context));
 
+        onEvent("Detected unintended removal", (context) => {
+            logger.log('Wtf');
+           
+            let controller = context.scheduleController;
+            controller.start();
+        });
+        
         this.interceptor
             .onRequest((ctx, index) => {
                 this.algorithm.newRequest(ctx);

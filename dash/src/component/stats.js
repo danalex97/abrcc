@@ -5,7 +5,7 @@ import { logging } from '../common/logger';
 
 
 const logger = logging('Metrics');
-const TICK_INTERVAL_MS = 200;
+const TICK_INTERVAL_MS = 100;
 const MEDIA_TYPE = 'video';
 
 

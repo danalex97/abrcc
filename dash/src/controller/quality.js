@@ -38,7 +38,10 @@ export class QualityController {
         // i.e. the index that is calculated via the advance function.
         if (index === undefined) {
             index = this._index;
-        } 
+        } else if (index > this._index) {
+            // !THIS SHOULD NOT HAPPEN
+            logger.log("WARN: ", index, "in front of ", this._index);
+        }
         
         // handle callbacks
         this._onGetQuality(index);
