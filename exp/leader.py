@@ -147,7 +147,7 @@ def run(args: Namespace) -> None:
     (server
         .add_post('/start', controller.on_start())
         .add_post('/destroy', multiple_sync(
-            OnComplete(path, 'leader', plots),
+            OnComplete(path, 'leader', plots, args.video),
             controller.on_destroy()
         )))
     server.run()

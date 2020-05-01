@@ -91,7 +91,7 @@ def run(args: Namespace) -> None:
     
     # Handle stream completion in the Browser
     server.add_post('/complete', multiple_sync(
-        OnComplete(path, name, plots), 
+        OnComplete(path, name, plots, args.video), 
         controller.on_complete(),
     )) 
     server.run()
