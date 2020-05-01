@@ -110,7 +110,7 @@ void StateTracker::registerMetrics(const abr_schema::Metrics &metrics) {
  **/
 
 namespace WorthedAbrConstants { 
-  const int segment_size_ms = 4 * ::SECOND;
+  const int segment_size_ms = 5 * ::SECOND;
   const double rebuf_penalty = 4.3;
   const double safe_downscale = 0.75;
 

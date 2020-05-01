@@ -32,12 +32,6 @@ namespace {
 
 namespace quic {
 
-// [TODO]: BUG -> unmanaged dependecy
-namespace WorthedAbrConstants { 
-  const int segment_size_ms = 4 * ::SECOND;
-} 
-
-
 /**
  * TargetAbr - begin
  **/
@@ -150,6 +144,23 @@ namespace {
   }
 }
 
+static int get_segment_length_ms(
+  const std::vector< std::vector<VideoInfo> >& segments,
+  const int current_index,
+  const int chunk_quality
+) {
+  int ref_index = current_index + 1;
+  if (ref_index + 1 == int(segments[chunk_quality].size())) {
+    ref_index--;
+  }
+  int segment_length_ms = int(double(::SECOND) * 
+    (segments[chunk_quality][ref_index + 1].start_time 
+    - segments[chunk_quality][ref_index].start_time)
+  );
+  return segment_length_ms;
+}
+
+
 std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   // compute current_vmaf, start_index, start_buffer
   int last_index = this->decision_index - 1; 
@@ -183,7 +194,6 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
 
     std::unordered_set<state_t, std::function<size_t (const state_t&)> > next_states(0, hash);
     for (auto &from : curr_states) {
-      // QUIC_LOG(WARNING) << from;
       int max_quality = std::min(int(segments.size()) - 1, from.quality + 1);
       int min_quality = std::max(0, from.quality - 2);
       for (int chunk_quality = min_quality; chunk_quality <= max_quality; ++chunk_quality) {
@@ -201,15 +211,7 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
           current_buffer -= download_time_ms;
         }
 
-        int ref_index = current_index + 1;
-        if (ref_index + 1 == int(segments[chunk_quality].size())) {
-          ref_index--;
-        }
-        int segment_length_ms = int(1000. * 
-          (segments[chunk_quality][ref_index + 1].start_time 
-          - segments[chunk_quality][ref_index].start_time)
-        );
-
+        int segment_length_ms = get_segment_length_ms(segments, current_index, chunk_quality);
         current_buffer += segment_length_ms;
         current_buffer = std::min(current_buffer, 1. * max_buffer * buffer_unit);
 
@@ -428,7 +430,9 @@ std::pair<double, int> TargetAbr2::qoe(const double bandwidth) {
         } else {
           current_buffer -= download_time_ms;
         }
-        current_buffer += WorthedAbrConstants::segment_size_ms; // [TODO: WRONG]
+
+        int segment_length_ms = get_segment_length_ms(segments, current_index, chunk_quality);
+        current_buffer += segment_length_ms;
         current_buffer = std::min(current_buffer, 1. * max_buffer * buffer_unit);
 
         // compute next state
