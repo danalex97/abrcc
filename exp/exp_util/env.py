@@ -34,19 +34,16 @@ def run_cmd_async(cmd: str) -> Popen:
     return Popen([arg for arg in cmd.split(' ') if len(arg) > 0])
 
 
-def run_cmds(leader_cmd: str, cmd1: str, cmd1p: str, cmd2: str) -> None:
+def run_cmds(leader_cmd: str, cmd1: str, cmd2: str) -> None:
     leader = run_cmd_async(leader_cmd)
     time.sleep(1)
     instance1 = run_cmd_async(cmd1)
-    time.sleep(20)
-    instance3 = run_cmd_async(cmd1p)
     time.sleep(20)
     instance2 = run_cmd_async(cmd2)
 
     leader.wait()
     instance1.wait()
     instance2.wait()
-    instance3.wait()
 
 
 def retry(tries: int = 5, timeout: int = 600) -> Callable[[Callable], Callable]:
