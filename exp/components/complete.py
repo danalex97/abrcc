@@ -6,15 +6,23 @@ from typing import List, Dict
 from server.server import Component, JSONType
 from .plots import LivePlot, BandwidthPlot
 
+from abr.video import get_approx_video_length, get_video_chunks
+
 
 class OnComplete(Component):
-    def __init__(self, path: Path, name: str, plots: Dict[str, LivePlot]) -> None:
+    def __init__(self, 
+        path: Path, 
+        name: str, 
+        plots: Dict[str, LivePlot], 
+        video: str
+    ) -> None:
         self.browser_path= path / f'{name}_browser.log'
         self.plots_path = path / f'{name}_plots.log'
         self.draw_path = path / f'{name}_plots.png'
 
         self.plots = plots 
-    
+        self.video = video
+
     async def process_logs(self, log: List[str]) -> None:
         with open(self.browser_path, 'a') as f:
             for line in log:
@@ -22,25 +30,17 @@ class OnComplete(Component):
                 f.write('\n')
   
     async def export_plots(self) -> None: 
-        try:
-            # [TODO] Fix plot exports
-            for name, plot in self.plots.items():
-                ref_dataset = (list(plot.datasets.values())[0]
-                    if len(plot.datasets) > 0 else None)
-                if not ref_dataset:
-                    continue
-                xs = ref_dataset.x
+        for name, plot in self.plots.items():
+            xs = list(range(1, get_video_chunks(self.video)))
 
-                with open(self.plots_path, 'a') as f:
-                    for x in xs:
-                        out = {'x' : x} 
-                        out[name] = {}
-                        for ds_name, dataset in plot.datasets.items():
-                            out[name][ds_name] = dataset.y[x]
-                        f.write(json.dumps(out))
-                    f.write('\n')
-        except:
-            pass
+            with open(self.plots_path, 'a') as f:
+                for x in xs:
+                    out = {'x' : x} 
+                    out[name] = {}
+                    for ds_name, dataset in plot.datasets.items():
+                        out[name][ds_name] = dataset.y[x]
+                    f.write(json.dumps(out))
+                f.write('\n')
         if len(self.plots) > 0:
             for plot in self.plots.values():
                 await plot.draw()
