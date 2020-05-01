@@ -3,3 +3,5 @@ logs
 experiments
 *.swp
 *.svm
+old/
+test/
