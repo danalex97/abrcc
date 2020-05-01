@@ -42,7 +42,8 @@ namespace TargetAbrConstants {
   // constants used for QoE function weights
   const double alpha = 1.;
   const double beta = 2.5; 
-  const double gamma = 25.; 
+  const double gamma = 25.; // [TODO] check weight 100 is OK 
+  const double zetta = 2. * gamma / horizon;
 
   // constants for bandwidth estimator
   const int bandwidth_window = 6;
@@ -120,7 +121,7 @@ namespace {
       this->from = from;
     }
 
-    int qoe;
+    int qoe; // [TODO] should this be double? 
     int vmaf;
     state_t from; 
 
@@ -149,8 +150,9 @@ static int get_segment_length_ms(
   const int current_index,
   const int chunk_quality
 ) {
+  // [TODO] should we use current_index or current_index + 1?
   int ref_index = current_index + 1;
-  if (ref_index + 1 == int(segments[chunk_quality].size())) {
+  while (ref_index + 1 >= int(segments[chunk_quality].size())) {
     ref_index--;
   }
   int segment_length_ms = int(double(::SECOND) * 
@@ -160,6 +162,11 @@ static int get_segment_length_ms(
   return segment_length_ms;
 }
 
+double TargetAbr::localQoe(int current_vmaf, int last_vmaf, int rebuffer, int buffer) {
+  return 1. * TargetAbrConstants::alpha * current_vmaf
+    - 1. * TargetAbrConstants::beta * fabs(current_vmaf - last_vmaf)
+    - 1. * TargetAbrConstants::gamma * rebuffer / ::SECOND;
+}
 
 std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   // compute current_vmaf, start_index, start_buffer
@@ -181,7 +188,7 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   std::unordered_set<state_t, std::function<size_t (const state_t&)> > curr_states(0, hash);
   
   int buffer_unit = 40;
-  int max_buffer = 40 * ::SECOND / buffer_unit;
+  int max_buffer = 100 * ::SECOND / buffer_unit;
   state_t null_state, start_state(last_index, start_buffer / buffer_unit, current_quality);
   dp[start_state] = value_t(0, current_vmaf, null_state);
   curr_states.insert(start_state);
@@ -223,11 +230,8 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
         int last_vmaf    = dp[from].vmaf;
         
         // compute qoe
-        double qoe = dp[from].qoe;
-        qoe += 1. * TargetAbrConstants::alpha * current_vmaf;
-        qoe -= 1. * TargetAbrConstants::beta * fabs(current_vmaf - last_vmaf);
-        qoe -= 1. * TargetAbrConstants::gamma * rebuffer / ::SECOND;
-
+        double qoe = dp[from].qoe + localQoe(current_vmaf, last_vmaf, rebuffer, current_buffer);
+        
         // update dp value with maximum qoe
         if (dp.find(next) == dp.end() || dp[next].qoe < qoe) {
           dp[next] = value_t(qoe, current_vmaf, from); 
@@ -267,6 +271,10 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   std::reverse(states.begin(), states.end());
   state_t first = states.size() > 1 ? states[1] : states[0];
  
+  for (auto state : states) {
+    QUIC_LOG(WARNING) << state;
+  }
+
   QUIC_LOG(WARNING) << "[TargetAbr] first: " << first << ' ' << dp[first];
   QUIC_LOG(WARNING) << "[TargetAbr] best: " << best << ' ' << dp[best];
   return std::make_pair(dp[best].qoe, first.quality);
@@ -380,6 +388,12 @@ int TargetAbr2::vmaf(const int quality, const int index) {
   return segments[quality][index].vmaf;
 }
 
+double TargetAbr2::localQoe(int current_vmaf, int last_vmaf, int rebuffer, int buffer) {
+  return 1. * TargetAbrConstants::alpha * current_vmaf
+    - 1. * TargetAbrConstants::beta * fabs(current_vmaf - last_vmaf)
+    - 1. * TargetAbrConstants::gamma * rebuffer / ::SECOND;
+}
+
 // [TODO] Extract common TargetAbr functions...
 std::pair<double, int> TargetAbr2::qoe(const double bandwidth) {
   // compute current_vmaf, start_index, start_buffer
@@ -401,7 +415,7 @@ std::pair<double, int> TargetAbr2::qoe(const double bandwidth) {
   std::unordered_set<state_t, std::function<size_t (const state_t&)> > curr_states(0, hash);
 
   int buffer_unit = 40;
-  int max_buffer = 40 * ::SECOND / buffer_unit;
+  int max_buffer = 100 * ::SECOND / buffer_unit;
   state_t null_state, start_state(last_index, start_buffer / buffer_unit, current_quality);
   dp[start_state] = value_t(0, current_vmaf, null_state);
   curr_states.insert(start_state);
@@ -443,10 +457,7 @@ std::pair<double, int> TargetAbr2::qoe(const double bandwidth) {
         int last_vmaf    = dp[from].vmaf;
         
         // compute qoe
-        double qoe = dp[from].qoe;
-        qoe += 1. * TargetAbrConstants::alpha * current_vmaf;
-        qoe -= 1. * TargetAbrConstants::beta * fabs(current_vmaf - last_vmaf);
-        qoe -= 1. * TargetAbrConstants::gamma * rebuffer / ::SECOND;
+        double qoe = dp[from].qoe + localQoe(current_vmaf, last_vmaf, rebuffer, current_buffer);
 
         if (dp.find(next) == dp.end() || dp[next].qoe < qoe) {
           dp[next] = value_t(qoe, current_vmaf, from); 
@@ -486,8 +497,8 @@ std::pair<double, int> TargetAbr2::qoe(const double bandwidth) {
   std::reverse(states.begin(), states.end());
   state_t first = states.size() > 1 ? states[1] : states[0];
  
-  // QUIC_LOG(WARNING) << "[TargetAbr2] first: " << first << ' ' << dp[first];
-  // QUIC_LOG(WARNING) << "[TargetAbr2] best: " << best << ' ' << dp[best];
+  QUIC_LOG(WARNING) << "[TargetAbr2] first: " << first << ' ' << dp[first];
+  QUIC_LOG(WARNING) << "[TargetAbr2] best: " << best << ' ' << dp[best];
   return std::make_pair(dp[best].qoe, first.quality);
 }
 
@@ -592,6 +603,18 @@ void TargetAbr2::adjustCC() {
 /**
  * TargetAbr2 - end 
  **/
+
+TargetAbr3::TargetAbr3(const std::shared_ptr<DashBackendConfig>& config) 
+  : TargetAbr2(config) {} 
+
+TargetAbr3::~TargetAbr3() {}
+
+double TargetAbr3::localQoe(int current_vmaf, int last_vmaf, int rebuffer, int buffer) {
+  return 1. * TargetAbrConstants::alpha * current_vmaf
+    - 1. * TargetAbrConstants::beta * fabs(current_vmaf - last_vmaf)
+    - 1. * TargetAbrConstants::gamma * rebuffer / ::SECOND
+    - 1. * TargetAbrConstants::zetta * buffer / ::SECOND;
+}
 
 }
 

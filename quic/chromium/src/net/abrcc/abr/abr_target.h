@@ -27,6 +27,9 @@ class TargetAbr : public SegmentProgressAbr, public StateTracker {
  
   void registerMetrics(const abr_schema::Metrics &) override;
   int decideQuality(int index) override;  
+ 
+  // rebuffer, buffer in ms
+  virtual double localQoe(int current_vmaf, int last_vmaf, int rebuffer, int buffer); 
  private:
   int vmaf(const int quality, const int index);
   std::pair<double, int> qoe(const double bandwidth);
@@ -46,6 +49,9 @@ class TargetAbr2 : public SegmentProgressAbr {
  
   void registerMetrics(const abr_schema::Metrics &) override;
   int decideQuality(int index) override;  
+  
+  // rebuffer, buffer in ms
+  virtual double localQoe(int current_vmaf, int last_vmaf, int rebuffer, int buffer); 
  private:
   int vmaf(const int quality, const int index);
   std::pair<double, int> qoe(const double bandwidth);
@@ -66,6 +72,15 @@ class TargetAbr2 : public SegmentProgressAbr {
   base::Optional<abr_schema::Value> last_rtt;
   int last_timestamp;
   // StateTracker state -- end
+};
+
+class TargetAbr3 : public TargetAbr2 {
+ public:
+  TargetAbr3(const std::shared_ptr<DashBackendConfig>& config);
+  ~TargetAbr3() override;
+ 
+  // rebuffer, buffer in ms
+  double localQoe(int current_vmaf, int last_vmaf, int rebuffer, int buffer) override; 
 };
 
 }

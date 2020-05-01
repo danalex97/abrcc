@@ -26,6 +26,9 @@ AbrInterface* getAbr(
   } else if (abr_type == "target2") {
     QUIC_LOG(WARNING) << "Target2 abr selected";
     return new TargetAbr2(config);
+  } else if (abr_type == "target3") {
+    QUIC_LOG(WARNING) << "Target3 abr selected";
+    return new TargetAbr3(config);
   }
   QUIC_LOG(WARNING) << "Defaulting to BB abr";
   return new BBAbr(config);
