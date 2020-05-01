@@ -3643,6 +3643,8 @@ if (!is_ios) {
       "abrcc/abr/abr.h",
       "abrcc/abr/abr_base.h",
       "abrcc/abr/abr_base.cc",
+      "abrcc/abr/abr_worthed.h",
+      "abrcc/abr/abr_worthed.cc",
       "abrcc/abr/loop.cc",
       "abrcc/abr/loop.h",
 
