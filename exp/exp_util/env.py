@@ -34,16 +34,19 @@ def run_cmd_async(cmd: str) -> Popen:
     return Popen([arg for arg in cmd.split(' ') if len(arg) > 0])
 
 
-def run_cmds(leader_cmd: str, cmd1: str, cmd2: str) -> None:
+def run_cmds(leader_cmd: str, cmd1: str, cmd1p: str, cmd2: str) -> None:
     leader = run_cmd_async(leader_cmd)
     time.sleep(1)
     instance1 = run_cmd_async(cmd1)
+    time.sleep(20)
+    instance3 = run_cmd_async(cmd1p)
     time.sleep(20)
     instance2 = run_cmd_async(cmd2)
 
     leader.wait()
     instance1.wait()
     instance2.wait()
+    instance3.wait()
 
 
 def retry(tries: int = 5, timeout: int = 600) -> Callable[[Callable], Callable]:
@@ -76,6 +79,7 @@ def run_subexp(
     latency: int, 
     path: str, 
     server1: str, 
+    server3: str,
     server2: str, 
     force_run: bool = False,
     burst: int = 20000,
@@ -84,17 +88,20 @@ def run_subexp(
     if os.path.isdir(path) and not force_run:
         return   
     leader_cmd = (
-        f"python3 leader.py -b {bandwidth} -l {latency} --port 8800 2 --path {path} --plot --burst {burst}"
+        f"python3 leader.py -b {bandwidth} -l {latency} --port 8800 3 --path {path} --plot --burst {burst}"
     )
     if video:
         leader_cmd += f' --video {video}'
     cmd1 = (
         f"python3 run.py --port 8001 --quic-port 4001 -lp 8800 {server1} --path {path}"
     )
+    cmd1p = (
+        f"python3 run.py --port 8003 --quic-port 4003 -lp 8800 {server3} --path {path}"
+    )
     cmd2 = (
         f"python3 run.py --port 8002 --quic-port 4002 -lp 8800 {server2} --path {path}"
     )
-    run_cmds(leader_cmd, cmd1, cmd2)
+    run_cmds(leader_cmd, cmd1, cmd1p, cmd2)
 
 
 @retry(tries=5, timeout=350)

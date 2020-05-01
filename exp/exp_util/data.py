@@ -3,6 +3,7 @@ from collections import defaultdict
 from pathlib import Path
 
 from server.data import JSONType 
+from abr.video import get_approx_video_length, get_video_chunks
 
 import json
 
@@ -32,6 +33,7 @@ class VmafQoe(ExperimentMetric):
 
 class Experiment:
     def __init__(self,
+        video: str, 
         path: str,
         latency: int, 
         extra: List[str] = [],
@@ -46,29 +48,43 @@ class Experiment:
         self.latency = latency
         self.run_id = run_id
         self.metrics = []
+        self.video = video
 
     def get_metrics(self) -> List[ExperimentMetric]:
         try:
+            segments = get_video_chunks(self.video) + 1
             with open(self.path, 'r') as graph_log:
                 raw_qoe = defaultdict(lambda: defaultdict(int))
                 vmaf_qoe = defaultdict(lambda: defaultdict(int))
                 
-                for line in graph_log.read().split('\n'):
+                def process(_input):
+                    out = []
+                    for line in _input.split('\n'):
+                        vals = line.split('}{')
+                        for i, val in enumerate(vals): 
+                            val = '{' + val if i > 0 else val
+                            val = val + '}' if i < len(vals) - 1 else val
+                            out.append(val)
+                    return out
+
+                for line in process(graph_log.read()):
                     def proc_metric(curr_dict, metric):
                         if metric not in obj:
                             return
                         x = obj['x']
                         for name, value in obj[metric].items():
                             # not great
-                            if x != 0 and x != 49:
+                            if x > 0 and x < segments - 2:
                                 curr_dict[name][x] = value
                     
+                    obj = None
                     try:
                         obj = json.loads(line)
                     except:
                         pass
-                    proc_metric(raw_qoe, "raw_qoe")
-                    proc_metric(vmaf_qoe, "vmaf_qoe")
+                    if obj:
+                        proc_metric(raw_qoe, "raw_qoe")
+                        proc_metric(vmaf_qoe, "vmaf_qoe")
 
                 out = []
                 for name in raw_qoe.keys():
@@ -87,6 +103,7 @@ class Experiment:
     @staticmethod
     def from_json(json: JSONType) -> 'Experiment':
         return Experiment(
+            video = json['video'],
             path = json['path'],
             latency = json['latency'],
             extra = json['extra'],
@@ -98,6 +115,7 @@ class Experiment:
     @property
     def json(self) -> JSONType:
         out = {
+            'video' : self.video,
             'path' : self.path,
             'latency' : self.latency,
             'extra' : self.extra,
@@ -136,6 +154,7 @@ def generate_summary(path: str, experiments: List[Experiment]) -> None:
     with open(str(Path(path) / "log.txt"), "w") as summary:
         for experiment in experiments:  
             summary.write(f'> [{experiment.path}]')
+            print(experiment.get_metrics())
             for metric in experiment.get_metrics():
                 summary.write(f' {metric.metric}: {metric.value};')
             summary.write('\n') 
