@@ -86,11 +86,11 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
         }
         
         if (!sent) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(50));
+          std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
       }
     } else {
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
 
     if (loop->sent.find(decision.resourcePath()) == loop->sent.end()) {
@@ -104,11 +104,11 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
         }
         
         if (!sent) {
-          std::this_thread::sleep_for(std::chrono::milliseconds(50));
+          std::this_thread::sleep_for(std::chrono::milliseconds(20));
         }
       }
     } else {
-      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
     }
   }
 }
