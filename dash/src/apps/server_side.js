@@ -224,7 +224,6 @@ export class ServerSideApp extends App {
             controller.start();
         });
 
-
         this.tracker.registerCallback((metrics) => {
             // Log metrics
             this.statsController.addMetrics(metrics);

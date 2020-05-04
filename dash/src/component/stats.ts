@@ -30,18 +30,18 @@ export class Metrics {
     constructor(raw_metrics?) {
         this.clear();
         if (raw_metrics !== undefined) {
-            this.withSegment(new Segment()
+            let segment = new Segment()
                 .withStartTime(
                     raw_metrics.scheduling.startTime, 
                     raw_metrics.scheduling.duration)
                 .withState(SEGMENT_STATE.LOADING)
                 .withTimestamp(timestamp(raw_metrics.scheduling.t))
-                .withQuality(raw_metrics.scheduling.quality)
-            ).withDroppedFrames(new Value(raw_metrics.dropped.droppedFrames)
-            ).withPlayerTime(new Value(Math.round(raw_metrics.info.time * 1000))
-            ).withBufferLevel(new Value(Math.round(raw_metrics.buffer_level.level))
-                .withTimestamp(timestamp(raw_metrics.buffer_level.t))
-            );
+                .withQuality(raw_metrics.scheduling.quality);
+
+            this.withSegment(segment);
+            this.withDroppedFrames(new Value(raw_metrics.dropped.droppedFrames));
+            this.withPlayerTime(new Value(Math.round(raw_metrics.info.time * 1000)));
+            this.withBufferLevel(new Value(Math.round(raw_metrics.buffer_level * 1000)));
         }
     }
 
@@ -195,9 +195,6 @@ export class StatsTracker {
     }
 
     tick(metrics_wrapper: ExternalDependency): Metrics {
-        const getBufferInfo = (info) => metrics_wrapper.getLatestBufferInfoVO(
-            MEDIA_TYPE, true, info
-        );
         const execute = (func, ...args) => {
             try {
                 return func(...args);
@@ -211,9 +208,9 @@ export class StatsTracker {
             'dropped' : execute(metrics_wrapper.getCurrentDroppedFrames),
             'switch' : execute(metrics_wrapper.getCurrentRepresentationSwitch, MEDIA_TYPE, true),
             'scheduling' : execute(metrics_wrapper.getCurrentSchedulingInfo, MEDIA_TYPE),
-            'buffer_level' : execute(getBufferInfo, 'BufferLevel'),
+            'buffer_level' : execute(metrics_wrapper.getCurrentBufferLevel, MEDIA_TYPE),
         };
-
+    
         let metrics = new Metrics(raw_metrics);
         return metrics;
     }
