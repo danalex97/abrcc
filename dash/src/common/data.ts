@@ -1,7 +1,7 @@
 import { timestamp as create_timestamp } from '../common/time';
 
 
-interface SegmentState {
+export interface SegmentState {
     readonly DOWNLOADED: string;
     readonly PROGRESS: string;
     readonly LOADING: string;
@@ -93,37 +93,37 @@ export class Segment extends Piece {
         this._timestamp = create_timestamp(new Date());
     }
 
-    withLoaded(loaded: number): Piece {
+    withLoaded(loaded: number): Segment {
         this._loaded = loaded;
         return this;
     }
 
-    withTotal(total: number): Piece {
+    withTotal(total: number): Segment {
         this._total = total;
         return this;
     }
 
-    withTimestamp(timestamp: number): Piece {
+    withTimestamp(timestamp: number): Segment {
         this._timestamp = timestamp;
         return this;
     }
 
-    withQuality(quality: number): Piece {
+    withQuality(quality: number): Segment {
         this._quality = quality;
         return this;
     }
 
-    withState(state: string): Piece {
+    withState(state: string): Segment {
         this._state = state;
         return this;
     }
 
-    withIndex(index: number): Piece {
+    withIndex(index: number): Segment {
         this._index = index;
         return this;
     }
    
-    withStartTime(startTime, duration): Piece {
+    withStartTime(startTime, duration): Segment {
         // segments start from 1
         this._index = Math.round(startTime / duration) + 1;
         return this;

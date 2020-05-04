@@ -1,15 +1,19 @@
+import { Json, ExternalDependency } from '../types';
 import { timestamp } from '../common/time';
 import { Value, Segment, SEGMENT_STATE } from '../common/data';
 import { default as stringify } from 'json-stable-stringify';
-import { logging } from '../common/logger'; 
+import { logging, Logger } from '../common/logger'; 
 
 
-const logger = logging('Metrics');
-const TICK_INTERVAL_MS = 100;
-const MEDIA_TYPE = 'video';
+const logger: Logger = logging('Metrics');
+const TICK_INTERVAL_MS: number = 100;
+const MEDIA_TYPE: string = 'video';
 
 
-function pushDefault(context, value) {
+function pushDefault(
+    context: Array<Value | Segment> | undefined, 
+    value: Value | Segment
+): void {
     if (context === undefined) {
         context = [];
     }
@@ -18,7 +22,12 @@ function pushDefault(context, value) {
 
 
 export class Metrics {
-    constructor(raw_metrics) {
+    _segments: Array<Segment>;
+    _droppedFrames: Array<Value>;
+    _playerTime: Array<Value>;
+    _bufferLevel: Array<Value>;
+
+    constructor(raw_metrics?) {
         this.clear();
         if (raw_metrics !== undefined) {
             this.withSegment(new Segment()
@@ -36,7 +45,7 @@ export class Metrics {
         }
     }
 
-    _apply(builder, array, filter) {
+    _apply(builder: string, array: Array<Segment | Value>, filter: (x: Segment | Value) => boolean): Metrics {
         if (filter !== undefined) {
             array = array.filter(filter);
         }
@@ -46,15 +55,15 @@ export class Metrics {
         return this;
     }
 
-    withMetrics(metrics, filter) {
+    withMetrics(metrics: Metrics, filter: (x: Segment | Value) => boolean): Metrics {
         return this
             ._apply('withDroppedFrames', metrics.droppedFrames, filter)
             ._apply('withPlayerTime', metrics.playerTime, filter)
             ._apply('withBufferLevel', metrics.bufferLevel, filter)
             ._apply('withSegment', metrics.segments, filter);
     }
-  
-    clear() {
+ 
+    clear(): Metrics {
         this._droppedFrames = [];
         this._bufferLevel = [];
         this._playerTime = [];
@@ -62,9 +71,12 @@ export class Metrics {
         return this;
     }
 
-    serialize(noProgress) {
-        const unique = arr => [...new Set(arr.map(stringify))].map(JSON.parse); 
-        const transform = arr => unique(arr.map(x => x.serialize(noProgress)));
+    // Serialize metrics; if noProgress is true, then don't include the segment serialization
+    serialize(noProgress: boolean = false) {
+        // @ts-ignore: unsafe to use stringify, then JSON.parse
+        const unique: (a: Array<Json>) => Array<Json> = arr => [...new Set(arr.map(stringify))].map(JSON.parse); 
+        // @ts-ignore
+        const transform: (a: Array<Segment | Value>) => Array<Json> = arr => unique(arr.map(x => x.serialize(noProgress)));
         const cmp = (a, b) => a.timestamp - b.timestamp;
         const prepareSegments = (segments) => {
             const groupBy = (xs, map) => xs.reduce((rv, x) => {
@@ -76,8 +88,8 @@ export class Metrics {
                 return acc;
             }, []);
             const prepareLoading = (segments) => {
-                let out = [];
-                if (noProgress === true) {
+                let out: Array<Segment> = [];
+                if (noProgress) {
                     return out;
                 }
                 let grouped = groupBy(segments, segment => segment.index);
@@ -101,7 +113,8 @@ export class Metrics {
         };
     }
 
-    sorted() {
+    // Sorts metrics by timestamp; mutates object.
+    sorted(): Metrics {
         let cmp = (a, b) => a.timestamp - b.timestamp;
         this._droppedFrames.sort(cmp);
         this._playerTime.sort(cmp);
@@ -110,48 +123,51 @@ export class Metrics {
         return this;
     }
 
-    withDroppedFrames(droppedFrames) {
+    withDroppedFrames(droppedFrames: Value): Metrics {
         this._droppedFrames.push(droppedFrames);
         return this;
     }
 
-    withBufferLevel(bufferLevel) {
+    withBufferLevel(bufferLevel: Value): Metrics {
         this._bufferLevel.push(bufferLevel);
         return this;
     }
 
-    withPlayerTime(playerTime) {
+    withPlayerTime(playerTime: Value): Metrics {
         this._playerTime.push(playerTime);
         return this;
     }
 
-    withSegment(segment) {
+    withSegment(segment: Segment): Metrics {
         if (!isNaN(segment.index)) {
             this._segments.push(segment);
         }
         return this;
     }
 
-    get segments() {
+    get segments(): Array<Segment> {
         return this._segments;
     }
 
-    get bufferLevel() {
+    get bufferLevel(): Array<Value> {
         return this._bufferLevel;
     }
 
-    get playerTime() {
+    get playerTime(): Array<Value> {
         return this._playerTime;
     }
 
-    get droppedFrames() {
+    get droppedFrames(): Array<Value> {
         return this._droppedFrames;
     }
 }
 
 
 export class StatsTracker {
-    constructor(player) {
+    player: ExternalDependency;
+    callbacks: Array<(metrics: Metrics) => void>;
+    
+    constructor(player: ExternalDependency) {
         this.player = player;
         this.callbacks = [];
     }
@@ -163,10 +179,7 @@ export class StatsTracker {
         }, TICK_INTERVAL_MS);
     }
 
-    getMetrics(withCallbacks) {
-        if (withCallbacks === undefined) {
-            withCallbacks = true;
-        }
+    getMetrics(withCallbacks: boolean = true) {
         let metrics_wrapper, metrics;
         try { 
             metrics_wrapper = this.player.getDashMetrics();
@@ -181,7 +194,7 @@ export class StatsTracker {
         }
     }
 
-    tick(metrics_wrapper) {
+    tick(metrics_wrapper: ExternalDependency): Metrics {
         const getBufferInfo = (info) => metrics_wrapper.getLatestBufferInfoVO(
             MEDIA_TYPE, true, info
         );
@@ -205,7 +218,7 @@ export class StatsTracker {
         return metrics;
     }
 
-    registerCallback(callback) {
+    registerCallback(callback: (metrics: Metrics) => void): void {
         this.callbacks.push(callback); 
     }
 }

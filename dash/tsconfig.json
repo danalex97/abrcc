@@ -2,6 +2,7 @@
     "compilerOptions": {
         "module": "commonjs",
         "moduleResolution": "node",
+        "downlevelIteration": true,
         "sourceMap": true,
         "outDir": "src/ts-out/",
         "removeComments": false,
@@ -23,6 +24,8 @@
         "./src/common/data.ts",
         "./src/common/logger.ts",
         "./src/common/cache.ts",
-        "./src/common/args.ts"
+        "./src/common/args.ts",
+    
+        "./src/component/stats.ts"
     ] 
 }
