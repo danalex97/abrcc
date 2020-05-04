@@ -57,13 +57,11 @@ export class Logger {
         this.color = intToRGB(hashCode(logName));
     }
 
-    // no input annotation -- can accept any argument
-    log(): void {
+    log(...args: any[]): void {
         let toLog = [
             `%c  ${this.logName}  `,
             `color: white; background-color: #${this.color}`,
         ];
-        let args = Array.from(arguments);
         for (let argument of args) {
             toLog.push(" | "); 
             toLog.push(argument);

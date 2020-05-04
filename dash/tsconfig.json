@@ -26,6 +26,7 @@
         "./src/common/cache.ts",
         "./src/common/args.ts",
     
-        "./src/component/stats.ts"
+        "./src/component/stats.ts",
+        "./src/component/intercept.ts"
     ] 
 }

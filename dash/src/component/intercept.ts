@@ -1,16 +1,28 @@
-import { logging } from '../common/logger';
+import { Dict, ExternalDependency } from '../types';
+import { logging, Logger } from '../common/logger';
+import { VideoInfo } from '../common/video';
 
 
-const logger = logging('Intercept');
+declare global {
+    interface Window { 
+        XMLHttpRequest: ExternalDependency; 
+    }
+}
 
 
-export function makeHeader(quality) {
+const logger: Logger = logging('Intercept');
+
+
+export function makeHeader(quality: number): string {
     return `HEADER${quality}`;
 }
 
 
 class UrlProcessor {
-    constructor(_max_rates, _url) {
+    max_rates: number
+    url: string
+
+    constructor(_max_rates: number, _url: string) {
         this.max_rates = _max_rates;
         let url = `${_url}`;
         for (let prefix of ['http://', 'https://']) {
@@ -21,7 +33,7 @@ class UrlProcessor {
         this.url = url;
     }
 
-    get quality() {
+    get quality(): number | undefined {
         try {
             return parseInt(this.url.split('/')[1].split('video')[1]);
         } catch(err) {
@@ -29,7 +41,7 @@ class UrlProcessor {
         }
     }
 
-    get index() {
+    get index(): number | undefined {
         try {
             return parseInt(this.url.split('/')[2].split('.')[0]);
         } catch(err) {
@@ -40,19 +52,22 @@ class UrlProcessor {
 
 
 export class InterceptorUtil {
-    makeWritable(object, property, writable) {
+    makeWritable(object: object, property: any, writable: any) {
         let descriptor = Object.getOwnPropertyDescriptor(object, property) || {};
         descriptor.writable = writable;
         Object.defineProperty(object, property, descriptor);
     }
 
-    executeCallback(callback, event) {
+    executeCallback(
+        callback: undefined | ((event: ProgressEvent | undefined) => void), 
+        event: ProgressEvent | undefined
+    ): void {
         try {
             if (callback) {
                 if (event) {
                     callback(event);
                 } else {
-                    callback();
+                    callback(undefined);
                 }
             }
         } catch(ex) {
@@ -60,17 +75,21 @@ export class InterceptorUtil {
         }
     }
 
-    newEvent(ctx, type, dict) {
+    newEvent(ctx: ExternalDependency, type: any, dict: any): ProgressEvent {
         let event = new ProgressEvent(type, dict);
         
         this.makeWritable(event, 'currentTarget', true);
         this.makeWritable(event, 'srcElement', true);
         this.makeWritable(event, 'target', true);
         this.makeWritable(event, 'trusted', true);
-        
+       
+        // @ts-ignore: read-only propoerty 
         event.currentTarget = ctx;
+        // @ts-ignore: read-only propoerty 
         event.srcElement = ctx;
+        // @ts-ignore: read-only propoerty 
         event.target = ctx;
+        // @ts-ignore: read-only propoerty 
         event.trusted = true;
 
         return event;
@@ -79,7 +98,13 @@ export class InterceptorUtil {
 
 
 export class Interceptor extends InterceptorUtil {
-    constructor(videoInfo) {
+    _videoInfo: VideoInfo;
+    _onRequest: (ctx: ExternalDependency, index: number) => void;
+    _toIntercept: Dict<number, Dict<string, object>>;
+    _onIntercept: Dict<number, (context: Dict<string, object>) => void>;
+    _done: Dict<number, string>;
+    
+    constructor(videoInfo: VideoInfo) {
         super();
 
         this._videoInfo = videoInfo;
@@ -124,7 +149,7 @@ export class Interceptor extends InterceptorUtil {
     start() {
         let interceptor = this;
         let oldOpen = window.XMLHttpRequest.prototype.open;
-        let max_rates = interceptor._videoInfo.bitrates.length;
+        let max_rates: number = interceptor._videoInfo.bitrates.length;
 
         // override the open method
         function newXHROpen(method, url, async, user, password) {
@@ -136,13 +161,17 @@ export class Interceptor extends InterceptorUtil {
                 logger.log('To modify', url);
                 
                 let processor = new UrlProcessor(max_rates, url);
-                let index = processor.index;
-                
-                if (interceptor._done[index] === undefined) {
-                    interceptor._onRequest(ctx, index);
-                    interceptor._done[index] = url;
+                let maybeIndex = processor.index;
+                if (maybeIndex === undefined) {
+                    logger.log(`[error] Index not present in ${url}`);
                 } else {
-                    logger.log("Retry on request", index, url);
+                    let index = maybeIndex as number;
+                    if (interceptor._done[index] === undefined) {
+                        interceptor._onRequest(ctx, index);
+                        interceptor._done[index] = url;
+                    } else {
+                        logger.log("Retry on request", index, url);
+                    }
                 }
             }
             ctx.send = function() {
@@ -150,30 +179,35 @@ export class Interceptor extends InterceptorUtil {
                     logger.log(url);
 
                     let processor = new UrlProcessor(max_rates, url);
-                    let index = processor.index;
+                    let maybeIndex = processor.index;
                     let quality = processor.quality; 
                     
-                    if (interceptor._toIntercept[index] !== undefined) {
-                        logger.log("intercepted", url);
-
-                        // adding the context
-                        interceptor._toIntercept[index] = {
-                            'ctx': ctx,
-                            'url': url,
-                            
-                            'makeWritable': interceptor.makeWritable,
-                            'execute': interceptor.executeCallback,
-                            'newEvent': interceptor.newEvent, 
-                        };
-
-                        // if the callback was set this means we already got the new response
-                        if (interceptor._onIntercept[index] !== undefined) {
-                            interceptor._onIntercept[index](interceptor._toIntercept[index]);
-                            return;
-                        }
-                        return;
+                    if (maybeIndex === undefined) {
+                        logger.log(`[error] Index not present in ${url}`);
                     } else {
-                        return oldSend.apply(this, arguments);
+                        let index = maybeIndex as number;
+                        if (interceptor._toIntercept[index] !== undefined) {
+                            logger.log("intercepted", url);
+
+                            // adding the context
+                            interceptor._toIntercept[index] = {
+                                'ctx': ctx,
+                                'url': url,
+                                
+                                'makeWritable': interceptor.makeWritable,
+                                'execute': interceptor.executeCallback,
+                                'newEvent': interceptor.newEvent, 
+                            };
+
+                            // if the callback was set this means we already got the new response
+                            if (interceptor._onIntercept[index] !== undefined) {
+                                interceptor._onIntercept[index](interceptor._toIntercept[index]);
+                                return;
+                            }
+                            return;
+                        } else {
+                            return oldSend.apply(this, arguments);
+                        }
                     }
                 } else {
                     return oldSend.apply(this, arguments);
@@ -183,6 +217,7 @@ export class Interceptor extends InterceptorUtil {
             return oldOpen.apply(this, arguments); 
         }
 
+        // @ts-ignore: overriding XMLHttpRequest
         window.XMLHttpRequest.prototype.open = newXHROpen;
     }
 }
