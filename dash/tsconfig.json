@@ -1,0 +1,21 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "sourceMap": true,
+        "outDir": "src/ts-out/",
+        "removeComments": false,
+        "noImplicitAny": false,
+        "target": "es5",
+        "module": "es6",
+        "lib": [
+            "es2016",
+            "dom",
+            "es5"
+        ]
+    },
+    "files": [
+        "./src/types.ts",
+        "./src/common/video.ts"
+    ] 
+}

@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {
-    "lint": "eslint src",
+    "compile" : "tsc",
+    "lint": "eslint --ignore-pattern 'src/ts-out' src",
     "build": "node build.js",
-    "build:run": "browserify dist/config.json src/index.js src/apps/* src/algo/* src/common/* src/component/* src/controller/* > dist/bundle.js",
-    "build:compress" : "uglifyjs -c -m -o dist/bundle.js -- dist/bundle.js",
+    "build:run": "browserify -p tsify -t [ babelify --extensions .ts ] dist/config.json src/index.js src/types.ts src/apps/* src/algo/* src/common/* src/component/* src/controller/* > dist/bundle.js",
+    "build:compress": "uglifyjs -c -m -o dist/bundle.js -- dist/bundle.js",
     "watch": "watchify src/* -o dist/bundle.js -v"
   },
   "browserify": {
@@ -25,19 +26,19 @@
     ]
   },
   "dependencies": {
-    "browserify": "^16.2.2",
+    "babel-preset-env": "^1.7.0",
+    "babel-preset-es2015": "^6.13.2",
+    "babelify": "^7.3.0",
+    "browserify": "^13.0.0",
     "dashjs": "^3.0.0",
+    "eslint": "^6.7.2",
     "https": "^1.0.0",
     "json-stable-stringify": "^1.0.1",
     "reading-time": "^1.1.3",
     "request": "^2.88.0",
-    "watchify": "^3.11.0"
-  },
-  "devDependencies": {
-    "babel-core": "^6.26.3",
-    "babel-preset-es2015": "^6.24.1",
-    "babelify": "^8.0.0",
+    "tsify": "^2.0.2",
+    "typescript": "^2.0.3",
     "uglify-js": "^3.7.3",
-    "eslint": "^6.7.2"
+    "watchify": "^3.11.0"
   }
 }

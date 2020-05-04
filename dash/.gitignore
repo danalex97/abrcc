@@ -1,3 +1,4 @@
 node_modules
 dist
 manifest.mpd
+src/ts-out

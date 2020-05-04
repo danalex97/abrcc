@@ -42,5 +42,6 @@ fs.writeFileSync('dist/config.json', data);
 console.log("> config generated");
 
 // Running the build process via npm
+run_cmd("npm run compile");
 run_cmd("npm run lint");
 run_cmd("npm run build:run");
