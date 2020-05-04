@@ -7,6 +7,14 @@ export class SegmentInfo {
     size: number;
 
     constructor(obj: object) {
+        if (
+            obj["start_time"] === undefined ||
+            obj["vmaf"] === undefined || 
+            obj["size"] === undefined
+        )  {
+            throw new TypeError(`Wrong segment info format ${obj}`);
+        }
+
         this.start_time = obj["start_time"];
         this.vmaf = obj["vmaf"];
         this.size = obj["size"];
@@ -16,7 +24,7 @@ export class SegmentInfo {
 
 export class VideoInfo {
     bitrates: Array<number>;  
-    info: Dict<string, SegmentInfo>; 
+    info: Dict<string, Array<SegmentInfo>>; 
 
     constructor(config) {
         // save the bitrates
@@ -29,7 +37,11 @@ export class VideoInfo {
         // save video information
         this.info = {};
         for (let conf of config.video_paths) {
-            this.info[conf.quality] = new SegmentInfo(conf.info);
+            let segments: Array<SegmentInfo> = [];
+            for (let raw_segment_info of conf.info) {
+                segments.push(new SegmentInfo(raw_segment_info));
+            }
+            this.info[conf.quality] = segments;
         }
     }
 
