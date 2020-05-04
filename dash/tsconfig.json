@@ -8,6 +8,7 @@
         "noImplicitAny": false,
         "target": "es5",
         "module": "es6",
+        "strictNullChecks": true,
         "lib": [
             "es2016",
             "dom",
@@ -16,6 +17,12 @@
     },
     "files": [
         "./src/types.ts",
-        "./src/common/video.ts"
+
+        "./src/common/video.ts",
+        "./src/common/time.ts",
+        "./src/common/data.ts",
+        "./src/common/logger.ts",
+        "./src/common/cache.ts",
+        "./src/common/args.ts"
     ] 
 }

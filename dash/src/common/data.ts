@@ -1,45 +1,46 @@
 import { timestamp as create_timestamp } from '../common/time';
 
 
-export const SEGMENT_STATE = {
-    'DOWNLOADED': 'downloaded',
-    'PROGRESS': 'progress',
-    'LOADING': 'loading',
+interface SegmentState {
+    readonly DOWNLOADED: string;
+    readonly PROGRESS: string;
+    readonly LOADING: string;
+}
+
+
+export const SEGMENT_STATE: SegmentState = {
+    DOWNLOADED: 'downloaded',
+    PROGRESS: 'progress',
+    LOADING: 'loading',
 };
 
 
-// @abstract
-export class Piece {
-    get index() {
-        throw new TypeError("not implemented error")
-    }
-
-    get quality() {
-        throw new TypeError("not implemented error")
-    }
-
-    get timestamp() {
-        throw new TypeError("not implemented error")
-    }
+export abstract class Piece {
+    abstract get index(): number; 
+    abstract get quality(): number;
+    abstract get timestamp(): number;
 }
 
 
 export class Value {
-    constructor(value) {
+    _value: number;
+    _timestamp: number;
+    
+    constructor(value: number) {
         this._value = value;
         this._timestamp = create_timestamp(new Date());
     }
 
-    withTimestamp(timestamp) {
+    withTimestamp(timestamp: number): Value {
         this._timestamp = timestamp;
         return this;
     }
 
-    get value() {
+    get value(): number {
         return this._value;
     }
 
-    get timestamp() {
+    get timestamp(): number {
         return this._timestamp;
     }
 
@@ -53,6 +54,10 @@ export class Value {
 
 
 export class Decision extends Piece {
+    _index: number;
+    _quality: number;
+    _timestamp: number;
+    
     constructor(index, quality, timestamp) {
         super();
         this._index = index;
@@ -60,86 +65,95 @@ export class Decision extends Piece {
         this._timestamp = timestamp;
     }
     
-    get index() {
+    get index(): number {
         return this._index; 
     }
 
-    get quality() {
+    get quality(): number {
         return this._quality;
     }
 
-    get timestamp() {
+    get timestamp(): number {
         return this._timestamp;   
     }
 }
 
 export class Segment extends Piece {
+    _timestamp: number;
+    
+    _quality: number; // quality value from 0 -> maxQuality - 1
+    _index: number; // index value from 1 -> #segments
+    _state: string; // state from [downloaded, progress, loading]
+    
+    _loaded: number; // loaded bits
+    _total: number; // total size in bits
+
     constructor() {
         super()
         this._timestamp = create_timestamp(new Date());
     }
 
-    withLoaded(loaded) {
+    withLoaded(loaded: number): Piece {
         this._loaded = loaded;
         return this;
     }
 
-    withTotal(total) {
+    withTotal(total: number): Piece {
         this._total = total;
         return this;
     }
 
-    withTimestamp(timestamp) {
+    withTimestamp(timestamp: number): Piece {
         this._timestamp = timestamp;
         return this;
     }
 
-    withQuality(quality) {
+    withQuality(quality: number): Piece {
         this._quality = quality;
         return this;
     }
 
-    withState(state) {
+    withState(state: string): Piece {
         this._state = state;
         return this;
     }
 
-    withIndex(index) {
+    withIndex(index: number): Piece {
         this._index = index;
         return this;
     }
    
-    withStartTime(startTime, duration) {
+    withStartTime(startTime, duration): Piece {
         // segments start from 1
         this._index = Math.round(startTime / duration) + 1;
         return this;
     }
 
-    get total() {
+    get total(): number {
         return this._total;
     }
 
-    get loaded() {
+    get loaded(): number {
         return this._loaded;
     }
 
-    get timestamp() {
+    get timestamp(): number {
         return this._timestamp;
     }
 
-    get index() {
+    get index(): number {
         return this._index;
     }
 
-    get quality() {
+    get quality(): number {
         return this._quality;
     }
 
-    get state() { 
+    get state(): string { 
         return this._state;
     }
 
-    serialize(full) {
+    serialize(full: boolean): object {
         let ret = {};
         if (this.state == SEGMENT_STATE.LOADING || this.state == SEGMENT_STATE.DOWNLOADED) {
             ret = {

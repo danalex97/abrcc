@@ -19,8 +19,6 @@ export class VideoInfo {
     info: Dict<string, SegmentInfo>; 
 
     constructor(config) {
-        console.log("WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWEEEEEEEEEEEEEEEEEEEEEEEEE");
-        
         // save the bitrates
         this.bitrates = [];
         for (let conf of config.video_paths) {
@@ -35,7 +33,7 @@ export class VideoInfo {
         }
     }
 
-    get bitrateArray() {
+    get bitrateArray(): Array<number> {
         return this.bitrates;
     }
 }

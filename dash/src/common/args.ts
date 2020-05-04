@@ -1,5 +1,7 @@
 export class ArgsParser {
-    constructor(args) {
+    args: Array<string>;
+
+    constructor(args: Array<string>) {
         this.args = args;
     }
 
@@ -7,7 +9,7 @@ export class ArgsParser {
         return this.frontEnd === null;
     }
 
-    get frontEnd() {
+    get frontEnd(): string | null {
         for (let arg of this.args) {
             if (arg.includes('fe') || arg.includes('front-end')) {
                 return arg.split('=')[1];
@@ -16,16 +18,16 @@ export class ArgsParser {
         return null;
     }
 
-    get bola() {
+    get bola(): boolean {
         return this.frontEnd == 'bola';
     }
 
-    get recordMetrics() {
+    get recordMetrics(): boolean {
         return this.args.includes('record')
             || this.args.includes('record-metrics');
     }
 
-    get site() {
+    get site(): string | null {
         for (let arg of this.args) {
             if (arg.includes('www')) {
                 return arg;
@@ -34,7 +36,7 @@ export class ArgsParser {
         return null;
     }
 
-    get metricsPort() {
+    get metricsPort(): string | null {
         for (let arg of this.args) {
             if (arg.includes('metrics-port')) {
                 return arg.split('=')[1];
@@ -43,7 +45,7 @@ export class ArgsParser {
         return null;
     }
 
-    get quicPort() {
+    get quicPort(): string | null {
          for (let arg of this.args) {
             if (arg.includes('quic-port')) {
                 return arg.split('=')[1];

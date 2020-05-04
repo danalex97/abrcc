@@ -1,15 +1,18 @@
+import { Dict } from '../types';
 import { timestamp as create_timestamp } from '../common/time';
 
 
-const loggers = {};
+const loggers: Dict<string, Logger> = {};
 const central_log = new class {
+    _log: Array<string>;
+
     constructor() {
         this._log = [];
     }
 
-    log(logname, args) {
-        let timestamp = create_timestamp(new Date());
-        let toLog = `[${logname}] ${timestamp}`;
+    log(logname: string, args: Array<any>) {
+        let timestamp: number = create_timestamp(new Date());
+        let toLog: string = `[${logname}] ${timestamp}`;
         for (let arg of args) {
             toLog = toLog.concat(" | "); 
             if (typeof arg === 'string') {
@@ -21,18 +24,18 @@ const central_log = new class {
         this._log.push(toLog);
     }
 
-    getLogs() {
+    getLogs(): Array<string> {
         return [...this._log];
     }
 }();
 
 
-export function exportLogs() {
+export function exportLogs(): Array<string> {
     return central_log.getLogs();
 }
 
 
-function hashCode(str) {
+function hashCode(str: string): number {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
        hash = str.charCodeAt(i) + ((hash << 5) - hash);
@@ -40,34 +43,37 @@ function hashCode(str) {
     return hash;
 } 
 
-function intToRGB(i){
+function intToRGB(i: number): string {
     let c = (i & 0x00FFFFFF).toString(16).toUpperCase();
     return "00000".substring(0, 6 - c.length) + c;
 }
 
-
-
 export class Logger {
-    constructor(logName) {
+    logName: string;
+    color: string;
+    
+    constructor(logName: string) {
         this.logName = logName;
         this.color = intToRGB(hashCode(logName));
     }
 
-    log() {
+    // no input annotation -- can accept any argument
+    log(): void {
         let toLog = [
             `%c  ${this.logName}  `,
             `color: white; background-color: #${this.color}`,
         ];
-        for (let argument of arguments) {
+        let args = Array.from(arguments);
+        for (let argument of args) {
             toLog.push(" | "); 
             toLog.push(argument);
         }
         console.log(...toLog);
-        central_log.log(this.logName, arguments);    
+        central_log.log(this.logName, args);    
     }
 }
 
-export function logging(logName) {   
+export function logging(logName: string): Logger {   
     if (loggers[logName] === undefined) {
         loggers[logName] = new Logger(logName);
     }
