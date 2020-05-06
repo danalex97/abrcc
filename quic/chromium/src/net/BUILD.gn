@@ -3647,6 +3647,8 @@ if (!is_ios) {
       "abrcc/abr/abr_worthed.cc",
       "abrcc/abr/abr_target.h",
       "abrcc/abr/abr_target.cc",
+      "abrcc/abr/abr_gap.h",
+      "abrcc/abr/abr_gap.cc",
       "abrcc/abr/loop.cc",
       "abrcc/abr/loop.h",
 
