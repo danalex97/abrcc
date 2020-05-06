@@ -1,6 +1,7 @@
 #include "net/abrcc/abr/abr_base.h"
 #include "net/abrcc/abr/abr_worthed.h"
 #include "net/abrcc/abr/abr_target.h"
+#include "net/abrcc/abr/abr_gap.h"
 
 #include "net/abrcc/abr/abr.h"
 
@@ -29,6 +30,9 @@ AbrInterface* getAbr(
   } else if (abr_type == "target3") {
     QUIC_LOG(WARNING) << "Target3 abr selected";
     return new TargetAbr3(config);
+  } else if (abr_type == "gap") {
+    QUIC_LOG(WARNING) << "Gap abr selected";
+    return new GapAbr(config);
   }
   QUIC_LOG(WARNING) << "Defaulting to BB abr";
   return new BBAbr(config);

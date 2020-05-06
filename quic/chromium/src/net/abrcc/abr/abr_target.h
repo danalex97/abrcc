@@ -72,6 +72,8 @@ class TargetAbr2 : public SegmentProgressAbr {
   base::Optional<abr_schema::Value> last_rtt;
   int last_timestamp;
   // StateTracker state -- end
+
+  friend class GapAbr;
 };
 
 class TargetAbr3 : public TargetAbr2 {
