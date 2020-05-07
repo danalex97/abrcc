@@ -35,7 +35,7 @@ namespace GapAbrConstants {
   
   // constants for optimization objective
   const double qoe_percentile = .95;
-  const double qoe_delta = .15;
+  const double qoe_delta = .25;
   const int step = 100;
 
   const double over_percent = 1.25;
@@ -87,6 +87,7 @@ int GapAbr::decideQuality(int index) {
 
   int last_index = this->decision_index - 1; 
   int current_quality = decisions[last_index].quality;
+  int start_buffer = last_buffer_level.value;
 
   // if we are not looking at biggest quality
   double final_qoe_percentile = GapAbrConstants::qoe_percentile;
@@ -117,21 +118,34 @@ int GapAbr::decideQuality(int index) {
     int avg_needed_bw = 8 * total_size / total_length;
   
     int max_bw_suggestion = avg_needed_bw * GapAbrConstants::over_percent; 
-    float gain = 1. * (max_bw_suggestion - min_bw) / min_bw;
+    float gain = 1. * (max_bw_suggestion * GapAbrConstants::safe_downscale - min_bw) / min_bw;
   
     // If it looks worthed to be more aggressive and the gain in bandwidth is attainable
-    if (max_bw_suggestion > std::max(min_bw, max_bw) && gain < 2.) {
-      max_bw = max_bw_suggestion;
+    if (max_bw_suggestion > std::max(min_bw, max_bw)) {
+      max_bw = std::min(max_bw_suggestion, max_bw * 2);
 
-      if (gain < .5) {
+      // adjust percentile w.r.t. gain
+      if (gain < .7) {
         final_qoe_percentile = .99;
-      } else if (gain < 1.) {
+      } else if (gain < 1.25) {
         final_qoe_percentile = .95;
       } else {
         final_qoe_percentile = .9;
       }
 
-      QUIC_LOG(WARNING) << "[GapAbr] percentile:"  << final_qoe_percentile;
+      // adjust percentile w.r.t. buffer, that is if the buffer is big, then we might
+      // try to be more aggressive since we have not much to lose
+      if (start_buffer > 15 * ::SECOND) {
+        if (final_qoe_percentile == .95) {
+          final_qoe_percentile = .99;
+        } else if (final_qoe_percentile == .9) {
+          final_qoe_percentile = .95;
+        }
+      }
+  
+
+      QUIC_LOG(WARNING) << "[GapAbr] gain: "  << gain;
+      QUIC_LOG(WARNING) << "[GapAbr] percentile: "  << final_qoe_percentile;
     }
   }
 
@@ -151,8 +165,9 @@ int GapAbr::decideQuality(int index) {
   QUIC_LOG(WARNING) << "[GapAbr] bandwidth current: " << bandwidth;
   QUIC_LOG(WARNING) << "[GapAbr] bandwidth target: " << bandwidth_target;
 
-  // Adjust target rate
-  interface->setTargetRate(bandwidth_target); 
+  // Adjust target rate -- if the bandwidth estimate decreases, don't force further decrease,
+  // that is, use std::max(bandwidth, bandwidth_target)
+  interface->setTargetRate(std::max(bandwidth, bandwidth_target)); 
 
   // Return next quality
   return qoe(GapAbrConstants::safe_downscale * bandwidth).second;
