@@ -37,7 +37,9 @@ namespace GapAbrConstants {
   const double qoe_percentile = .95;
   const double qoe_delta = .15;
   const int step = 100;
-  
+
+  const double over_percent = 1.25;
+
   // constants for deciding quality
   const double safe_downscale = .8;
 }
@@ -78,21 +80,16 @@ int GapAbr::decideQuality(int index) {
   }
 
   int bandwidth = (int)average_bandwidth->value_or(bitrate_array[0]);
-  int estimator = (int)bw_estimator->value_or(bandwidth);
-  if (estimator < 0) {
-    // overflow
-    estimator = bandwidth;
-  }
   
   // Get search range for bandwidth target
-  int min_bw = int(fmin(estimator, bandwidth) * (1. - GapAbrConstants::qoe_delta));
-  int max_bw = int(estimator * (1. + GapAbrConstants::qoe_delta));
+  int min_bw = int(bandwidth * (1. - GapAbrConstants::qoe_delta));
+  int max_bw = int(bandwidth * (1. + GapAbrConstants::qoe_delta));
 
-  // 
   int last_index = this->decision_index - 1; 
   int current_quality = decisions[last_index].quality;
 
   // if we are not looking at biggest quality
+  double final_qoe_percentile = GapAbrConstants::qoe_percentile;
   if (current_quality < int(segments.size()) - 1 && 
       last_index < int(segments[0].size()) - GapAbrConstants::horizon_adjustment) {
     // find the index for the smallest index difference
@@ -119,8 +116,23 @@ int GapAbr::decideQuality(int index) {
     }
     int avg_needed_bw = 8 * total_size / total_length;
   
-    QUIC_LOG(WARNING) << "[GapAbr] idx:"  << index_lowest_difference;
-    QUIC_LOG(WARNING) << "[GapAbr] avg:"  << avg_needed_bw;
+    int max_bw_suggestion = avg_needed_bw * GapAbrConstants::over_percent; 
+    float gain = 1. * (max_bw_suggestion - min_bw) / min_bw;
+  
+    // If it looks worthed to be more aggressive and the gain in bandwidth is attainable
+    if (max_bw_suggestion > std::max(min_bw, max_bw) && gain < 2.) {
+      max_bw = max_bw_suggestion;
+
+      if (gain < .5) {
+        final_qoe_percentile = .99;
+      } else if (gain < 1.) {
+        final_qoe_percentile = .95;
+      } else {
+        final_qoe_percentile = .9;
+      }
+
+      QUIC_LOG(WARNING) << "[GapAbr] percentile:"  << final_qoe_percentile;
+    }
   }
 
   // Compute new bandwidth target -- this function should be strictly increasing 
@@ -130,14 +142,13 @@ int GapAbr::decideQuality(int index) {
   int step = GapAbrConstants::step;
   while (
     bandwidth_target - step >= min_bw && 
-    qoe(bandwidth_target - step).first >= .95 * qoe_max_bw
+    qoe(bandwidth_target - step).first >= final_qoe_percentile * qoe_max_bw
   ) {
     bandwidth_target -= step;
   }
 
   QUIC_LOG(WARNING) << "[GapAbr] bandwidth interval: [" << min_bw << ", " << max_bw << "]";
   QUIC_LOG(WARNING) << "[GapAbr] bandwidth current: " << bandwidth;
-  QUIC_LOG(WARNING) << "[GapAbr] bandwidth estimator: " << estimator;
   QUIC_LOG(WARNING) << "[GapAbr] bandwidth target: " << bandwidth_target;
 
   // Adjust target rate

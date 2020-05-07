@@ -42,7 +42,7 @@ namespace TargetAbrConstants {
   // constants used for QoE function weights
   const double alpha = 1.;
   const double beta = 2.5; 
-  const double gamma = 25.; // [TODO] check weight 100 is OK 
+  const double gamma = 100.; 
   const double zetta = 2. * gamma / horizon;
 
   // constants for bandwidth estimator
