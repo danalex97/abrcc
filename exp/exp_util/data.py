@@ -102,8 +102,8 @@ class Experiment:
                         proc_metric(raw_qoe, "raw_qoe")
                         
                         x = obj['x']
-                        # [TODO] fix
-                        if x in vmafd['abrcc'] and x in rebuffd['abrcc']:
+                        algo = list(obj[list(set(obj.keys()) - {'x'})[0]].keys())[0]
+                        if x in vmafd[algo] and x in rebuffd[algo]:
                             proc_vmaf(vmaf_qoe, vmafd, rebuffd)
 
                 out = []
