@@ -56,6 +56,8 @@ class Experiment:
             with open(self.path, 'r') as graph_log:
                 raw_qoe = defaultdict(lambda: defaultdict(int))
                 vmaf_qoe = defaultdict(lambda: defaultdict(int))
+                vmafd = defaultdict(lambda: defaultdict(int))
+                rebuffd = defaultdict(lambda: defaultdict(int))
                 
                 def process(_input):
                     out = []
@@ -77,14 +79,32 @@ class Experiment:
                             if x > 0 and x < segments - 2:
                                 curr_dict[name][x] = value
                     
+                    def proc_vmaf(curr_dict, vmaf, rebuff):
+                        x = obj['x']
+                        for name in vmaf.keys(): 
+                            if x - 1 in vmaf[name]:
+                                curr_dict[name][x] = (vmaf[name][x]
+                                    - 100. * rebuff[name][x] / 1000. 
+                                    - 2.5 * abs(vmaf[name][x] - vmaf[name][x - 1]))
+                            else:
+                                curr_dict[name][x] = (vmaf[name][x]
+                                    - 100. * rebuff[name][x] / 1000. 
+                                    - 2.5 * abs(vmaf[name][x] - 0))
+
                     obj = None
                     try:
                         obj = json.loads(line)
                     except:
                         pass
                     if obj:
+                        proc_metric(vmafd, "vmaf")
+                        proc_metric(rebuffd, "rebuffer")
                         proc_metric(raw_qoe, "raw_qoe")
-                        proc_metric(vmaf_qoe, "vmaf_qoe")
+                        
+                        x = obj['x']
+                        # [TODO] fix
+                        if x in vmafd['abrcc'] and x in rebuffd['abrcc']:
+                            proc_vmaf(vmaf_qoe, vmafd, rebuffd)
 
                 out = []
                 for name in raw_qoe.keys():
