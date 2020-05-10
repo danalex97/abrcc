@@ -28,6 +28,7 @@
     
         "./src/component/stats.ts",
         "./src/component/intercept.ts",
-        "./src/component/consistency.ts"
+        "./src/component/consistency.ts",
+        "./src/component/backend.ts"
     ] 
 }

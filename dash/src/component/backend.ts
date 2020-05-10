@@ -1,11 +1,28 @@
+import { JsonDict, Json } from '../types';
+
 import * as request from 'request';
 import { logging } from '../common/logger'; 
 
-const logger = logging('BackendShim');
+const logger = logging('BackendBackendShim');
 
+type RequestFunction = (
+    url: string, 
+    content: Json, 
+    callback: (error: Error, res: request, body: Body) => void,
+) => XMLHttpRequest;
 
 class Request {
-    constructor(shim) {
+    request: XMLHttpRequest | undefined;
+
+    _shim: BackendShim; 
+    _onBody: (body: Body) => void;
+    _onResponse: (res: XMLHttpRequest) => void;
+    _error: () => void;
+    _onSend: (url: string, content: Json | undefined) => void;
+    _progress: (event: Event) => void;
+    _log: boolean;
+
+    constructor(shim: BackendShim) {
         this._shim = shim;
         this._onBody = (body) => {};
         this._onResponse = (response) => {};
@@ -18,7 +35,7 @@ class Request {
         this.request = undefined;
     }
 
-    _nativeSyncPost(path, resource, content) {
+    _nativeSyncPost(path: string, resource: string, content: Json): void {
         if (this._log) {
             logger.log('Sending native sync POST request', path + resource);
         }
@@ -35,7 +52,7 @@ class Request {
         xhr.send(JSON.stringify(content));
     }
 
-    _nativeGet(path, resource, responseType) {
+    _nativeGet(path: string, resource: string, responseType: XMLHttpRequestResponseType): void {
         if (this._log) {
             logger.log('Sending native GET request', path + resource);
         }
@@ -67,7 +84,7 @@ class Request {
         this.request = xhr;
     }
 
-    _request(requestFunc, path, resource, content) {
+    _request(requestFunc: RequestFunction, path: string, resource: string, content: Json) {
         if (this._log) {
             logger.log('sending request', path + resource, content);
         }
@@ -93,51 +110,58 @@ class Request {
         return this;
     }
 
-    onProgress(callback) {
+    // Builder pattern methods below
+    // -----------------------------
+    onProgress(callback: (e: Event) => void): Request {
         // only works for native requests
         this._progress = callback;
         return this;
     }
 
-    onSend(callback) {
+    onSend(callback: (url: string, content: string | undefined) => void): Request {
         this._onSend = callback;
         return this;
     }
     
-    onFail(callback) {
+    onFail(callback: () => void): Request {
         this._error = callback;
         return this;
     }
 
-    onSuccess(callback) {
+    onSuccess(callback: (body: Body) => void): Request {
         this._onBody = callback;
         return this;
     }
 
-    onSuccessResponse(callback) {
+    onSuccessResponse(callback: (res: XMLHttpRequest) => void): Request {
         this._onResponse = callback;
         return this;
     }
 
-    get shim() {
-        return this._shim;
-    }
-
-    log() {
+    log(): Request  {
         this._log = true;
         return this;
     }
+
+    // Getters below
+    // -------------
+    get shim(): BackendShim {
+        return this._shim;
+    }
+
 }
 
 
 export class MetricsRequest extends Request {
+    _json: JsonDict; 
+    
     constructor(shim) {
         super(shim);
         this._json = {
         };
     }
 
-    addStats(stats) {
+    addStats(stats: Json): MetricsRequest {
         this._json['stats'] = stats;
         return this;
     }
@@ -164,33 +188,35 @@ export class StartLoggingRequest extends Request {
 
 
 export class FrontEndDecisionRequest extends Request {
+    _object: JsonDict;
+    
     constructor(shim) {
         super(shim);
         
         this._object = {};
     }
 
-    addLastFetchTime(time) {
+    addLastFetchTime(time: number): FrontEndDecisionRequest {
         this._object['last_fetch_time'] = time;
         return this;
     }
     
-    addIndex(index) {
+    addIndex(index: number): FrontEndDecisionRequest {
         this._object['index'] = index;
         return this;
     }
 
-    addBuffer(buffer) {
+    addBuffer(buffer: number): FrontEndDecisionRequest {
         this._object['buffer'] = buffer;
         return this;
     }
 
-    addRebuffer(rebuffer) {
+    addRebuffer(rebuffer: number): FrontEndDecisionRequest {
         this._object['rebuffer'] = rebuffer;
         return this;
     }
     
-    addBandwidth(bandwidth) {
+    addBandwidth(bandwidth: number): FrontEndDecisionRequest {
         this._object['bandwidth'] = bandwidth;
         return this;
     }
@@ -202,16 +228,16 @@ export class FrontEndDecisionRequest extends Request {
 
 
 export class MetricsLoggingRequest extends MetricsRequest {
-    constructor(shim) {
+    constructor(shim: BackendShim) {
         super(shim);
     }
 
-    addLogs(logs) {
+    addLogs(logs: Array<string>): MetricsLoggingRequest {
         this._json['logs'] = logs;
         return this; 
     }
 
-    addComplete() {
+    addComplete(): MetricsLoggingRequest {
         this._json['complete'] = true;
         return this;
     }
@@ -225,32 +251,42 @@ export class MetricsLoggingRequest extends MetricsRequest {
 
 
 export class PieceRequest extends Request {
-    constructor(shim) {
+    index: number | undefined;
+
+    constructor(shim: BackendShim) {
         super(shim);
     }
 
-    addIndex(index) {
+    addIndex(index: number): PieceRequest {
         this.index = index;
         return this;
     }
     
     send() {
+        if (this.index === undefined) {
+            throw new TypeError(`PieceRequest made without index: ${this}`); 
+        }
         return this._request(request.get, this.shim.path, "/" + this.index, {});
     }
 }
 
 
 export class HeaderRequest extends Request {
-    constructor(shim) {
+    quality: number | undefined;
+
+    constructor(shim: BackendShim) {
         super(shim);
     }
 
-    addQuality(quality) {
+    addQuality(quality: number): HeaderRequest {
         this.quality = quality;
         return this;
     }
 
     send() {
+        if (this.quality === undefined) {
+            throw new TypeError(`HeaderRequest made without quality: ${this}`); 
+        }
         let resource = `/video${this.quality}/init.mp4`;
         return this._nativeGet(this.shim.basePath, resource, "arraybuffer");
     }
@@ -258,23 +294,33 @@ export class HeaderRequest extends Request {
 
 
 export class ResourceRequest extends Request {
-    constructor(shim) {
+    index: number | undefined;
+    
+    constructor(shim: BackendShim) {
         super(shim);
     }
 
-    addIndex(index) {
+    addIndex(index: number): ResourceRequest {
         this.index = index;
         return this;
     }
     
     send() {
+        if (this.index === undefined) {
+            throw new TypeError(`ResourceRequest made without index: ${this}`); 
+        }
         return this._nativeGet(this.shim.resourcePath, "/" + this.index, "arraybuffer");
     }
 }
 
 
 export class BackendShim {
-    constructor(site, metrics_port, quic_port) {
+    _base_path: string;
+    _path: string;
+    _resource_path: string;
+    _experiment_path: string;
+    
+    constructor(site: string, metrics_port: number, quic_port: number) {
         // the base path refers to the backend server
         this._base_path = `https://${site}:${quic_port}`;
         this._path = `https://${site}:${quic_port}/request`;
@@ -282,51 +328,49 @@ export class BackendShim {
 
         // the experiment path is used as a logging and control service
         this._experiment_path = `https://${site}:${metrics_port}`;
-
-        console.log(this._base_path);
     }
 
-    headerRequest() {
+    headerRequest(): HeaderRequest {
         return new HeaderRequest(this);
     }
 
-    metricsRequest() {
+    metricsRequest(): MetricsRequest {
         return new MetricsRequest(this);
     }
 
-    frontEndDecisionRequest() {
+    frontEndDecisionRequest(): FrontEndDecisionRequest {
         return new FrontEndDecisionRequest(this);
     }
 
-    startLoggingRequest() {
+    startLoggingRequest(): StartLoggingRequest {
         return new StartLoggingRequest(this);
     }
 
-    metricsLoggingRequest() {
+    metricsLoggingRequest(): MetricsLoggingRequest {
         return new MetricsLoggingRequest(this);
     }
 
-    pieceRequest() {
+    pieceRequest(): PieceRequest {
         return new PieceRequest(this); 
     }
 
-    resourceRequest() {
+    resourceRequest(): ResourceRequest {
         return new ResourceRequest(this);
     }
 
-    get basePath() {
+    get basePath(): string {
         return this._base_path;
     }
 
-    get resourcePath() {
+    get resourcePath(): string {
         return this._resource_path;
     }
 
-    get path() {
+    get path(): string {
         return this._path;
     }
 
-    get experimentPath() {
+    get experimentPath(): string {
         return this._experiment_path;
     }   
 }

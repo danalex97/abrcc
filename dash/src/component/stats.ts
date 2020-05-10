@@ -72,7 +72,7 @@ export class Metrics {
     }
 
     // Serialize metrics; if noProgress is true, then don't include the segment serialization
-    serialize(noProgress: boolean = false) {
+    serialize(noProgress: boolean = false): Json {
         // @ts-ignore: unsafe to use stringify, then JSON.parse
         const unique: (a: Array<Json>) => Array<Json> = arr => [...new Set(arr.map(stringify))].map(JSON.parse); 
         // @ts-ignore
