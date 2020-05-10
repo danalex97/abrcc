@@ -1,3 +1,5 @@
+import { Dict } from '../types';
+
 import { Piece } from '../common/data';
 import { logging } from '../common/logger';
 
@@ -7,23 +9,28 @@ const STATS_INTERVAL = 20000;
 
 
 class Stream {
+    _callbacks: Array<(value: any) => void>; 
+
     constructor() {
         this._callbacks = [];
     }
 
-    push(value) {
+    push(value: any): void {
         for (let callback of this._callbacks) {
             callback(value);
         }
     }
 
-    onPush(callback) {
+    onPush(callback: (value: any) => void): void {
         this._callbacks.push(callback); 
     }
 }
 
 
 class ConsistencyChecker {
+    _streams: Dict<string, Stream>; 
+    _values: Dict<string, any>; 
+
     constructor() {
         this._streams = {};
         this._values = {};
@@ -33,7 +40,7 @@ class ConsistencyChecker {
         }, STATS_INTERVAL);    
     }
 
-    __stats() {
+    __stats(): void {
         logger.log("Periodic stats...");
         for (let name in this._streams) {
             let size = Object.keys(this._values[name] || {}).length;
@@ -41,7 +48,7 @@ class ConsistencyChecker {
         }
     }
 
-    __addStream(name, stream) {
+    __addStream(name: string, stream: Stream): void {
         this._streams[name] = stream;
         this._values[name] = {};
 
@@ -61,7 +68,7 @@ class ConsistencyChecker {
         });
     }
 
-    push(name, value) {
+    push(name: string, value: any): void {
         if (this._streams[name] === undefined) {
             this.__addStream(name, new Stream());
         }
@@ -74,15 +81,17 @@ const checker = new ConsistencyChecker();
 
 
 class TargetedChecker {
-    constructor(name) {
+    name: string;
+
+    constructor(name: string) {
         this.name = name;
     }
     
-    push(value) {
+    push(value: any): void {
         checker.push(this.name, value);
     }
 }
 
-export function checking(name) {
+export function checking(name: string): TargetedChecker {
     return new TargetedChecker(name);
 }

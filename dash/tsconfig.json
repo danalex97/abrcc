@@ -27,6 +27,7 @@
         "./src/common/args.ts",
     
         "./src/component/stats.ts",
-        "./src/component/intercept.ts"
+        "./src/component/intercept.ts",
+        "./src/component/consistency.ts"
     ] 
 }
