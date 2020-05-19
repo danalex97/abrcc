@@ -13,6 +13,9 @@
 // interfaces
 #include "net/abrcc/abr/interface.h"
 
+// interface of Gap CC
+#include "net/abrcc/cc/gap.h"
+
 
 namespace quic {
 
@@ -21,7 +24,13 @@ class GapAbr : public TargetAbr2 {
   GapAbr(const std::shared_ptr<DashBackendConfig>& config);
   ~GapAbr() override;
  
+  void registerMetrics(const abr_schema::Metrics &metrics) override;
   int decideQuality(int index) override;  
+ 
+ private:
+  // We use both BbrTarget::BbrInterface and BbrGap::gap_interface since we want
+  // to allow both CC operation modes.
+  BbrGap::BbrInterface* gap_interface; 
 };
 
 }

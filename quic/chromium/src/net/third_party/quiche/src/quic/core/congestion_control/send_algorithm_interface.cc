@@ -8,6 +8,7 @@
 #include "net/abrcc/cc/cc_selector.h"
 #include "net/abrcc/cc/bbr_adapter.h"
 #include "net/abrcc/cc/target.h"
+#include "net/abrcc/cc/gap.h"
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/tcp_cubic_sender_bytes.h"
@@ -51,6 +52,12 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
     case kTarget:
       QUIC_LOG(WARNING) << "Using Target CC";
       instance = new BbrTarget(clock->ApproximateNow(), rtt_stats, unacked_packets,
+                           initial_congestion_window, max_congestion_window,
+                           random, stats);
+      break;
+    case kGap:
+      QUIC_LOG(WARNING) << "Using Gap CC";
+      instance = new BbrGap(clock->ApproximateNow(), rtt_stats, unacked_packets,
                            initial_congestion_window, max_congestion_window,
                            random, stats);
       break;

@@ -34,6 +34,8 @@ void CCSelector::setCongestionControlType(const std::string& cc_type) {
     type = kRenoBytes;
   } else if (cc_type == "target") {
     type = kTarget;
+  } else if (cc_type == "gap") {
+    type = kGap;
   }
 }
 

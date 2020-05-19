@@ -395,7 +395,8 @@ enum CongestionControlType {
   kGoogCC,
   kBBRv2,
   kAbbr,
-  kTarget
+  kTarget,
+  kGap
 };
 
 enum LossDetectionType : uint8_t {
