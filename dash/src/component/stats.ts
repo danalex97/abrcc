@@ -45,7 +45,11 @@ export class Metrics {
         }
     }
 
-    _apply(builder: string, array: Array<Segment | Value>, filter: (x: Segment | Value) => boolean): Metrics {
+    _apply(
+        builder: string, 
+        array: Array<Segment | Value>, 
+        filter?: (x: Segment | Value) => boolean,
+    ): Metrics {
         if (filter !== undefined) {
             array = array.filter(filter);
         }
@@ -55,7 +59,10 @@ export class Metrics {
         return this;
     }
 
-    withMetrics(metrics: Metrics, filter: (x: Segment | Value) => boolean): Metrics {
+    withMetrics(
+        metrics: Metrics, 
+        filter?: (x: Segment | Value) => boolean,
+    ): Metrics {
         return this
             ._apply('withDroppedFrames', metrics.droppedFrames, filter)
             ._apply('withPlayerTime', metrics.playerTime, filter)

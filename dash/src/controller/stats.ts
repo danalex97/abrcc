@@ -6,21 +6,20 @@ const logger = logging('StatsController');
 
 
 export class StatsController {
+    _metrics: Metrics;
+    
     constructor() {
         this._metrics = new Metrics();
     }
     
     // Discard all information before timestamp, inclusively. 
-    // @param {int} timestamp front-end generated
-    advance(timestamp) {    
+    advance(timestamp: number): void {    
         let filter = (value) => value.timestamp > timestamp;
         this._metrics = new Metrics().withMetrics(this._metrics, filter);
     }
    
     // Get all metrics until the timestamp, inclusively.
-    // @returns {Metrics} 
-    // @param {int} timestamp front-end generated
-    getMetrics(timestamp) {
+    getMetrics(timestamp?: number): Metrics {
         if (timestamp === undefined) {
             return new Metrics().withMetrics(this._metrics).sorted();
         } else {
@@ -29,11 +28,11 @@ export class StatsController {
         }
     }
 
-    get metrics() {
+    get metrics(): Metrics {
         return this.getMetrics();
     }
 
-    addMetrics(metrics) {
+    addMetrics(metrics: Metrics): void {
         this._metrics.withMetrics(metrics);
     }
 }
