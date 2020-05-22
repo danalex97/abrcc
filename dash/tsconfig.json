@@ -29,6 +29,9 @@
         "./src/component/stats.ts",
         "./src/component/intercept.ts",
         "./src/component/consistency.ts",
-        "./src/component/backend.ts"
+        "./src/component/backend.ts",
+        
+        "./src/controller/quality.ts",
+        "./src/controller/request.ts"
     ] 
 }

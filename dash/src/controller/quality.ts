@@ -1,5 +1,5 @@
 import { logging } from '../common/logger';
-import { Decision } from '../common/data';
+import { Decision, Piece } from '../common/data';
 import { PieceCache } from '../common/cache';  
 import { checking } from '../component/consistency';
 
@@ -8,6 +8,10 @@ const logger = logging('QualityController');
 
 
 export class QualityController {
+    _index: number;
+    _cache: PieceCache;
+    _onGetQuality: (index: number) => void;
+
     constructor() {
         this._cache = new PieceCache();
         this._index = 1;
@@ -15,7 +19,7 @@ export class QualityController {
         this._onGetQuality = (index) => {};
     }
 
-    advance(index) {
+    advance(index: number): void {
         if (index < this._index) {
             throw new RangeError(`[QualityController] index ${index} < prev index ${this._index}`);
         }
@@ -23,17 +27,17 @@ export class QualityController {
         logger.log('advance', index);
     }
 
-    addPiece(piece) {
+    addPiece(piece: Piece): void {
         this._cache.insert(piece);
         logger.log('addPiece', piece);
     }
  
-    onGetQuality(callback) {
+    onGetQuality(callback: (index: number) => void): QualityController {
         this._onGetQuality = callback;
         return this;
     }
-
-    getQuality(index, defaultQuality) {
+ 
+    getQuality(index: number | undefined, defaultQuality: number | undefined): number | undefined {
         // If the index is undefined, we use a stateful quality controller,
         // i.e. the index that is calculated via the advance function.
         if (index === undefined) {

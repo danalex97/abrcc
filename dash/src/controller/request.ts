@@ -1,12 +1,32 @@
 import { logging, exportLogs } from '../common/logger';
-import { BackendShim } from '../component/backend';
+import { VideoInfo } from '../common/video';
+import { BackendShim, Request } from '../component/backend';
+import { Dict } from '../types';
 
 
 const logger = logging('RequestController');
 
 
+type ResourceSendCallback = (index: number, url: string, content: string | undefined) => void;
+type ResourceProgressCallback = (index: number, event: Event) => void;
+type ResourceSuccessCallback = (index: number, res: XMLHttpRequest) => void;
+type PieceSuccessCallback = (index: number, body: Body) => void; 
+
+
 export class RequestController {
-    constructor(videoInfo, shim, pool) {
+    _current: number;
+    _pool: number;
+    _shim: BackendShim;
+    _index: number;
+    _max_index: number;
+
+    _resourceSend: ResourceSendCallback;
+    _resourceProgress: ResourceProgressCallback;
+    _resourceSuccess: ResourceSuccessCallback;
+    _pieceSuccess: PieceSuccessCallback; 
+    _pieceRequests: Dict<number, Request>; 
+
+    constructor(videoInfo: VideoInfo, shim: BackendShim, pool: number) {
         this._current = 0;
         this._pool = pool;
         this._shim = shim;
@@ -21,11 +41,11 @@ export class RequestController {
         this._max_index = videoInfo.info[videoInfo.bitrateArray[0]].length;
     }
 
-    getPieceRequest(index) {
+    getPieceRequest(index: number): Request {
         return this._pieceRequests[index];
     }
 
-    _pieceRequest(index) {
+    _pieceRequest(index: number): void {
         this._pieceRequests[index] = this._shim
             .pieceRequest()
             .addIndex(index)
@@ -36,7 +56,7 @@ export class RequestController {
             }).send();
     }
 
-    _resourceRequest(index) {
+    _resourceRequest(index: number): void {
         this._shim
             .resourceRequest()
             .addIndex(index)
@@ -56,7 +76,7 @@ export class RequestController {
             }).send();
     }
 
-    _request() {
+    _request(): void {
         if (this._current < this._pool && this._index < this._max_index) {
             this._current += 1;
             this._index += 1;
@@ -71,27 +91,27 @@ export class RequestController {
         this._request(); 
     }
 
-    start() {
+    start(): RequestController {
         this._request();
         return this;
     }
 
-    onResourceSend(callback) {
+    onResourceSend(callback: ResourceSendCallback): RequestController {
         this._resourceSend = callback;
         return this;
     }
 
-    onResourceProgress(callback) {
+    onResourceProgress(callback: ResourceProgressCallback): RequestController {
         this._resourceProgress = callback;
         return this;
     }
 
-    onResourceSuccess(callback) {
+    onResourceSuccess(callback: ResourceSuccessCallback): RequestController {
         this._resourceSuccess = callback;
         return this;
     }
 
-    onPieceSuccess(callback) {
+    onPieceSuccess(callback: PieceSuccessCallback): RequestController {
         this._pieceSuccess = callback;
         return this;
     }

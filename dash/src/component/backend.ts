@@ -11,7 +11,7 @@ type RequestFunction = (
     callback: (error: Error, res: request, body: Body) => void,
 ) => XMLHttpRequest;
 
-class Request {
+export abstract class Request {
     request: XMLHttpRequest | undefined;
 
     _shim: BackendShim; 
@@ -35,7 +35,7 @@ class Request {
         this.request = undefined;
     }
 
-    _nativeSyncPost(path: string, resource: string, content: Json): void {
+    _nativeSyncPost(path: string, resource: string, content: Json): Request {
         if (this._log) {
             logger.log('Sending native sync POST request', path + resource);
         }
@@ -50,9 +50,14 @@ class Request {
         };
 
         xhr.send(JSON.stringify(content));
+        return this;
     }
 
-    _nativeGet(path: string, resource: string, responseType: XMLHttpRequestResponseType): void {
+    _nativeGet(
+        path: string, 
+        resource: string, 
+        responseType: XMLHttpRequestResponseType,
+    ): Request {
         if (this._log) {
             logger.log('Sending native GET request', path + resource);
         }
@@ -82,9 +87,15 @@ class Request {
         xhr.send();
     
         this.request = xhr;
+        return this;
     }
 
-    _request(requestFunc: RequestFunction, path: string, resource: string, content: Json) {
+    _request(
+        requestFunc: RequestFunction, 
+        path: string, 
+        resource: string, 
+        content: Json,
+     ): Request {
         if (this._log) {
             logger.log('sending request', path + resource, content);
         }
@@ -149,6 +160,9 @@ class Request {
         return this._shim;
     }
 
+    // Abstract methods
+    // ----------------
+    abstract send(): Request;
 }
 
 
@@ -179,7 +193,7 @@ export class StartLoggingRequest extends Request {
         super(shim);
     }
 
-    send() {
+    send(): Request {
         return this._request(request.post, this.shim.experimentPath, "/start", {
             'start' : true,
         });
@@ -221,7 +235,7 @@ export class FrontEndDecisionRequest extends Request {
         return this;
     }
 
-    send() {
+    send(): Request {
         return this._nativeSyncPost(this.shim.experimentPath, "/decision", this._object);
     }
 }
@@ -242,7 +256,7 @@ export class MetricsLoggingRequest extends MetricsRequest {
         return this;
     }
 
-    send() {
+    send(): Request {
         return this._request(request.post, this.shim.experimentPath, "/metrics", {
             json: this._json,
         });
@@ -262,7 +276,7 @@ export class PieceRequest extends Request {
         return this;
     }
     
-    send() {
+    send(): Request {
         if (this.index === undefined) {
             throw new TypeError(`PieceRequest made without index: ${this}`); 
         }
@@ -283,7 +297,7 @@ export class HeaderRequest extends Request {
         return this;
     }
 
-    send() {
+    send(): Request {
         if (this.quality === undefined) {
             throw new TypeError(`HeaderRequest made without quality: ${this}`); 
         }
@@ -305,7 +319,7 @@ export class ResourceRequest extends Request {
         return this;
     }
     
-    send() {
+    send(): Request {
         if (this.index === undefined) {
             throw new TypeError(`ResourceRequest made without index: ${this}`); 
         }
