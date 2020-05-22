@@ -1,8 +1,13 @@
-import { AbrAlgorithm } from '../algo/interface';
+import { AbrAlgorithm, MetricGetter } from '../algo/interface';
 import { ThrpPredictorGetter } from '../algo/getters';
 
 import { Decision, Value } from '../common/data';
+import { VideoInfo } from '../common/video';
 import { logging } from '../common/logger';
+
+import { Dict } from '../types';
+
+import { Metrics } from '../component/stats';
 
 
 const logger = logging('Festive');
@@ -13,7 +18,17 @@ const switchUpThreshold = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 
 export class Festive extends AbrAlgorithm {
-    constructor(video) {
+    bitrateArray: Array<number>; 
+    n: number;
+    
+    bandwidth: MetricGetter;
+    
+    qualityLog: Dict<number, number>;
+    prevQuality: number;
+    lastIndex: number;
+    switchUpCount: number;
+
+    constructor(video: VideoInfo) {
         super();
 
         this.bitrateArray = video.bitrateArray;
@@ -27,7 +42,7 @@ export class Festive extends AbrAlgorithm {
         this.switchUpCount = 0;
     }
 
-    selectQuality(bitrate) {
+    selectQuality(bitrate: number): number {
         let quality = this.n;
         for (let i = this.n - 1; i >= 0; i--) {
             quality = i;
@@ -38,12 +53,12 @@ export class Festive extends AbrAlgorithm {
         return quality;
     }
 
-    getEfficiencyScore(b, b_ref, w) {
+    getEfficiencyScore(b: number, b_ref: number, w: number): number {
         return Math.abs(this.bitrateArray[b] 
             / Math.min(w, this.bitrateArray[b_ref]) - 1);
     }
 
-    getStabilityScore(b, b_ref, b_cur) {
+    getStabilityScore(b: number, b_ref: number, b_cur: number): number {
         var score = 0,
             changes = 0;
         if (this.lastIndex >= 1) {
@@ -62,14 +77,14 @@ export class Festive extends AbrAlgorithm {
         return score;
     }
 
-    getCombinedScore(b, b_ref, b_cur, w) {
+    getCombinedScore(b: number, b_ref: number, b_cur: number, w: number): number {
         let stabilityScore  = this.getStabilityScore(b, b_ref, b_cur);
         let efficiencyScore = this.getEfficiencyScore(b, b_ref, w);
         return stabilityScore + alpha * efficiencyScore;
     }
 
-    getDecision(metrics, index, timestamp) {
-        this.bandwidth.update(metrics, this.ctx);
+    getDecision(metrics: Metrics, index: number, timestamp: number): Decision {
+        this.bandwidth.update(metrics, this.requests);
         let bwPrediction = this.bandwidth.value;
 
         // compute b_target

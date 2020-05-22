@@ -1,8 +1,11 @@
-import { AbrAlgorithm } from '../algo/interface';
+import { AbrAlgorithm, MetricGetter } from '../algo/interface';
 import { BufferLevelGetter } from '../algo/getters';
 
 import { Decision, Value } from '../common/data';
+import { VideoInfo } from '../common/video';
 import { logging } from '../common/logger';
+
+import { Metrics } from '../component/stats';
 
 
 const logger = logging('BB');
@@ -14,7 +17,11 @@ const cushion = 10 * SECOND;
 
 
 export class BB extends AbrAlgorithm {
-    constructor(video) {
+    bufferLevel: MetricGetter;
+    bitrateArray: Array<number>; 
+    n: number;
+    
+    constructor(video: VideoInfo) {
         super();
 
         this.bitrateArray = video.bitrateArray;
@@ -22,7 +29,7 @@ export class BB extends AbrAlgorithm {
         this.bufferLevel = new BufferLevelGetter();
     }
    
-    getDecision(metrics, index, timestamp) {
+    getDecision(metrics: Metrics, index: number, timestamp: number): Decision {
         this.bufferLevel.update(metrics);
         let bufferLevel = this.bufferLevel.value;
 

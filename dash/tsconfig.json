@@ -37,6 +37,11 @@
 
         "./src/algo/interface.ts",
         "./src/algo/getters.ts",
-        "./src/algo/remote.ts"
+        "./src/algo/remote.ts",
+        "./src/algo/bb.ts",
+        "./src/algo/festive.ts",
+        "./src/algo/bola.ts",
+        "./src/algo/rb.ts",
+        "./src/algo/selector.ts"
     ] 
 }

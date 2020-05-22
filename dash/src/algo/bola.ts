@@ -1,5 +1,6 @@
 import { AbrAlgorithm } from '../algo/interface';
 import { Decision } from '../common/data';
+import { Metrics } from '../component/stats';
 
 
 export class Bola extends AbrAlgorithm {
@@ -7,7 +8,7 @@ export class Bola extends AbrAlgorithm {
         super();
     }
    
-    getDecision(metrics, index, timestamp) {
+    getDecision(metrics: Metrics, index: number, timestamp: number): Decision {
         return new Decision(
             index,
             undefined,
