@@ -44,6 +44,8 @@
         "./src/algo/rb.ts",
         "./src/algo/selector.ts",
         
-        "./src/apps/front_end.ts"
+        "./src/apps/front_end.ts",
+        "./src/apps/server_side.ts",
+        "./src/apps/app.ts"
     ] 
 }

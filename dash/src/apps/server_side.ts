@@ -1,16 +1,19 @@
 import { App } from '../apps/app';
 
 import { Decision, Segment, SEGMENT_STATE } from '../common/data';
+import { VideoInfo } from '../common/video';
 import { logging, exportLogs } from '../common/logger';
 import { SetQualityController, onEvent } from '../component/abr';
 import { Metrics, StatsTracker } from '../component/stats'; 
-import { BackendShim } from '../component/backend';
 import { checking } from '../component/consistency';
-import { DataPiece, Interceptor, MAX_QUALITY, makeHeader } from '../component/intercept';
+import { Interceptor, makeHeader } from '../component/intercept';
+import { BackendShim } from '../component/backend';
 
 import { RequestController } from '../controller/request';
 import { QualityController } from '../controller/quality';
 import { StatsController } from '../controller/stats';
+
+import { ExternalDependency } from '../types';
 
 
 const logger = logging('App');
@@ -70,10 +73,24 @@ function cacheHit(object, res) {
 }
 
 
-export class ServerSideApp extends App {
-    constructor(player, recordMetrics, shim, videoInfo) {
-        super(player);
+export class ServerSideApp implements App {
+    shim: BackendShim;
+    tracker: StatsTracker;
+    interceptor: Interceptor;
+    
+    requestController: RequestController;
+    qualityController: QualityController;
+    statsController: StatsController;
 
+    recordMetrics: boolean;
+    max_quality: number;
+
+    constructor(
+        player: ExternalDependency, 
+        recordMetrics: boolean, 
+        shim: BackendShim, 
+        videoInfo: VideoInfo,
+    ) {
         this.shim = shim;
         this.tracker = new StatsTracker(player);
         this.interceptor = new Interceptor(videoInfo);
@@ -83,12 +100,14 @@ export class ServerSideApp extends App {
         this.statsController = new StatsController();
         
         this.recordMetrics = recordMetrics;
+        this.max_quality = videoInfo.bitrateArray.length;
+        
         SetQualityController(this.qualityController);
     }
 
     start() {
         // Request all headers at the beginning
-        for (let quality = 1; quality <= MAX_QUALITY; quality++) {
+        for (let quality = 1; quality <= this.max_quality; quality++) {
             let header = makeHeader(quality);
             this.shim
                 .headerRequest() 
@@ -118,19 +137,22 @@ export class ServerSideApp extends App {
 
         // Use long polling for the pieces
         this.requestController
-            .onPieceSuccess((index, body) => {
+            .onPieceSuccess((index: number, body: Body) => {
                 onPieceSuccess(index, body);
             })
-            .onResourceSend((index, url, content) => {
+            .onResourceSend((index: number, url: string, content: string | undefined) => {
                 this.interceptor.intercept(index);
             })
-            .onResourceProgress((index, event) => {
+            .onResourceProgress((index: number, event: Event) => {
+               let loaded: number | undefined = (<any>event).loaded; 
+               let total: number | undefined = (<any>event).total; 
+
                 // register metrics on progress
-                if (event.loaded !== undefined && event.total !== undefined) {
+                if (loaded !== undefined && total !== undefined) {
                     let segment = new Segment()
                         .withState(SEGMENT_STATE.PROGRESS)
-                        .withLoaded(event.loaded)
-                        .withTotal(event.total)
+                        .withLoaded(loaded)
+                        .withTotal(total)
                         .withIndex(index);
                     let metrics = new Metrics()
                         .withSegment(segment);
@@ -138,9 +160,15 @@ export class ServerSideApp extends App {
                 }
             })
             .onResourceSuccess((index, res) => {
+                let quality: number | undefined = this.qualityController.getQuality(index);
+                if (quality === undefined) {
+                    throw new TypeError(`onResourceSuccess - missing quality:` 
+                        + `index ${index}, res ${res}`) 
+                }
+
                 // register metrics when a new resource arrives
                 let segment = new Segment()
-                    .withQuality(this.qualityController.getQuality(index))
+                    .withQuality(<number>quality)
                     .withState(SEGMENT_STATE.DOWNLOADED)
                     .withIndex(index);
                 let metrics = new Metrics()
@@ -176,14 +204,33 @@ export class ServerSideApp extends App {
                         if (request) {
                             // the request is undefined after we pass all the pieces 
                             logger.log("Scheduling", index + 1);
-                            if (!request.request._ended) {
+                            let ended: boolean = false;
+                            if (request.request !== undefined) {
+                                ended = (<any>request.request)._ended;
+                            }
+
+                            // if the request did not end
+                            if (!ended) {
+                                // keep pooling the controller until the request has ended
+                                // and when it did restart the controller
                                 let startAfterEnded = () => {
-                                    if (!request.request._ended) {
+                                    let ended: boolean = false;
+                                    if (request.request !== undefined) {
+                                        ended = (<any>request.request)._ended;
+                                    }
+
+                                    if (!ended) {
                                         setTimeout(startAfterEnded, 10);
                                     } else {
                                         controller.start();
                                         logger.log("SchedulingController started.")
-                                        onPieceSuccess(index + 1, request.request.response.body);
+                                        if (request.request === undefined) {
+                                            throw new TypeError(`missing request for ${request}`);
+                                        } else {
+                                            onPieceSuccess(
+                                                index + 1, (<any>request.request).response.body
+                                            );
+                                        }
                                     }
                                 };
                                 
@@ -191,7 +238,11 @@ export class ServerSideApp extends App {
                                 controller.stop();
                                 startAfterEnded(); 
                             } else {
-                                onPieceSuccess(index + 1, request.request.response.body);
+                                if (request.request === undefined) {
+                                    throw new TypeError(`missing request for ${request}`);
+                                } else {
+                                    onPieceSuccess(index + 1, (<any>request.request).response.body);
+                                }
                             }
                         }
                     }
@@ -203,7 +254,7 @@ export class ServerSideApp extends App {
             .start();
         
         // Listen for stream finishing
-        let eos = (context) => {
+        let eos = (_unsued: ExternalDependency) => {
             logger.log('End of stream');
             if (this.recordMetrics) {
                 let logs = exportLogs();  
@@ -214,17 +265,17 @@ export class ServerSideApp extends App {
                     .send();
             }
         };
-        onEvent("endOfStream", (context) => eos(context));
-        onEvent("PLAYBACK_ENDED", (context) => eos(context));
+        onEvent("endOfStream", (context: ExternalDependency) => eos(context));
+        onEvent("PLAYBACK_ENDED", (context: ExternalDependency) => eos(context));
 
-        onEvent("Detected unintended removal", (context) => {
-            logger.log('Wtf');
-           
+        onEvent("Detected unintended removal", (context: ExternalDependency) => {
+            logger.log('Detected unintdended removal!');
+            
             let controller = context.scheduleController;
             controller.start();
         });
 
-        this.tracker.registerCallback((metrics) => {
+        this.tracker.registerCallback((metrics: Metrics) => {
             // Log metrics
             this.statsController.addMetrics(metrics);
 

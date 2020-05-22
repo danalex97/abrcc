@@ -19,7 +19,7 @@ import { ExternalDependency } from '../types';
 const logger = logging('App');
 
 
-export class FrontEndApp extends App {
+export class FrontEndApp implements App {
     tracker: StatsTracker;
     interceptor: Interceptor;
     shim: BackendShim;
@@ -35,8 +35,6 @@ export class FrontEndApp extends App {
         name: string, 
         videoInfo: VideoInfo,
     ) {
-        super(player);
-
         this.tracker = new StatsTracker(player);
         this.interceptor = new Interceptor(videoInfo);
         this.shim = shim;

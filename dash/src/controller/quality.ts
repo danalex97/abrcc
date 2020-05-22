@@ -37,7 +37,7 @@ export class QualityController {
         return this;
     }
  
-    getQuality(index: number | undefined, defaultQuality: number | undefined): number | undefined {
+    getQuality(index: number | undefined, defaultQuality?: number): number | undefined {
         // If the index is undefined, we use a stateful quality controller,
         // i.e. the index that is calculated via the advance function.
         if (index === undefined) {
