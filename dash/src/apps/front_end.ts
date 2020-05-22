@@ -1,21 +1,40 @@
 import { App } from '../apps/app';
 import { GetAlgorithm } from '../algo/selector';
+import { AbrAlgorithm } from '../algo/interface';
 
 import { Decision } from '../common/data';
+import { VideoInfo } from '../common/video';
 import { logging, exportLogs } from '../common/logger';
 import { Metrics, StatsTracker } from '../component/stats'; 
 import { SetQualityController, onEvent } from '../component/abr';
 import { Interceptor } from '../component/intercept';
+import { BackendShim } from '../component/backend';
 
 import { QualityController } from '../controller/quality';
 import { StatsController } from '../controller/stats';
+
+import { ExternalDependency } from '../types';
 
 
 const logger = logging('App');
 
 
 export class FrontEndApp extends App {
-    constructor(player, recordMetrics, shim, name, videoInfo) {
+    tracker: StatsTracker;
+    interceptor: Interceptor;
+    shim: BackendShim;
+    statsController: StatsController;
+    qualityController: QualityController;
+    algorithm: AbrAlgorithm;
+    recordMetrics: boolean;
+
+    constructor(
+        player: ExternalDependency, 
+        recordMetrics: boolean, 
+        shim: BackendShim, 
+        name: string, 
+        videoInfo: VideoInfo,
+    ) {
         super(player);
 
         this.tracker = new StatsTracker(player);
@@ -31,10 +50,10 @@ export class FrontEndApp extends App {
         SetQualityController(this.qualityController);
     }
 
-    start() {
+    start(): void {
         logger.log("Starting App.")
         this.qualityController
-            .onGetQuality((index) => {
+            .onGetQuality((index: number) => {
                 this.tracker.getMetrics();
                 let controller = this.qualityController;
                 
@@ -57,7 +76,7 @@ export class FrontEndApp extends App {
                 controller.addPiece(decision);
             });
 
-        let eos = (context) => {
+        let eos = (_unused: ExternalDependency) => {
             logger.log('End of stream');
             if (this.recordMetrics) {
                 let logs = exportLogs();  
@@ -68,18 +87,18 @@ export class FrontEndApp extends App {
                     .send();
             }
         };
-        onEvent("endOfStream", (context) => eos(context));
-        onEvent("PLAYBACK_ENDED", (context) => eos(context));
+        onEvent("endOfStream", (context: ExternalDependency) => eos(context));
+        onEvent("PLAYBACK_ENDED", (context: ExternalDependency) => eos(context));
 
         onEvent("Detected unintended removal", (context) => {
-            logger.log('Wtf');
+            logger.log('Detected unintdended removal!');
            
             let controller = context.scheduleController;
             controller.start();
         });
         
         this.interceptor
-            .onRequest((ctx, index) => {
+            .onRequest((ctx: ExternalDependency, index: number) => {
                 this.algorithm.newRequest(ctx);
 
                 logger.log('Advance', index + 1);
@@ -88,7 +107,7 @@ export class FrontEndApp extends App {
             })
             .start();
         
-        this.tracker.registerCallback((metrics) => {
+        this.tracker.registerCallback((metrics: Metrics) => {
             this.statsController.addMetrics(metrics);
         });
 

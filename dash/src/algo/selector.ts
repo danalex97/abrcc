@@ -13,7 +13,7 @@ export function GetAlgorithm(
     name: string, 
     shim: BackendShim, 
     video: VideoInfo,
-): AbrAlgorithm | null {
+): AbrAlgorithm {
     if (name == 'bb') {
         return new BB(video);
     }
@@ -32,5 +32,5 @@ export function GetAlgorithm(
     if (name == 'robustMpc') {
         return new RemoteAbr(shim);
     }
-    return null;
+    throw new TypeError(`Unrecogniez ABR algorithm: ${name}`);
 }
