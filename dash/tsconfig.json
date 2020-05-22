@@ -33,6 +33,10 @@
         
         "./src/controller/quality.ts",
         "./src/controller/request.ts",
-        "./src/controller/stats.ts"
+        "./src/controller/stats.ts",
+
+        "./src/algo/interface.ts",
+        "./src/algo/getters.ts",
+        "./src/algo/remote.ts"
     ] 
 }

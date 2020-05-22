@@ -1,4 +1,4 @@
-import { AbrAlgorithm } from '../algo/interface';
+import { AbrAlgorithm, MetricGetter } from '../algo/interface';
 import { Decision } from '../common/data';
 import { logging } from '../common/logger';
 
@@ -7,12 +7,21 @@ import { LastThrpGetter } from '../algo/getters';
 import { RebufferTimeGetter } from '../algo/getters';
 import { LastFetchTimeGetter } from '../algo/getters';
 
+import { BackendShim } from '../component/backend';
+import { Metrics } from '../component/stats';
+
 
 const logger = logging('RemoteAbr');
 
 
 export class RemoteAbr extends AbrAlgorithm {
-    constructor(shim) {
+    shim: BackendShim;
+    bandwidth: MetricGetter;
+    buffer: MetricGetter;
+    rebuffer: MetricGetter;
+    fetch_time: MetricGetter;
+
+    constructor(shim: BackendShim) {
         super();
 
         this.shim = shim;
@@ -23,13 +32,13 @@ export class RemoteAbr extends AbrAlgorithm {
         this.fetch_time = new LastFetchTimeGetter();
     }
    
-    getDecision(metrics, index, timestamp) {
+    getDecision(metrics: Metrics, index: number, timestamp: number): Decision {
         logger.log(metrics);
         
-        this.bandwidth.update(metrics, this.ctx);
+        this.bandwidth.update(metrics, this.requests);
         this.buffer.update(metrics);
         this.rebuffer.update(metrics);
-        this.fetch_time.update(metrics, this.ctx);
+        this.fetch_time.update(metrics, this.requests);
 
         // get values
         let bandwidth = this.bandwidth.value;
@@ -52,7 +61,10 @@ export class RemoteAbr extends AbrAlgorithm {
                 decision = response.decision;
             })
             .send();
-        
+
+        if (decision === undefined) {
+            throw new TypeError('FrontEndDecisionRequest failed to fetch decision');
+        }
         return new Decision(
             index,
             decision,
