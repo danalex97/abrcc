@@ -42,7 +42,10 @@ def server_overhead(args: Namespace) -> None:
             experiment_log.write('\n')
 @experiment
 def test(args: Namespace) -> None:
-    videos = ['bojack']
+    # videos = ['bojack']
+    # videos = ['got']
+    # videos = ['cook']
+    videos = ['guard']
 
     experiments = []
     root_path = str(Path("test"))
@@ -53,22 +56,25 @@ def test(args: Namespace) -> None:
         ('robustMpc', 'bbr'),
     ]
     compete2 = [
-        ('target', 'abbr'), 
+        # ('target', 'abbr'), 
         # ('target', 'xbbr'), 
         # ('target2', 'target')
+        ('gap', 'gap')
+        # ('target3', 'target')
     ]
 
     for video in videos:
         experiment_path = str(Path(root_path) / video)
-        for run_id in [0]:
+        for run_id in [1]:
             latency = 500
-            for bandwidth in [3]:
+            for bandwidth in [2]:
                 # robustMpc vs Target, xTarget, Target2 
                 subpath = str(Path(experiment_path) / "versus_rmpc")
                 for (algo1, cc1) in compete1:
                     for (algo2, cc2) in compete2:
                         server1 = f"--algo {algo1} --name robustMpc --cc {cc1} --video {video}" 
-                        server2 = f"--server-algo {algo2} --name abrcc --cc {cc2} --video {video}"
+                        server2 = f"--algo {algo1} --name robustMpc2 --cc {cc1} --video {video}" 
+                        # server2 = f"--server-algo {algo2} --name abrcc --cc {cc2} --video {video}"
                         
                         path = str(Path(subpath) / f"{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
                         run_subexp(bandwidth, latency, path, server1, server2, burst=2000, video=video, force_run=True)
@@ -82,7 +88,7 @@ def multiple(args: Namespace) -> None:
         run_subexp = lambda *args, **kwargs: None 
 
     # videos = ['maca', 'got', 'bojack', 'guard', 'cook']
-    videos = ['got', 'bojack', 'guard', 'cook']
+    videos = ['got', 'bojack', 'cook', 'guard']
 
     root_path = str(Path("experiments") / "multiple_videos")
     os.system(f"mkdir -p {root_path}")
@@ -93,9 +99,9 @@ def multiple(args: Namespace) -> None:
         ('robustMpc', 'bbr'),
     ]
     compete2 = [
-        ('target', 'abbr'), 
-        ('target', 'xbbr'), 
-        ('target2', 'target')
+        ('target2', 'target'),
+        ('gap', 'target'),
+        ('gap', 'gap'),
     ]
 
     for video in videos:
@@ -123,24 +129,25 @@ def multiple(args: Namespace) -> None:
                             extra = ["versus", cc1, algo2, cc2, video],
                             run_id = run_id,
                         ))
-                """
+
                 # self
                 subpath = str(Path(experiment_path) / "versus_self")
                 for (algo, cc) in compete2:
                     server1 = f"--server-algo {algo} --name abrcc1 --cc {cc} --video {video}"
                     server2 = f"--server-algo {algo} --name abrcc2 --cc {cc} --video {video}"
                     
-                    path = str(Path(subpath) / f"{cc}_{bandwidth}_run{run_id}")
+                    path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
                     runner_log.write(f'> {path}\n')
                     run_subexp(bandwidth, latency, path, server1, server2, burst=2000, video=video)
                     experiments.append(Experiment(
+                        video = video,
                         path = str(Path(path) / "leader_plots.log"),
                         latency = latency,
                         bandwidth = bandwidth,
                         extra = ["self", algo, cc],
                         run_id = run_id,
                     ))
-                """
+                
                 # robustMpc
                 subpath = str(Path(experiment_path) / "rmpc")
                 for cc1, cc2 in [('cubic', 'bbr'), ('bbr', 'bbr'), ('cubic', 'cubic')]:
@@ -149,7 +156,9 @@ def multiple(args: Namespace) -> None:
                     
                     path = str(Path(subpath) / f"{cc1}_{cc2}_{bandwidth}_run{run_id}")
                     runner_log.write(f'> {path}\n')
-                    run_subexp(bandwidth, latency, path, server1, server2, burst=2000, video=video)
+                    run_subexp(
+                        bandwidth, latency, path, server2, server2, burst=2000, video=video
+                    )
                     experiments.append(Experiment(
                         video = video,
                         path = str(Path(path) / "leader_plots.log"),
@@ -158,17 +167,18 @@ def multiple(args: Namespace) -> None:
                         extra = ["rmpc", cc1 + '1', cc2 + '2', video],
                         run_id = run_id,
                     ))
-        """
+        
         # traces
         subpath = str(Path(experiment_path) / "traces")
-        server0 = "--cc xbbr --server-algo target --name abrcc"
-        server1 = "--cc abbr --server-algo target --name abrcc"
-        server2 = "--cc target --server-algo target2 --name abrcc"
-        server3 = "--cc bbr --algo robustMpc --name robustMpc"
+        server1 = f"--cc target --server-algo target2 --name abrcc --video {video}"
+        server2 = f"--cc bbr --algo robustMpc --name robustMpc --video {video}"
+        server3 = f"--cc gap --server-algo gap --name abrcc --video {video}"
+        server4 = f"--cc gap --server-algo target --name abrcc --video {video}"
         for name, server in [
-            ("robustMpc", server3), 
-            ("target", server1), 
-            ("target2", server2),
+            ("robustMpc", server2), 
+            ("target2", server1),
+            ("gap", server3),
+            ("gap_pid", server4),
         ]:
             traces = Path("network_traces")
             for trace in [
@@ -195,13 +205,13 @@ def multiple(args: Namespace) -> None:
                 runner_log.write(f'> {path}\n')
                 run_trace(path, f"{server} -l {latency} -t {trace}")
                 experiments.append(Experiment(
+                    video = video,
                     path = str(Path(path) / f"{name}_plots.log"),
                     latency = latency,
                     trace = trace,
                     extra = ["traces", name, trace, run_id],
                     run_id = run_id,
                 ))
-        """
         if args.dry:
             print(experiments)
             print(len(experiments))
