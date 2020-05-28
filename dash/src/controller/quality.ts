@@ -36,7 +36,8 @@ export class QualityController {
         this._onGetQuality = callback;
         return this;
     }
- 
+
+    // [TODO] get rid of undefined return
     getQuality(index: number | undefined, defaultQuality?: number): number | undefined {
         // If the index is undefined, we use a stateful quality controller,
         // i.e. the index that is calculated via the advance function.
@@ -54,9 +55,20 @@ export class QualityController {
         let decision = this._cache.piece(index);
         
         if (decision !== undefined) {
+            const defaultTimestamp = 0;
+
             // If the quality we decided upon is 'undefined', this means that 
             // we are using a functionality of Dash, hence we want to use defaultQuality.
             if (decision.quality === undefined) {
+                if (decision.timestamp === undefined) {
+                    logger.log("WARN: decision with no timestamp: ", decision);
+                    decision = new Decision(
+                        decision.index,
+                        defaultQuality,
+                        defaultTimestamp,
+                    );
+                }
+                
                 this.addPiece(new Decision(
                     decision.index,
                     defaultQuality,

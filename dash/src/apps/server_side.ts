@@ -84,6 +84,7 @@ export class ServerSideApp implements App {
 
     recordMetrics: boolean;
     max_quality: number;
+    max_index: number;
 
     constructor(
         player: ExternalDependency, 
@@ -101,6 +102,7 @@ export class ServerSideApp implements App {
         
         this.recordMetrics = recordMetrics;
         this.max_quality = videoInfo.bitrateArray.length;
+        this.max_index = videoInfo.info[videoInfo.bitrateArray[0]].length;
         
         SetQualityController(this.qualityController);
     }
@@ -184,6 +186,12 @@ export class ServerSideApp implements App {
 
         this.interceptor
             .onRequest((ctx, index) => {
+                if (index == this.max_index) {
+                    // Finish stream if we downloaded everything
+                    eos(ctx);
+                    return;
+                }
+                
                 // only when a request is sent, this means that the next 
                 // decision of the abr component will ask for the next 
                 // index 

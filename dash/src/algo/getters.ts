@@ -8,6 +8,7 @@ import { Dict } from '../types';
 
 
 const logger = logging('Getters');
+const defaultThrp = 0;
 
 
 export class RebufferTimeGetter extends MetricGetter {
@@ -112,11 +113,20 @@ export class ThrpPredictorGetter extends ThrpGetter {
         let totalTime = 0;
         let minIndex = Math.max(this.lastSegment - this.horizon + 1, 2);
         for (let index = this.lastSegment; index >= minIndex; --index) {
-            let time = this.segments[index].timestamp - this.segments[index - 1].timestamp;
+            let time = 0;
+            // Race condition -- if we get no metrics, then we need to pass some defaultThrp
+            // -- in this case we pass 0
+            if (this.segments[index - 1] !== undefined) {
+                time = this.segments[index].timestamp - this.segments[index - 1].timestamp;
+            }
             let size = this.requests[index - 2].response.byteLength * 8;
 
             totalSum += time * time / size;
             totalTime += time;
+        }
+
+        if (totalSum == 0) {
+            return defaultThrp;
         }
         return totalTime / totalSum;
     }
@@ -130,9 +140,17 @@ export class LastThrpGetter extends ThrpGetter {
         }
 
         let index = this.lastSegment;
-
-        let time = this.segments[index].timestamp - this.segments[index - 1].timestamp;    
+        let time = 0;
+        // Race condition -- if we get no metrics, then we need to pass some defaultThrp
+        // -- in this case we pass 0
+        if (this.segments[index - 1] !== undefined) {
+            time = this.segments[index].timestamp - this.segments[index - 1].timestamp;
+        }
         let size = this.requests[index - 2].response.byteLength * 8;
+
+        if (time == 0) {
+            return defaultThrp; 
+        }
         return size / time;
     }
 }
@@ -143,7 +161,12 @@ export class LastFetchTimeGetter extends ThrpGetter {
             return 0;
         }
         let index = this.lastSegment;
-        let time = this.segments[index].timestamp - this.segments[index - 1].timestamp;    
+        let time = 0;
+        
+        // Race condition -- if we get no metrics, then we need to pass 0
+        if (this.segments[index - 1] !== undefined) {
+            time = this.segments[index].timestamp - this.segments[index - 1].timestamp;
+        }
         return time;
     }
 }

@@ -27,6 +27,7 @@ export class FrontEndApp implements App {
     qualityController: QualityController;
     algorithm: AbrAlgorithm;
     recordMetrics: boolean;
+    max_index: number;
 
     constructor(
         player: ExternalDependency, 
@@ -44,6 +45,7 @@ export class FrontEndApp implements App {
         this.algorithm = GetAlgorithm(name, shim, videoInfo);
 
         this.recordMetrics = recordMetrics;
+        this.max_index = videoInfo.info[videoInfo.bitrateArray[0]].length;
 
         SetQualityController(this.qualityController);
     }
@@ -97,6 +99,12 @@ export class FrontEndApp implements App {
         
         this.interceptor
             .onRequest((ctx: ExternalDependency, index: number) => {
+                if (index == this.max_index) {
+                    // Finish stream if we downloaded everything
+                    eos(ctx);
+                    return;
+                }
+                
                 this.algorithm.newRequest(ctx);
 
                 logger.log('Advance', index + 1);

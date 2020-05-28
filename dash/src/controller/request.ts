@@ -77,6 +77,8 @@ export class RequestController {
     }
 
     _request(): void {
+        logger.log("indexes", this._index, this._max_index);
+
         if (this._current < this._pool && this._index < this._max_index) {
             this._current += 1;
             this._index += 1;
