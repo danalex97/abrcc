@@ -19,6 +19,24 @@
 #include <unordered_set>
 #include <functional>
 
+// HTTP request dependencies 
+#include <iostream>
+#include <ctype.h>
+#include <cstring>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <unistd.h>
+#include <sstream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <iterator>
+#include <regex>
+
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wc++17-extensions"
 
@@ -36,6 +54,9 @@ namespace RemoteAbrConstants {
   // constants for deciding quality
   const double safe_downscale = .8;
   const double endgame_safe_downscale = .7;
+
+  // ports
+  const int remote_port = 5000;
 }
 
 namespace quic {
@@ -110,7 +131,62 @@ void RemoteAbr::registerMetrics(const abr_schema::Metrics &metrics) {
 int RemoteAbr::getTargetDecision(
   int current_bandwidth 
 ) {
-  return 0;
+  int sock;
+  struct sockaddr_in client;
+  struct hostent *host = gethostbyname("127.0.0.1");
+
+  if (host == NULL || host->h_addr == NULL) {
+    QUIC_LOG(WARNING) << "Error retrieving DNS information!";
+    return 0;  
+  }
+
+  bzero(&client, sizeof(client));
+  client.sin_family = AF_INET;
+  client.sin_port = htons(RemoteAbrConstants::remote_port);
+  memcpy(&client.sin_addr, host->h_addr, host->h_length);
+
+  sock = socket(AF_INET, SOCK_STREAM, 0);
+  if (sock < 0) {
+      QUIC_LOG(WARNING) << "Error creating socket!";
+      return 0;
+  }
+
+  if (connect(sock, (struct sockaddr *)&client, sizeof(client)) < 0) {
+      close(sock);
+      QUIC_LOG(WARNING) << "Could not connect!";
+      return 0;
+  }
+
+  std::stringstream ss;
+  ss << "GET /target_bandwidth" << "?"
+     << "current_bandwidth=" << current_bandwidth
+     << " HTTP/1.1\r\n"
+     << "Host: api.themoviedb.org\r\n"
+     << "Accept: application/json\r\n"
+     << "\r\n\r\n";
+  std::string request = ss.str();
+
+  if (send(sock, request.c_str(), request.length(), 0) != (int)request.length()) {
+      QUIC_LOG(WARNING) << "Error sending request!";
+      return 0;
+  }
+
+  std::stringstream output;
+  char cur;
+  while (read(sock, &cur, 1) > 0) {
+    output << cur;
+  }
+  std::vector<std::string> lines(std::istream_iterator<std::string>{output},
+                                 std::istream_iterator<std::string>());
+
+  if (std::regex_match(lines.back(), std::regex("[(-|+)|][0-9]+"))) {
+    int decision = std::stoi(lines.back());
+    QUIC_LOG(WARNING) << "Remote target bandwidth: " << decision; 
+    return decision;
+  } else { 
+    QUIC_LOG(WARNING) << "Remote target bandwidth wrongly formatted!";
+    return 0;
+  }
 }
 
 int RemoteAbr::decideQuality(int index) {
