@@ -636,16 +636,16 @@ QuicByteCount BbrGap::GetTargetCongestionWindow(float gain) const {
   interface->setRecovery(false);
   double scale_factor = 1.;
   if (max_estimator_trace > 10 * min_estimator_trace && min_idx < max_idx) {
-    QUIC_LOG(WARNING) << "[GapCC] estimator trace large difference detected: " 
-                      << min_estimator_trace << " -> " << max_estimator_trace;
+    //QUIC_LOG(WARNING) << "[GapCC] estimator trace large difference detected: " 
+    //                  << min_estimator_trace << " -> " << max_estimator_trace;
     scale_factor = BbrGapConstants::scale_factor;
     interface->setRecovery(true);
   }
  
-  QUIC_LOG(WARNING) << "[GapCC] target bw: " << maybe_target_bandwidth.value();
-  QUIC_LOG(WARNING) << "[GapCC] bandwidth estimator: " << bandwidth_estimator_;
-  QUIC_LOG(WARNING) << "[GapCC] bdp current CW: " << current_congestion_window;
-  QUIC_LOG(WARNING) << "[GapCC] bdp potential: " << potential_window_;
+  //QUIC_LOG(WARNING) << "[GapCC] target bw: " << maybe_target_bandwidth.value();
+  //QUIC_LOG(WARNING) << "[GapCC] bandwidth estimator: " << bandwidth_estimator_;
+  //QUIC_LOG(WARNING) << "[GapCC] bdp current CW: " << current_congestion_window;
+  //QUIC_LOG(WARNING) << "[GapCC] bdp potential: " << potential_window_;
 
   return std::max(scale_factor * std::max(current_congestion_window, potential_window_), 1. * min_congestion_window_);
 }

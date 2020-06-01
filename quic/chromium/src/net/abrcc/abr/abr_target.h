@@ -74,6 +74,7 @@ class TargetAbr2 : public SegmentProgressAbr {
   // StateTracker state -- end
 
   friend class GapAbr;
+  friend class RemoteAbr;
 };
 
 class TargetAbr3 : public TargetAbr2 {

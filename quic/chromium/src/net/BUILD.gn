@@ -3655,6 +3655,8 @@ if (!is_ios) {
       "abrcc/abr/abr_target.cc",
       "abrcc/abr/abr_gap.h",
       "abrcc/abr/abr_gap.cc",
+      "abrcc/abr/abr_remote.h",
+      "abrcc/abr/abr_remote.cc",
       "abrcc/abr/loop.cc",
       "abrcc/abr/loop.h",
 
