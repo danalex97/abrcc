@@ -28,8 +28,14 @@ class RemoteAbr : public TargetAbr2 {
   int decideQuality(int index) override;  
  private:
   int getTargetDecision(
-    int current_bandwidth 
-  );
+    int avg_bandwidth,
+    int current_bandwidth,
+    int last_buffer,
+    int last_rtt,
+    int current_quality,
+    std::vector< std::vector<int> > vmafs,
+    std::vector< std::vector<int> > sizes
+  ); 
 
   // We use both BbrTarget::BbrInterface and BbrGap::gap_interface since we want
   // to allow both CC operation modes.

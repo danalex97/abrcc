@@ -127,9 +127,26 @@ void RemoteAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   adjustCC();
 }
 
+template<class T>
+static std::string to_string(std::vector<T> v) {
+  std::stringstream ss;
+  ss << '[';
+  for (auto &x : v) {
+    ss << x << ',';     
+  }
+  ss << ']';
+  return ss.str();
+}
+
 
 int RemoteAbr::getTargetDecision(
-  int current_bandwidth 
+  int avg_bandwidth,
+  int current_bandwidth,
+  int last_buffer,
+  int last_rtt,
+  int current_quality,
+  std::vector< std::vector<int> > vmafs,
+  std::vector< std::vector<int> > sizes
 ) {
   int sock;
   struct sockaddr_in client;
@@ -157,14 +174,33 @@ int RemoteAbr::getTargetDecision(
       return 0;
   }
 
+  std::vector<std::string> vmafs_;
+  std::vector<std::string> sizes_;
+  
+  for (auto &x : vmafs) vmafs_.push_back(to_string<int>(x));
+  for (auto &x : sizes) sizes_.push_back(to_string<int>(x));
+
+  if (vmafs.size() < RemoteAbrConstants::horizon_adjustment) {
+    QUIC_LOG(WARNING) << "Ignore end of video!";
+    QUIC_LOG(WARNING) << to_string<std::string>(vmafs_);
+    return 0;
+  }
+
   std::stringstream ss;
   ss << "GET /target_bandwidth" << "?"
-     << "current_bandwidth=" << current_bandwidth
+     << "avg_bandwidth=" << avg_bandwidth
+     << "&current_bandwidth=" << current_bandwidth
+     << "&last_buffer=" << last_buffer
+     << "&last_rtt=" << last_rtt
+     << "&current_quality=" << current_quality
+     << "&vmafs=" << to_string<std::string>(vmafs_)
+     << "&sizes=" << to_string<std::string>(sizes_)
      << " HTTP/1.1\r\n"
      << "Host: api.themoviedb.org\r\n"
      << "Accept: application/json\r\n"
      << "\r\n\r\n";
   std::string request = ss.str();
+  QUIC_LOG(WARNING) << "Request: " << request;
 
   if (send(sock, request.c_str(), request.length(), 0) != (int)request.length()) {
       QUIC_LOG(WARNING) << "Error sending request!";
@@ -195,12 +231,45 @@ int RemoteAbr::decideQuality(int index) {
   }
 
   int last_index = this->decision_index - 1; 
+  int current_quality = decisions[last_index].quality;
   int bandwidth = (int)average_bandwidth->value_or(bitrate_array[0]);
- 
+  int curr_bandwidth = bandwidth;
+  if (last_bandwidth != base::nullopt) {
+    curr_bandwidth = last_bandwidth.value().value;
+  }
+  int curr_rtt = 0;
+  if (last_rtt != base::nullopt) {
+    curr_rtt = last_rtt.value().value;
+  }
+  std::vector< std::vector<int> > vmafs;
+  std::vector< std::vector<int> > sizes;
+  
+  for (int i = last_index; i < last_index + RemoteAbrConstants::horizon_adjustment; ++i) {
+    if (i >= int(segments[0].size())) {
+      continue;
+    }
+
+    std::vector<int> curr_vmaf;
+    std::vector<int> curr_size;
+    for (int j = 0; j < int(segments.size()); ++j) { 
+      curr_vmaf.push_back((int)segments[j][i].vmaf);
+      curr_size.push_back(segments[j][i].size);
+    }
+
+    vmafs.push_back(curr_vmaf);
+    sizes.push_back(curr_size);
+  }
+
   // Compute new bandwidth target -- this function should be strictly increasing 
   // as with extra bandwidth we can take the exact same choices as we had before
   int bandwidth_target = RemoteAbr::getTargetDecision(
-    bandwidth
+    bandwidth,
+    curr_bandwidth,
+    last_buffer_level.value,   
+    curr_rtt,
+    current_quality,
+    vmafs,
+    sizes
   );
 
   // Set target
