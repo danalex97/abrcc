@@ -56,6 +56,7 @@ class MetricsProcessor:
         # [TODO] See rebuffer time issue
         # Compute quality, rebuffering time and difference in quality switches
         rebuffer = 0 # in s
+        delay_snapshot = 100
         for time1, time2 in zip(player_times[:-1], player_times[1:]):
             real_time2 = time2.timestamp
             real_time1 = time1.timestamp
@@ -67,7 +68,7 @@ class MetricsProcessor:
             rebuffer += max(0, player_diffence) / 1000.
 
         # if buffer_levels are all much bigger then the player difference, we only encounter variance
-        if len(buffer_levels) > 0 and min([l.value for l in buffer_levels]) >= rebuffer * 1500:
+        if len(buffer_levels) > 0 and min([l.value for l in buffer_levels]) >= rebuffer * delay_snapshot * 2:
             rebuffer = 0
 
         quality = get_video_bit_rate(self.video, segment.quality)
@@ -86,7 +87,7 @@ class MetricsProcessor:
         # [TODO] Check this is ok
         # Compute vmaf qoe
         reward_vmaf = (vmaf 
-            - REBUF_PENALITY_QOE * rebuffer / 1000. 
+            - REBUF_PENALITY_QOE * rebuffer 
             - SWITCING_PENALITY_QOE * abs(vmaf - self.vmaf_previous))
         self.vmaf_previous = vmaf
     
