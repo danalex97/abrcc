@@ -145,6 +145,7 @@ int RemoteAbr::getTargetDecision(
   int last_buffer,
   int last_rtt,
   int current_quality,
+  int current_index,
   std::vector< std::vector<int> > vmafs,
   std::vector< std::vector<int> > sizes
 ) {
@@ -195,6 +196,7 @@ int RemoteAbr::getTargetDecision(
      << "&current_quality=" << current_quality
      << "&vmafs=" << to_string<std::string>(vmafs_)
      << "&sizes=" << to_string<std::string>(sizes_)
+     << "&current_index=" << current_index
      << " HTTP/1.1\r\n"
      << "Host: api.themoviedb.org\r\n"
      << "Accept: application/json\r\n"
@@ -268,6 +270,7 @@ int RemoteAbr::decideQuality(int index) {
     last_buffer_level.value,   
     curr_rtt,
     current_quality,
+    last_index,
     vmafs,
     sizes
   );

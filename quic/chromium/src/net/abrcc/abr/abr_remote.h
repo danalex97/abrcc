@@ -33,6 +33,7 @@ class RemoteAbr : public TargetAbr2 {
     int last_buffer,
     int last_rtt,
     int current_quality,
+    int current_index,
     std::vector< std::vector<int> > vmafs,
     std::vector< std::vector<int> > sizes
   ); 

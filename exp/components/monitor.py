@@ -10,13 +10,14 @@ from server.server import post_after, post_after_async, Component, JSONType
 from abr.video import get_video_bit_rate, get_vmaf, get_chunk_size
 
 
+TRAING_SERVER_PORT = 5000
 PENALTY_REBUF = 4.3
 PENALTY_QSWITCH = 1.0 
 BOOST_QUALITY = 1.0 
 
 K_in_M = 1000.0
 
-REBUF_PENALITY_QOE = 25
+REBUF_PENALITY_QOE = 100.
 SWITCING_PENALITY_QOE = 2.5
 SEGMENT_LENGTH = 4.0
 
@@ -136,6 +137,7 @@ class Monitor(Component):
         plot: bool = False,
         request_port: Optional[int] = None,
         port: Optional[int] = None,
+        training: bool = False,
     ) -> None:
         self.path = path / f'{name}_metrics.log' 
         self.port = port
@@ -166,13 +168,25 @@ class Monitor(Component):
 
         make_value = lambda value: {'name': self.name, 'value': Value(value, idx).json}
         make_bw = lambda value: {'name': self.name, 'value': Value(value, timestamp).json}
-        post_after_async(make_value(rebuffer), 0, "/rebuffer", port=port),
-        post_after_async(make_value(quality), 0, "/quality", port=port),
-        post_after_async(make_value(raw_qoe), 0, "/raw_qoe", port=port),
-        post_after_async(make_value(vmaf), 0, "/vmaf", port=port),
-        post_after_async(make_value(vmaf_qoe), 0, "/vmaf_qoe", port=port),
-        post_after_async(make_bw(bw), 0, "/bw", port=port),
-    
+        post_after_async(make_value(rebuffer), 0, "/rebuffer", port=port)
+        post_after_async(make_value(quality), 0, "/quality", port=port)
+        post_after_async(make_value(raw_qoe), 0, "/raw_qoe", port=port)
+        post_after_async(make_value(vmaf), 0, "/vmaf", port=port)
+        post_after_async(make_value(vmaf_qoe), 0, "/vmaf_qoe", port=port)
+        post_after_async(make_bw(bw), 0, "/bw", port=port)
+
+        await post_after(
+            data = {
+                'name' : self.name,
+                'qoe' : vmaf_qoe,
+                'index' : idx,
+            }, 
+            wait = 0,
+            resource = '/reward',
+            port = TRAING_SERVER_PORT,
+            ssl = False, 
+        )
+
     async def compute_qoe(self, metrics: Metrics) -> None: 
         for processed_metrics in self.processor.compute_qoe(metrics): 
             await self.advance(processed_metrics)

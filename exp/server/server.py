@@ -28,7 +28,7 @@ class Backend(Enum):
     QUART = 1
 
 
-async def post_after(data: JSONType, wait: int, resource: str, port: int = 8080) -> None:
+async def post_after(data: JSONType, wait: int, resource: str, port: int = 8080, ssl: bool = True) -> None:
     """
     Send a JSON after wait ms.
     """
@@ -36,6 +36,8 @@ async def post_after(data: JSONType, wait: int, resource: str, port: int = 8080)
     if resource[0] == '/':
         resource = resource[1:]
     url = f"https://127.0.0.1:{port}/{resource}"
+    if not ssl:
+        url = f"http://127.0.0.1:{port}/{resource}"
     async with aiohttp.ClientSession() as client:
         async with client.post(url, data=json.dumps(data), verify_ssl=False):
             pass

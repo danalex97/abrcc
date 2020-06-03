@@ -3,6 +3,9 @@ from typing import List
 from flask import Flask
 from flask import request
 
+import json
+
+
 app = Flask(__name__)
 
 
@@ -17,8 +20,9 @@ def get_target_bandwidth():
     sizes: List[List[int]] = eval(request.args.get('sizes'))
 
     current_quality: int = int(request.args.get('current_quality'))
-    current_vmaf:int = vmafs[0][current_quality - 1]
-    current_size:int = sizes[0][current_quality - 1]
+    current_index: int = (request.args.get('current_index'))
+    current_vmaf: int = vmafs[0][current_quality - 1]
+    current_size: int = sizes[0][current_quality - 1]
 
     print(avg_bandwidth)
     print(current_bandwidth)
@@ -30,6 +34,20 @@ def get_target_bandwidth():
     print(sizes)
 
     return "1"
+
+
+@app.route('/reward', methods=['POST'])
+def get_rewards():
+    data = json.loads(request.data)
+
+    name: str = data['name']
+    qoe: float = data['qoe']
+    index: int = data['index']
+    
+    print(name, index, qoe)
+
+    return "OK"
+
 
 if __name__ == '__main__':
     app.run()

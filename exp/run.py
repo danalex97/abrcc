@@ -78,6 +78,7 @@ def run(args: Namespace) -> None:
             plot = args.plot or (args.leader_port != None), 
             request_port = request_port,
             port = args.port,
+            training = args.training,
         ))
         .add_post('/destroy', controller.on_destroy()))
     
@@ -114,6 +115,7 @@ if __name__ == "__main__":
     parser.add_argument('--algo', choices=ABR_ALGORITHMS, help='Choose abr algorithm.') 
     parser.add_argument('--server-algo', choices=SERVER_ABR_ALGORITHMS, help='Choose server abr algorithm.')
     parser.add_argument('--cc', choices=CC_ALGORITHMS, default='bbr', help='Choose cc algorithm.') 
+    parser.add_argument('--training', action='store_true', help='Enable traning statistics for learning algorithms.')
     parser.add_argument('--plot', action='store_true', help='Enable plotting.')
     parser.add_argument('-lp', '--leader-port', dest='leader_port', type=int, required=False, help='Port of the leader.')
     run(parser.parse_args())   
