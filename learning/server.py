@@ -1,4 +1,5 @@
-from abc import abstractmethod, ABC
+from models import SimpleNNModel, Model
+
 from collections import defaultdict
 from typing import Dict, List
 
@@ -8,32 +9,27 @@ from flask import request
 import json
 
 
-class Model(ABC):
-    @abstractmethod
-    def predict(self, input_vector: List[int]) -> int:
-        pass
-
-
-class DummyModel(Model):
-    def predict(self, input_vector: List[int]) -> int:
-        return 1
-
 
 class Environment:
     instances: int
     inputs: Dict[int, List[int]]
     rewards: Dict[int, Dict[str, float]]
+    actions: Dict[int, int]
 
     def __init__(self, instances: int = 2) -> None: 
         self.instaces = instances
         self.inputs = defaultdict(list)
         self.rewards = defaultdict(dict)
+        self.actions = defaultdict(int)
 
     def add_input(self, index: int, input_vector: List[int]) -> None:
         self.inputs[index] = input_vector
 
     def add_reward(self, index: int, name: str, qoe: float) -> None:
         self.rewards[index][name] = qoe
+
+    def add_action(self, index: int, action: int) -> None:
+        self.actions[index] = action
 
     def reset(self) -> None:
         self.inputs = defaultdict(list)
@@ -45,7 +41,7 @@ class Runner:
         self.__app = app
         self.__env = Environment()
         self.model = model
-    
+
         @self.__app.route('/target_bandwidth')
         def get_target_bandwidth():
             avg_bandwidth: int = int(request.args.get('avg_bandwidth'))
@@ -67,14 +63,17 @@ class Runner:
             ]
             input_vector += sum(vmafs, [])
             input_vector += sum(sizes, [])
-            
+
             if current_index in self.env.inputs:
                 # We already have the current index, so it means that we 
                 # are running a new experiment
                 self.__env.reset()
 
             self.env.add_input(current_index, input_vector)
-            return str(self.model.predict(input_vector))
+            prediction: int = self.model.predict(input_vector)
+            self.env.add_action(current_index, prediction)
+
+            return str((prediction+ 1) * 100)
 
         @self.__app.route('/reward', methods=['POST'])
         def get_rewards():
@@ -83,8 +82,17 @@ class Runner:
             name: str = str(data['name'])
             qoe: float = float(data['qoe'])
             index: int = int(data['index'])
-            
+
             self.env.add_reward(index, name, qoe)
+            if index > 1 and len(self.env.rewards[index]) > 1 and len(self.env.inputs[index]) > 0:
+                self.model.update_replay_memory(
+                    self.env.inputs[index - 1],
+                    self.env.actions[index - 1],
+                    self.env.rewards[index - 1],
+                    self.env.inputs[index],
+                )
+                self.model.train()
+
             return "OK"
 
     @property
@@ -96,4 +104,4 @@ class Runner:
 
 
 if __name__ == '__main__':
-    runner = Runner(Flask(__name__), DummyModel()).run()
+    runner = Runner(Flask(__name__), SimpleNNModel()).run()
