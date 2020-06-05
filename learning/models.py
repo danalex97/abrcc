@@ -1,3 +1,6 @@
+from tensorflow.python.keras.backend import set_session
+from monitoring import ModifiedTensorBoard
+
 from abc import abstractmethod, ABC
 from collections import deque
 from typing import List, Tuple, Dict
@@ -10,7 +13,7 @@ import random
 import keras
 import numpy as np
 import tensorflow as tf
-from tensorflow.python.keras.backend import set_session
+import time
 
 
 sess = tf.Session()
@@ -25,6 +28,9 @@ MIN_REPLAY_MEMORY_SIZE = 5
 MINIBATCH_SIZE = 5
 OUTPUT_SPACE = 30
 DISCOUNT = .8
+
+AGGREGATE_STATS_EVERY = 50
+SAVE_MODEL_EVERY = 300
 
 
 # input_vector, action, rewards, new_input_vector
@@ -65,6 +71,7 @@ class DummyModel(Model):
     def train(self) -> None:
         pass
 
+
 class SimpleNNModel(Model):
     @staticmethod
     def create_model() -> Sequential:
@@ -90,6 +97,10 @@ class SimpleNNModel(Model):
         # counter
         self.counter = 0
 
+        # tensorboard
+        self.tensorboard: ModifiedTensorBoard = ModifiedTensorBoard(log_dir="logs/simpleNNmodel-{}".format(int(time.time())))
+        self.rewards: List[float] = []
+
     def predict(self, input_vector: List[int]) -> int:
         with sess.as_default():
             with graph.as_default():
@@ -107,6 +118,25 @@ class SimpleNNModel(Model):
         self.replay_memory.append(
             (np.asarray(input_vector), action, total_reward, np.asarray(new_input_vector))
         )
+        
+        self.update_stats(total_reward)
+
+    def update_stats(self, total_reward: float) -> None:
+        self.rewards.append(total_reward)
+        if len(self.rewards) % AGGREGATE_STATS_EVERY == 0:
+            average_reward = sum(self.rewards[-AGGREGATE_STATS_EVERY:]) / AGGREGATE_STATS_EVERY
+            min_reward = min(self.rewards[-AGGREGATE_STATS_EVERY:])
+            max_reward = max(self.rewards[-AGGREGATE_STATS_EVERY:])
+            self.tensorboard.update_stats(
+                reward_avg=average_reward, 
+                reward_min=min_reward, 
+                reward_max=max_reward, 
+            )
+        if len(self.rewards) % SAVE_MODEL_EVERY == 0:
+            try:
+                self.model.save(f'models/simpleNNmodel__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+            except:
+                pass
 
     def train(self) -> None:
         for t in range(max(1, len(self.replay_memory) // MINIBATCH_SIZE // 2)): 
