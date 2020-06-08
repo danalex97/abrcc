@@ -7,6 +7,8 @@ from flask import Flask
 from flask import request
 
 import json
+import signal
+import sys
 
 
 
@@ -104,4 +106,11 @@ class Runner:
 
 
 if __name__ == '__main__':
+    # Add signal handler for kills by experiment 
+    def signal_handler(sig, frame):
+        pass
+    signal.signal(signal.SIGUSR1, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    # start runner
     runner = Runner(Flask(__name__), SimpleNNModel()).run()

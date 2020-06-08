@@ -12,9 +12,11 @@ from keras.optimizers import Adam
 import random
 import keras
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 import time
+import os
 
+tf.disable_v2_behavior()
 
 sess = tf.Session()
 set_session(sess)
@@ -29,8 +31,8 @@ MINIBATCH_SIZE = 5
 OUTPUT_SPACE = 30
 DISCOUNT = .8
 
-AGGREGATE_STATS_EVERY = 50
-SAVE_MODEL_EVERY = 300
+AGGREGATE_STATS_EVERY = 30
+SAVE_MODEL_EVERY = 50
 
 
 # input_vector, action, rewards, new_input_vector
@@ -98,7 +100,10 @@ class SimpleNNModel(Model):
         self.counter = 0
 
         # tensorboard
-        self.tensorboard: ModifiedTensorBoard = ModifiedTensorBoard(log_dir="logs/simpleNNmodel-{}".format(int(time.time())))
+        current_time = int(time.time())
+        os.system('mkdir -p logs'.format(current_time))
+        os.system('mkdir -p logs/simpleNNmodel-{}'.format(current_time))
+        self.tensorboard: ModifiedTensorBoard = ModifiedTensorBoard(log_dir="logs/simpleNNmodel-{}".format(current_time))
         self.rewards: List[float] = []
 
     def predict(self, input_vector: List[int]) -> int:
@@ -118,11 +123,11 @@ class SimpleNNModel(Model):
         self.replay_memory.append(
             (np.asarray(input_vector), action, total_reward, np.asarray(new_input_vector))
         )
-        
         self.update_stats(total_reward)
 
     def update_stats(self, total_reward: float) -> None:
         self.rewards.append(total_reward)
+        print(f"Updating stats {len(self.rewards)}")
         if len(self.rewards) % AGGREGATE_STATS_EVERY == 0:
             average_reward = sum(self.rewards[-AGGREGATE_STATS_EVERY:]) / AGGREGATE_STATS_EVERY
             min_reward = min(self.rewards[-AGGREGATE_STATS_EVERY:])
@@ -132,14 +137,17 @@ class SimpleNNModel(Model):
                 reward_min=min_reward, 
                 reward_max=max_reward, 
             )
+            print(f"Adding stats to tensorboard: {min_reward}, {max_reward}, {average_reward}")
         if len(self.rewards) % SAVE_MODEL_EVERY == 0:
+            print(f"Saving model...")
             try:
                 self.model.save(f'models/simpleNNmodel__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+                print(f"Model saved.")
             except:
                 pass
 
     def train(self) -> None:
-        for t in range(max(1, len(self.replay_memory) // MINIBATCH_SIZE // 2)): 
+        for t in range(min(100, max(1, len(self.replay_memory) // MINIBATCH_SIZE // 2))): 
             with sess.as_default():
                 with graph.as_default():
                     # start training only after a certain number of samples

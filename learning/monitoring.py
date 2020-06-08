@@ -1,5 +1,7 @@
 from keras.callbacks import TensorBoard
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+
+tf.disable_v2_behavior()
 
 
 class ModifiedTensorBoard(TensorBoard):
@@ -29,4 +31,5 @@ class ModifiedTensorBoard(TensorBoard):
     # Custom method for saving own metrics
     # Creates writer, writes custom metrics and closes writer
     def update_stats(self, **stats):
+        
         self._write_logs(stats, self.step)
