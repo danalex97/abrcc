@@ -66,6 +66,11 @@ BbrTarget::BbrInterface* BbrTarget::BbrInterface::GetInstance() {
   return GET_SINGLETON(BbrTarget::BbrInterface);
 }
 
+void BbrTarget::BbrInterface::setPacingGainCycle(const std::vector<float>& gain) {
+  QuicWriterMutexLock lock(&pacing_cycle_mutex_);
+  kPacingGain = gain; 
+}
+
 std::vector<float> BbrTarget::BbrInterface::getPacingGainCycle() {
   return kPacingGain;
 }

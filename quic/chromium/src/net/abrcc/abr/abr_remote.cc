@@ -63,7 +63,12 @@ namespace quic {
 
 RemoteAbr::RemoteAbr(const std::shared_ptr<DashBackendConfig>& config) 
   : TargetAbr2(config)
-  , gap_interface(BbrGap::BbrInterface::GetInstance()) {} 
+  , gap_interface(BbrGap::BbrInterface::GetInstance()) {
+  interface->setPacingGainCycle(
+    // Use normal pacing gain cycle so that the remote algorithm has full control
+    std::vector<float>{1., 1., 1., 1., 1., 1., 1., 1.}
+  );
+} 
 
 RemoteAbr::~RemoteAbr() {}
 
@@ -275,9 +280,9 @@ int RemoteAbr::decideQuality(int index) {
     sizes
   );
 
-  // Set target
-  interface->setTargetRate(std::max(bandwidth, bandwidth_target)); 
-  gap_interface->setTargetRate(std::max(bandwidth, bandwidth_target)); 
+  // Set target -- set to target, not max between BW and target
+  interface->setTargetRate(bandwidth_target); 
+  gap_interface->setTargetRate(bandwidth_target); 
 
   // End game
   double safe_downscale = RemoteAbrConstants::safe_downscale;

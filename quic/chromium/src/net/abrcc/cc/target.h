@@ -34,6 +34,7 @@ class QUIC_EXPORT_PRIVATE BbrTarget : public SendAlgorithmInterface {
     static BbrInterface* GetInstance();
 
     // controlling gain cycle
+    void setPacingGainCycle(const std::vector<float>& gain);
     std::vector<float> getPacingGainCycle();
     int getGainCycleLength();
     QuicRoundTripCount kBandwidthWindowSize();

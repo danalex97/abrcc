@@ -23,7 +23,7 @@ set_session(sess)
 graph = tf.get_default_graph()
 
 
-UPDATE_TARGET_EVERY = 50
+UPDATE_TARGET_EVERY = 500
 INPUT_VECTOR_SIZE  = 56
 REPLAY_MEMORY_SIZE = 2_000
 MIN_REPLAY_MEMORY_SIZE = 5
@@ -31,8 +31,9 @@ MINIBATCH_SIZE = 5
 OUTPUT_SPACE = 30
 DISCOUNT = .8
 
-AGGREGATE_STATS_EVERY = 30
-SAVE_MODEL_EVERY = 50
+AGGREGATE_STATS_EVERY = 100
+SAVE_MODEL_EVERY = 100
+MAX_BATCHES = 100
 
 
 # input_vector, action, rewards, new_input_vector
@@ -147,7 +148,7 @@ class SimpleNNModel(Model):
                 pass
 
     def train(self) -> None:
-        for t in range(min(100, max(1, len(self.replay_memory) // MINIBATCH_SIZE // 2))): 
+        for t in range(min(MAX_BATCHES, max(1, len(self.replay_memory) // MINIBATCH_SIZE // 2))): 
             with sess.as_default():
                 with graph.as_default():
                     # start training only after a certain number of samples
