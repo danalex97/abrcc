@@ -37,10 +37,11 @@ class DecisionLogger:
                     vec = eval(line)
                 except:
                     pass
-                print(vec)
                 if type(vec) == list:
+                    mn = min(vec)
+                    mx = max(vec)
                     for i, x in enumerate(vec):
-                        self.xs[i].append(x + .1)
+                        self.xs[i].append((x - mn) / (mx - mn))
                     lines += 1
         print(f'Loaded {lines} lines')
 

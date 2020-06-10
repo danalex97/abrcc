@@ -70,7 +70,7 @@ class SimpleNNModel(Model):
         model = Sequential()
         model.add(Dense(200, activation='relu', input_dim = INPUT_VECTOR_SIZE))
         model.add(Dense(100, activation='relu'))
-        model.add(Dense(OUTPUT_SPACE, activation='relu'))
+        model.add(Dense(OUTPUT_SPACE, activation='linear'))
         model.compile(loss="mse", optimizer=Adam(lr=0.001), metrics=['accuracy'])
         return model
     
@@ -84,7 +84,7 @@ class SimpleNNModel(Model):
 
         # replay memory
         self.replay_memory: List[Transition] = deque(maxlen=REPLAY_MEMORY_SIZE)
-        self.target_update_counter = 0
+        self.target_update_counter = 1
         
         # counter
         self.counter = 0
@@ -110,6 +110,11 @@ class SimpleNNModel(Model):
                 print(f'Decision vector: {qs}')
                 print(f'Argmax: {np.argmax(qs)}, {np.max(qs)}')
                 self.logger.log((qs / max(qs)).tolist())
+                
+                if random.random() < RANDOM_PROPORTION:
+                    # Add random choices while training, so we can explore the whole space 
+                    print(f'Random choice!')
+                    return random.randint(0, len(qs) - 1)
                 return np.argmax(qs)
 
     def update_replay_memory(self, 
