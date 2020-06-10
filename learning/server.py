@@ -1,4 +1,5 @@
 from models import SimpleNNModel, Model
+from constants import MAX_TARGET_BW, OUTPUT_SPACE 
 
 from collections import defaultdict
 from typing import Dict, List
@@ -75,7 +76,7 @@ class Runner:
             prediction: int = self.model.predict(input_vector)
             self.env.add_action(current_index, prediction)
 
-            return str((prediction+ 1) * 100)
+            return str((prediction+ 1) * MAX_TARGET_BW // OUTPUT_SPACE)
 
         @self.__app.route('/reward', methods=['POST'])
         def get_rewards():

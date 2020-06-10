@@ -1,5 +1,7 @@
 from tensorflow.python.keras.backend import set_session
 from monitoring import ModifiedTensorBoard
+from constants import *
+from logger import DecisionLogger
 
 from abc import abstractmethod, ABC
 from collections import deque
@@ -21,19 +23,6 @@ tf.disable_v2_behavior()
 sess = tf.Session()
 set_session(sess)
 graph = tf.get_default_graph()
-
-
-UPDATE_TARGET_EVERY = 500
-INPUT_VECTOR_SIZE  = 56
-REPLAY_MEMORY_SIZE = 2_000
-MIN_REPLAY_MEMORY_SIZE = 5
-MINIBATCH_SIZE = 5
-OUTPUT_SPACE = 30
-DISCOUNT = .8
-
-AGGREGATE_STATS_EVERY = 100
-SAVE_MODEL_EVERY = 100
-MAX_BATCHES = 100
 
 
 # input_vector, action, rewards, new_input_vector
@@ -104,14 +93,23 @@ class SimpleNNModel(Model):
         current_time = int(time.time())
         os.system('mkdir -p logs'.format(current_time))
         os.system('mkdir -p logs/simpleNNmodel-{}'.format(current_time))
-        self.tensorboard: ModifiedTensorBoard = ModifiedTensorBoard(log_dir="logs/simpleNNmodel-{}".format(current_time))
+        log_dir = "logs/simpleNNmodel-{}".format(current_time)
+
+        self.tensorboard: ModifiedTensorBoard = ModifiedTensorBoard(log_dir=log_dir)
         self.rewards: List[float] = []
+
+        # decision logger
+        self.logger = DecisionLogger(log_dir)
 
     def predict(self, input_vector: List[int]) -> int:
         with sess.as_default():
             with graph.as_default():
                 input_vector = np.asarray(input_vector)
-                qs: np.array = self.model.predict(input_vector.reshape(1,-1))
+                qs: np.array = self.model.predict(input_vector.reshape(1,-1))[0]
+               
+                print(f'Decision vector: {qs}')
+                print(f'Argmax: {np.argmax(qs)}, {np.max(qs)}')
+                self.logger.log((qs / max(qs)).tolist())
                 return np.argmax(qs)
 
     def update_replay_memory(self, 
