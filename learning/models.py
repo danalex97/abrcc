@@ -105,6 +105,7 @@ class SimpleNNModel(Model):
         # load model is present
         if self.path is not None:
             self.model.load_weights(self.path)
+            print('Model loaded')
 
 
     def predict(self, input_vector: List[int]) -> int:
