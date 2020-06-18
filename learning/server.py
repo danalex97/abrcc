@@ -1,3 +1,4 @@
+from argparse import ArgumentParser
 from models import SimpleNNModel, Model
 from constants import MAX_TARGET_BW, OUTPUT_SPACE 
 
@@ -113,5 +114,9 @@ if __name__ == '__main__':
     signal.signal(signal.SIGUSR1, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
+    parser = ArgumentParser(description='Run server.')
+    parser.add_argument('--path', type=str, default=None, help='Model path.')
+    args = parser.parse_args()
+
     # start runner
-    runner = Runner(Flask(__name__), SimpleNNModel()).run()
+    runner = Runner(Flask(__name__), SimpleNNModel(args.path)).run()

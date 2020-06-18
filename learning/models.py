@@ -5,7 +5,7 @@ from logger import DecisionLogger
 
 from abc import abstractmethod, ABC
 from collections import deque
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 
 from keras.layers import Dense
 from keras.models import Sequential
@@ -74,8 +74,9 @@ class SimpleNNModel(Model):
         model.compile(loss="mse", optimizer=Adam(lr=0.001), metrics=['accuracy'])
         return model
     
-    def __init__(self):
+    def __init__(self, path: Optional[str] = None):
         # main model
+        self.path: Optional[str] = path
         self.model: Sequential = self.create_model()
         
         # target model
@@ -101,6 +102,11 @@ class SimpleNNModel(Model):
         # decision logger
         self.logger = DecisionLogger(log_dir)
 
+        # load model is present
+        if self.path is not None:
+            self.model.load_weights(self.path)
+
+
     def predict(self, input_vector: List[int]) -> int:
         with sess.as_default():
             with graph.as_default():
@@ -110,8 +116,8 @@ class SimpleNNModel(Model):
                 print(f'Decision vector: {qs}')
                 print(f'Argmax: {np.argmax(qs)}, {np.max(qs)}')
                 self.logger.log((qs / max(qs)).tolist())
-                
-                if random.random() < RANDOM_PROPORTION:
+
+                if random.random() < RANDOM_PROPORTION and not self.path:
                     # Add random choices while training, so we can explore the whole space 
                     print(f'Random choice!')
                     return random.randint(0, len(qs) - 1)
@@ -123,6 +129,8 @@ class SimpleNNModel(Model):
         reward: Dict[str, float],
         new_input_vector: List[int],
     ) -> None:
+        if self.path is not None:
+            return
         total_reward: float = sum(reward.values())
         self.replay_memory.append(
             (np.asarray(input_vector), action, total_reward, np.asarray(new_input_vector))
@@ -145,12 +153,16 @@ class SimpleNNModel(Model):
         if len(self.rewards) % SAVE_MODEL_EVERY == 0:
             print(f"Saving model...")
             try:
-                self.model.save(f'models/simpleNNmodel__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.model')
+                with sess.as_default():
+                    with graph.as_default():
+                        self.model.save_weights(f'models/simpleNNmodel__{max_reward:_>7.2f}max_{average_reward:_>7.2f}avg_{min_reward:_>7.2f}min__{int(time.time())}.h5')
                 print(f"Model saved.")
             except:
-                pass
+                print('Model save failed!')
 
     def train(self) -> None:
+        if self.path is not None:
+            return
         for t in range(min(MAX_BATCHES, max(1, len(self.replay_memory) // MINIBATCH_SIZE // 2))): 
             with sess.as_default():
                 with graph.as_default():

@@ -38,7 +38,7 @@ class DecisionLogger:
                 except:
                     pass
                 if type(vec) == list:
-                    mn = min(vec)
+                    mn = max(min(vec), 0)
                     mx = max(vec)
                     for i, x in enumerate(vec):
                         self.xs[i].append((x - mn) / (mx - mn))
