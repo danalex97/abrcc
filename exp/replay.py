@@ -32,7 +32,10 @@ async def replay_async(algo: str, log: List[JSONType], monitor: Monitor) -> None
     await asyncio.sleep(2)
     for entry in log:
         await monitor.process({'stats' : entry})
-        await asyncio.sleep(.01)
+        if "robust" in algo or "rmpc" in algo:
+            await asyncio.sleep(.1)
+        else:
+            await asyncio.sleep(.01)
 
 
 async def complete_after(futures: List[asyncio.Future], port: int) -> None:
@@ -51,6 +54,8 @@ def run(args: Namespace) -> None:
     # give arguments
     directory = Path(args.dir)
     video = args.video
+
+    print(f'Replaying {directory} @ {video}')
 
     # default arguments
     port = 5000
@@ -93,7 +98,7 @@ def run(args: Namespace) -> None:
     )
     server.add_post('/complete', 
         multiple_sync(
-            OnComplete(directory, 'redo', plots, video),
+            OnComplete(directory, 'leader', plots, video),
             on_complete 
         )
     )

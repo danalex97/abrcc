@@ -84,11 +84,11 @@ class Experiment:
                         for name in vmaf.keys(): 
                             if x - 1 in vmaf[name]:
                                 curr_dict[name][x] = (vmaf[name][x]
-                                    - 100. * rebuff[name][x] / 1000. 
+                                    - 100. * rebuff[name][x] 
                                     - 2.5 * abs(vmaf[name][x] - vmaf[name][x - 1]))
                             else:
                                 curr_dict[name][x] = (vmaf[name][x]
-                                    - 100. * rebuff[name][x] / 1000. 
+                                    - 100. * rebuff[name][x]  
                                     - 2.5 * abs(vmaf[name][x] - 0))
 
                     obj = None
@@ -102,9 +102,13 @@ class Experiment:
                         proc_metric(raw_qoe, "raw_qoe")
                         
                         x = obj['x']
-                        algo = list(obj[list(set(obj.keys()) - {'x'})[0]].keys())[0]
-                        if x in vmafd[algo] and x in rebuffd[algo]:
-                            proc_vmaf(vmaf_qoe, vmafd, rebuffd)
+                        
+                        try:
+                            algo = list(obj[list(set(obj.keys()) - {'x'})[0]].keys())[0]
+                            if x in vmafd[algo] and x in rebuffd[algo]:
+                                proc_vmaf(vmaf_qoe, vmafd, rebuffd)
+                        except:
+                            pass
 
                 out = []
                 for name in raw_qoe.keys():
@@ -174,7 +178,6 @@ def generate_summary(path: str, experiments: List[Experiment]) -> None:
     with open(str(Path(path) / "log.txt"), "w") as summary:
         for experiment in experiments:  
             summary.write(f'> [{experiment.path}]')
-            print(experiment.get_metrics())
             for metric in experiment.get_metrics():
                 summary.write(f' {metric.metric}: {metric.value};')
             summary.write('\n') 

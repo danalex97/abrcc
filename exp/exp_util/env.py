@@ -46,7 +46,7 @@ def run_cmds(leader_cmd: str, cmd1: str, cmd2: str) -> None:
     instance2.wait()
 
 
-def retry(tries: int = 5, timeout: int = 600) -> Callable[[Callable], Callable]:
+def retry(tries: int = 2, timeout: int = 600) -> Callable[[Callable], Callable]:
     def _retry(f: Callable) -> Callable:
         def wrapped(*args, **kwargs):
             timed_f = timeout_func(timeout, use_signals=False)(f)

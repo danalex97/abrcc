@@ -144,7 +144,7 @@ class LivePlot(Component):
     async def process(self, json: JSONType) -> JSONType:
         name  = json['name']
         value = Value.from_json(json['value'])
-        
+       
         await self.update(name, value.timestamp, value.value)
         if timer() - self.last_referesh > 3:
             await self.draw(auto=False, limit_y=True)

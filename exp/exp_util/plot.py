@@ -61,9 +61,12 @@ def plot_cdf(
         all_values = defaultdict(list)
         for instance, value in instance_value:
             all_values[instance].append(value)
-        
+            all_values[instance] = sorted(all_values[instance])
+
         ax = plt.subplot(111)
-        
+        for k, v in all_values.items():
+            print(plot_base, k, v)
+    
         schemes = []
         marker_index = 0
         for scheme, cur_values in all_values.items():
@@ -77,7 +80,6 @@ def plot_cdf(
                 cumulative, 
                 linewidth=2, 
                 marker=markers[marker_index], 
-                markevery=1, 
                 markersize=5,
             )
             schemes.append(scheme)
@@ -143,8 +145,6 @@ def plot_bar(
             grouped_values = defaultdict(list)
             for name, value in values:
                 grouped_values[name].append(value)
-            # print(grouped_values)
-            # print()
     
             # average multiple runs
             avg_values = []

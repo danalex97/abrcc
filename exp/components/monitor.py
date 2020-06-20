@@ -138,6 +138,7 @@ class Monitor(Component):
         request_port: Optional[int] = None,
         port: Optional[int] = None,
         training: bool = False,
+        log_to_file: bool = True,
     ) -> None:
         self.path = path / f'{name}_metrics.log' 
         self.port = port
@@ -146,11 +147,15 @@ class Monitor(Component):
 
         self.plot = plot
         self.request_port = request_port
+        self.log_to_file = log_to_file
+        self.training = training
+
 
     async def log_path(self, metrics: Metrics) -> None:
-        with open(self.path, 'a') as f:
-            f.write(json.dumps(metrics.json))
-            f.write('\n')
+        if self.log_to_file:
+            with open(self.path, 'a') as f:
+                f.write(json.dumps(metrics.json))
+                f.write('\n')
 
     async def advance(self, processed_metrics: Dict[str, float]) -> None:
         if not self.plot:
@@ -165,7 +170,7 @@ class Monitor(Component):
         idx = processed_metrics['index']
         port = self.request_port
         timestamp = int(processed_metrics['timestamp']/1000)
-
+        
         make_value = lambda value: {'name': self.name, 'value': Value(value, idx).json}
         make_bw = lambda value: {'name': self.name, 'value': Value(value, timestamp).json}
         post_after_async(make_value(rebuffer), 0, "/rebuffer", port=port)
@@ -175,17 +180,18 @@ class Monitor(Component):
         post_after_async(make_value(vmaf_qoe), 0, "/vmaf_qoe", port=port)
         post_after_async(make_bw(bw), 0, "/bw", port=port)
 
-        await post_after(
-            data = {
-                'name' : self.name,
-                'qoe' : vmaf_qoe,
-                'index' : idx,
-            }, 
-            wait = 0,
-            resource = '/reward',
-            port = TRAING_SERVER_PORT,
-            ssl = False, 
-        )
+        if self.training:
+            await post_after(
+                data = {
+                    'name' : self.name,
+                    'qoe' : vmaf_qoe,
+                    'index' : idx,
+                }, 
+                wait = 0,
+                resource = '/reward',
+                port = TRAING_SERVER_PORT,
+                ssl = False, 
+            )
 
     async def compute_qoe(self, metrics: Metrics) -> None: 
         for processed_metrics in self.processor.compute_qoe(metrics): 
