@@ -70,7 +70,11 @@ def retry(tries: int = 2, timeout: int = 600) -> Callable[[Callable], Callable]:
     return _retry
 
 
-@retry(tries=5, timeout=350)
+def cleanup_files():
+    os.system("rm -f /tmp/tmp_*")
+
+
+@retry(tries=2, timeout=350)
 def run_subexp(
     bandwidth: int, 
     latency: int, 
@@ -81,6 +85,7 @@ def run_subexp(
     burst: int = 20000,
     video: Optional[str] = None,
 ) -> None:
+    cleanup_files()
     if os.path.isdir(path) and not force_run:
         return   
     leader_cmd = (
@@ -97,12 +102,13 @@ def run_subexp(
     run_cmds(leader_cmd, cmd1, cmd2)
 
 
-@retry(tries=5, timeout=350)
+@retry(tries=2, timeout=350)
 def run_trace(
     path: str, 
     server: str,
     force_run: bool = False,
 ):
+    cleanup_files()
     if os.path.isdir(path) and not force_run:
         return   
     ports = "--port 8001 --quic-port 4001"
