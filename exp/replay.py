@@ -54,6 +54,7 @@ def run(args: Namespace) -> None:
     # give arguments
     directory = Path(args.dir)
     video = args.video
+    name = args.name
 
     print(f'Replaying {directory} @ {video}')
 
@@ -98,7 +99,7 @@ def run(args: Namespace) -> None:
     )
     server.add_post('/complete', 
         multiple_sync(
-            OnComplete(directory, 'leader', plots, video),
+            OnComplete(directory, name, plots, video),
             on_complete 
         )
     )
@@ -123,5 +124,6 @@ if __name__ == "__main__":
     parser = ArgumentParser(description='Recompute metrics from a single video instance.')
     parser.add_argument('dir', type=str, help='Location of log folder.')
     parser.add_argument('video', type=str, help='Video to be replayed.')
+    parser.add_argument('name', type=str, help='Name of generated plot log.')
     parser.add_argument('-t', '--trace', type=str, help='Trace of bandwidth.')
     run(parser.parse_args())   
