@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
+from abr.video import get_video_chunks
 from exp_util.env import experiment, experiments, run_subexp, run_trace
 from exp_util.data import Experiment, save_experiments, generate_summary, load_experiments
 from exp_util.plot import plot_bar, plot_cdf
@@ -296,6 +297,147 @@ def multiple(args: Namespace) -> None:
         else:
             save_experiments(experiment_path, experiments)
             generate_summary(experiment_path, experiments)
+
+
+@experiment
+def hetero(args: Namespace) -> None:
+    global run_trace, run_subexp
+    if args.dry:
+        run_trace  = lambda *args, **kwargs: None
+        run_subexp = lambda *args, **kwargs: None 
+
+    videos = ['got', 'bojack', 'guard']
+
+    root_path = str(Path("experiments") / "hetero")
+    os.system(f"mkdir -p {root_path}")
+    runner_log = open(str(Path(root_path) / 'exp.log'), 'w')
+   
+    compete1 = [
+        # ('robustMpc', 'cubic'),
+        ('robustMpc', 'bbr'),
+    ]
+    compete2 = [
+        ('gap', 'target'),
+        ('gap', 'gap'),
+    ]
+
+    for i, video1 in enumerate(videos):
+        for j, video2 in enumerate(videos):
+            if j > i:
+                longer_video = video1 if get_video_chunks(video1) > get_video_chunks(video2) else video2
+                experiments = []
+                experiment_path = str(Path(root_path) / f"{video1}_{video2}")
+                for run_id in range(3):
+                    latency = 500
+                    # robustMpc vs others 
+                    for bandwidth in [3, 2, 1]:
+                        subpath = str(Path(experiment_path) / "versus_rmpc")
+                        for (algo1, cc1) in compete1:
+                            for (algo2, cc2) in compete2:
+                                server1 = f"--algo {algo1} --name robustMpc --cc {cc1} --video {video1}" 
+                                server2 = f"--server-algo {algo2} --name abrcc --cc {cc2} --video {video2}"
+                        
+                                path = str(Path(subpath) / f"{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
+                                runner_log.write(f'> {path}\n')
+                       
+                                run_subexp(
+                                    bandwidth, latency, path, server1, server2, burst=2000, video=longer_video
+                                )
+                                if cc2 == "gap":
+                                    cc2 = "gap2"
+                                experiments.append(Experiment(
+                                    video = longer_video,
+                                    path = str(Path(path) / "leader_plots.log"),
+                                    latency = latency,
+                                    bandwidth = bandwidth,
+                                    extra = ["versus", cc1, algo2, cc2, video1, video2],
+                                    run_id = run_id,
+                                ))
+
+                        # self
+                        subpath = str(Path(experiment_path) / "versus_self")
+                        for (algo, cc) in compete2:
+                            server1 = f"--server-algo {algo} --name abrcc1 --cc {cc} --video {video1}"
+                            server2 = f"--server-algo {algo} --name abrcc2 --cc {cc} --video {video2}"
+                        
+                            path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
+                            runner_log.write(f'> {path}\n')
+                            run_subexp(
+                                bandwidth, latency, path, server1, server2, burst=2000, video=longer_video
+                            )
+                        
+                            if cc == "gap":
+                                cc = "gap2"
+                            experiments.append(Experiment(
+                                video = longer_video,
+                                path = str(Path(path) / "leader_plots.log"),
+                                latency = latency,
+                                bandwidth = bandwidth,
+                                extra = ["self", algo, cc, video1, video2],
+                                run_id = run_id,
+                            ))
+
+                        # robustMpc
+                        subpath = str(Path(experiment_path) / "rmpc")
+                        # for cc1, cc2 in [('cubic', 'bbr'), ('bbr', 'bbr'), ('cubic', 'cubic')]:
+                        for cc1, cc2 in [('cubic', 'bbr'), ('bbr', 'bbr')]:
+                            server1 = f"--algo robustMpc --name rmpc1 --cc {cc1} --video {video1}"
+                            server2 = f"--algo robustMpc --name rmpc2 --cc {cc2} --video {video2}"
+
+                            path = str(Path(subpath) / f"{cc1}_{cc2}_{bandwidth}_run{run_id}")
+                            runner_log.write(f'> {path}\n')
+                            run_subexp(
+                                bandwidth, latency, path, server1, server2, burst=2000, video=longer_video
+                            )
+                            # check_replays(video, bandwidth, path)
+                            experiments.append(Experiment(
+                                video = longer_video,
+                                path = str(Path(path) / "leader_plots.log"),
+                                latency = latency,
+                                bandwidth = bandwidth,
+                                extra = ["rmpc", cc1 + '1', cc2 + '2', video1, video2],
+                                run_id = run_id,
+                            ))
+                if args.dry:
+                    print(experiments)
+                    print(len(experiments))
+                else:
+                    save_experiments(experiment_path, experiments)
+                    generate_summary(experiment_path, experiments)
+
+
+@experiment
+def generate_plots_hetero(args: Namespace) -> None:
+    experiment_path = str(Path("experiments") / "plots")
+    os.system(f"mkdir -p {experiment_path}")
+    
+    videos = ['got', 'bojack', 'guard']
+    for i, video1 in enumerate(videos):
+        for j, video2 in enumerate(videos):
+            if j > i:
+                longer_video = video1 if get_video_chunks(video1) > get_video_chunks(video2) else video2
+                experiments = sum([load_experiments(experiment) for experiment in [
+                    str(Path("experiments") / "hetero" / f"{video1}_{video2}"),
+                ]], [])
+        
+                os.system(f"mkdir -p {experiment_path}/{video1}_{video2}")
+                plot_bar(str(Path(experiment_path) / f"{video1}_{video2}" / "versus_bbr"), experiments, [
+                    # performance
+                    (["versus", "bbr", "gap2"], ("abrcc", "gap-pid", 1) ),
+                    (["versus", "bbr", "gap"], ("abrcc", "gap", 1) ),
+                    (["rmpc", "cubic1", "bbr2"], ("rmpc2", "rmpc_cubic", 1) ),
+                
+                    # fairness
+                    (["versus", "bbr", "gap2"], ("robustMpc", "gap-pid", 2) ),
+                    (["versus", "bbr", "gap"], ("robustMpc", "gap", 2) ),
+                    (["rmpc", "cubic1", "bbr2"], ("rmpc1", "rmpc_cubic", 2) ),
+                ])
+                plot_bar(str(Path(experiment_path) / f"{video1}_{video2}" / "self"), experiments, [
+                    # performance
+                    (["self", "gap", "gap2"], (sum, "gap-pid", 1) ),
+                    (["self", "gap", "target"], (sum, "gap", 1) ),
+                    (["rmpc", "bbr1", "bbr2"], (sum, "rmpc_bbr", 1) ),
+                ])
 
 
 
