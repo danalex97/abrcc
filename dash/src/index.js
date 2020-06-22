@@ -54,10 +54,16 @@ function updateAbrSettings(player, parser) {
     // after the abrThroughput rule is used. This means that if our rule 
     // keeps the same decision we will have no problem with Bola, but still
     // use or components to transmit the metrics.
+    let server_side_rule = GetServerSideRule(player);
     player.addABRCustomRule(
         'qualitySwitchRules', 
         'ServerSideRule', 
-        GetServerSideRule(player)
+        server_side_rule,
+    );
+    player.addABRCustomRule(
+        'abandonFragmentRules', 
+        'AbandonCustomRule', 
+        server_side_rule,
     );
 }
 

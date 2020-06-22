@@ -151,6 +151,8 @@ export class ServerSideApp implements App {
 
                 // register metrics on progress
                 if (loaded !== undefined && total !== undefined) {
+                    this.interceptor.progress(index, loaded, total);
+                    
                     let segment = new Segment()
                         .withState(SEGMENT_STATE.PROGRESS)
                         .withLoaded(loaded)

@@ -2,6 +2,7 @@ import { logging } from '../common/logger';
 
 
 const logger = logging('abr');
+const abandon_logger = logging('abandon');
 const dash_logger = logging('DashLog');
 const MEDIA_TYPE = 'video';
 
@@ -74,9 +75,6 @@ function ServerSideRuleClass() {
 
     initScheduleController(context);
 
-    function setup() {
-    }
-
     function getMaxIndex(rulesContext) {
         let streamController = context.streamController;
         let abrController = rulesContext.getAbrController();
@@ -95,11 +93,46 @@ function ServerSideRuleClass() {
         return switchRequest;
     }
 
-    instance = {
-        getMaxIndex: getMaxIndex
-    };
+    function shouldAbandon(rulesContext) {
+        const switchRequest = SwitchRequest(factoryCtx).create(
+            SwitchRequest.NO_CHANGE, {}
+        );
 
-    setup();
+        const mediaInfo = rulesContext.getMediaInfo();
+        const mediaType = rulesContext.getMediaType();
+        const req = rulesContext.getCurrentRequest();
+        const index = req.index;
+        
+        let metricsModel = MetricsModel(factoryCtx).getInstance();
+        let dashMetrics = metricsModel.getMetricsFor(mediaType, true);
+       
+        // if the request was made
+        if (!isNaN(index)) {
+            // get buffer level
+            let bufferLevel = 10000;
+            if (dashMetrics.BufferLevel && dashMetrics.BufferLevel.length > 0) {
+                bufferLevel = dashMetrics.BufferLevel[dashMetrics.BufferLevel.length - 1].level;
+            }
+            const minBufferLevel = 2000;
+            const minIndex = 5;
+
+            // if buffer level is below our limit and we passed startup
+            if (bufferLevel < minBufferLevel && index >= minIndex) {
+                abandon_logger.log(`Buffer level ${bufferLevel} under ${minBufferLevel}.`);
+                abandon_logger.log("Possible rebuffer detected");
+                
+                // [TODO] need to contact backend to ensure we switch to recovery ABR state 
+                // [TODO]  -- how do we do the re-request?
+                // [TODO] need to do switchRequest again 
+            }
+        }
+        return switchRequest;
+    }
+
+    instance = {
+        getMaxIndex: getMaxIndex,
+        shouldAbandon: shouldAbandon,
+    };
 
     return instance;
 }

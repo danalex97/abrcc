@@ -98,10 +98,12 @@ export class InterceptorUtil {
 
 
 export class Interceptor extends InterceptorUtil {
+    // Note we allow both number and string input, since we want to also be able to intercept
+    // header, but also numbered requests to the backend.
     _videoInfo: VideoInfo;
     _onRequest: (ctx: ExternalDependency, index: number) => void;
-    _toIntercept: Dict<number, Dict<string, object>>;
-    _onIntercept: Dict<number, (context: Dict<string, object>) => void>;
+    _toIntercept: Dict<number | string, Dict<string, object>>;
+    _onIntercept: Dict<number | string, (context: Dict<string, object>) => void>;
     _done: Dict<number, string>;
     
     constructor(videoInfo: VideoInfo) {
@@ -122,12 +124,12 @@ export class Interceptor extends InterceptorUtil {
         this._done = {};
     }
    
-    onRequest(callback) {
+    onRequest(callback: (ctx: ExternalDependency, index: number) => void): Interceptor {
         this._onRequest = callback;
         return this;
     }
 
-    onIntercept(index, callback) {
+    onIntercept(index: number | string, callback: (context: Dict<string, object>) => void): Interceptor {
         logger.log('Cache updated', index);
         this._onIntercept[index] = callback;
 
@@ -140,8 +142,14 @@ export class Interceptor extends InterceptorUtil {
 
         return this;
     }
+
+    progress(index: number, loaded: number, total: number): void {
+        // logger.log('Progress: ', index, loaded, total);
+
+        // [TODO] use the XMLHttpRequest's progress to deliver the elements
+    }
     
-    intercept(index) {
+    intercept(index: number | string): Interceptor {
         this._toIntercept[index] = null;
         return this;
     }
