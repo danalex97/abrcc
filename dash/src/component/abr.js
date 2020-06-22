@@ -105,7 +105,7 @@ function ServerSideRuleClass() {
         
         let metricsModel = MetricsModel(factoryCtx).getInstance();
         let dashMetrics = metricsModel.getMetricsFor(mediaType, true);
-       
+
         // if the request was made
         if (!isNaN(index)) {
             // get buffer level

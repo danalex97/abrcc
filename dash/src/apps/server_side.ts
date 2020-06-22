@@ -42,12 +42,14 @@ function cacheHit(object, res) {
 
         // starting
         let total = res.response.byteLength; 
-        ctx.readyState = 3;
-        execute(ctx.onprogress, newEvent('progress', {
-            'lengthComputable': true, 
-            'loaded': 0, 
-            'total': total,
-        }));
+        if (ctx.readyState !== 3) {
+            ctx.readyState = 3;
+            execute(ctx.onprogress, newEvent('progress', {
+                'lengthComputable': true, 
+                'loaded': 0, 
+                'total': total,
+            }));
+        }
 
         // modify response
         ctx.responseType = "arraybuffer";

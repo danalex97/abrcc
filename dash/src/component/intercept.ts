@@ -144,9 +144,25 @@ export class Interceptor extends InterceptorUtil {
     }
 
     progress(index: number, loaded: number, total: number): void {
-        // logger.log('Progress: ', index, loaded, total);
+        if (this._toIntercept[index] !== null) {
+            const object = this._toIntercept[index];
+           
+            let ctx = object["ctx"];
+            const makeWritable = object["makeWritable"];
+            const execute = object["execute"];
+            const newEvent = (type, dict) => { 
+                return object["newEvent"](ctx, type, dict);
+            };
 
-        // [TODO] use the XMLHttpRequest's progress to deliver the elements
+            // dispach the progress events towards the original request
+            makeWritable(ctx, 'readyState', true);
+            ctx.readyState = 3;
+            execute(ctx.onprogress, newEvent('progress', {
+                'lengthComputable': true, 
+                'loaded': loaded, 
+                'total': total,
+            }));
+        }
     }
     
     intercept(index: number | string): Interceptor {
