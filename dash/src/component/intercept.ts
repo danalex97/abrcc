@@ -104,6 +104,7 @@ export class Interceptor extends InterceptorUtil {
     _onRequest: (ctx: ExternalDependency, index: number) => void;
     _toIntercept: Dict<number | string, Dict<string, object>>;
     _onIntercept: Dict<number | string, (context: Dict<string, object>) => void>;
+    _objects: Dict<number | string, object>;
     _done: Dict<number, string>;
     
     constructor(videoInfo: VideoInfo) {
@@ -118,7 +119,10 @@ export class Interceptor extends InterceptorUtil {
 
         // map of callbacks for onIntercept
         this._onIntercept = {};
-        
+    
+        // map of exposed context inside intercetor request
+        this._objects = {};
+
         // map of done requests
         // the retries will not be requested, but only logged
         this._done = {};
@@ -163,6 +167,15 @@ export class Interceptor extends InterceptorUtil {
                 'total': total,
             }));
         }
+    }
+   
+    context(index: number | string): object {
+        return this._objects[index];
+    }
+
+    setContext(index: number | string, obj: object): Interceptor {
+        this._objects[index] = obj;
+        return this;
     }
     
     intercept(index: number | string): Interceptor {

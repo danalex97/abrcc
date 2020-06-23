@@ -19,15 +19,17 @@ export abstract class Request {
     _onResponse: (res: XMLHttpRequest) => void;
     _error: () => void;
     _onSend: (url: string, content: Json | undefined) => void;
+    _afterSend: (res: XMLHttpRequest) => void;
     _progress: (event: Event) => void;
     _log: boolean;
 
     constructor(shim: BackendShim) {
         this._shim = shim;
         this._onBody = (body) => {};
-        this._onResponse = (response) => {};
+        this._onResponse = (request) => {};
         this._error = () => {};
         this._onSend = (url, content) => {};
+        this._afterSend = (request) => {};
         this._progress = (event) => {}; 
         this._log = false;
         
@@ -85,6 +87,7 @@ export abstract class Request {
 
         this._onSend(path + resource, undefined);
         xhr.send();
+        this._afterSend(xhr);
     
         this.request = xhr;
         return this;
@@ -133,7 +136,14 @@ export abstract class Request {
         this._onSend = callback;
         return this;
     }
+
     
+    afterSend(callback: (request: XMLHttpRequest) => void): Request {
+        // only works for native requests
+        this._afterSend = callback;
+        return this;
+    }
+
     onFail(callback: () => void): Request {
         this._error = callback;
         return this;

@@ -8,6 +8,7 @@ const logger = logging('RequestController');
 
 
 type ResourceSendCallback = (index: number, url: string, content: string | undefined) => void;
+type ResourceSendAfterCallback = (index: number, req: XMLHttpRequest) => void;
 type ResourceProgressCallback = (index: number, event: Event) => void;
 type ResourceSuccessCallback = (index: number, res: XMLHttpRequest) => void;
 type PieceSuccessCallback = (index: number, body: Body) => void; 
@@ -21,10 +22,12 @@ export class RequestController {
     _max_index: number;
 
     _resourceSend: ResourceSendCallback;
+    _resourceAfterSend: ResourceSendAfterCallback;
     _resourceProgress: ResourceProgressCallback;
     _resourceSuccess: ResourceSuccessCallback;
     _pieceSuccess: PieceSuccessCallback; 
     _pieceRequests: Dict<number, Request>; 
+    _resourceRequests: Dict<number, Request>;
 
     constructor(videoInfo: VideoInfo, shim: BackendShim, pool: number) {
         this._current = 0;
@@ -38,11 +41,16 @@ export class RequestController {
         this._pieceSuccess = (index, body) => {};
 
         this._pieceRequests = {};
+        this._resourceRequests = {};
         this._max_index = videoInfo.info[videoInfo.bitrateArray[0]].length;
     }
 
     getPieceRequest(index: number): Request {
         return this._pieceRequests[index];
+    }
+
+    getResourceRequest(index: number): Request {
+        return this._resourceRequests[index];
     }
 
     _pieceRequest(index: number): void {
@@ -57,11 +65,14 @@ export class RequestController {
     }
 
     _resourceRequest(index: number): void {
-        this._shim
+        this._resourceRequests[index] = this._shim
             .resourceRequest()
             .addIndex(index)
             .onSend((url, content) => {
                 this._resourceSend(index, url, content);    
+            })
+            .afterSend((request) => {
+                this._resourceAfterSend(index, request);
             })
             .onProgress((event) => {
                 this._resourceProgress(index, event);
@@ -100,6 +111,11 @@ export class RequestController {
 
     onResourceSend(callback: ResourceSendCallback): RequestController {
         this._resourceSend = callback;
+        return this;
+    }
+
+    afterResourceSend(callback: ResourceSendAfterCallback): RequestController {
+        this._resourceAfterSend = callback;
         return this;
     }
 

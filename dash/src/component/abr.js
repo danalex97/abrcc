@@ -27,6 +27,22 @@ function getPlayer() {
     return window.player;
 }
 
+function setShim(shim) {
+    window.shim = shim;   
+}
+
+function getShim() {
+    return window.shim;
+}
+
+function setInterceptor(interceptor) {
+    window.interceptor = interceptor;
+}
+
+function getInterceptor() {
+    return window.interceptor;
+}
+
 (function(){
     window._onText = (args) => {};
     window._onEventContext = {};
@@ -93,8 +109,10 @@ function ServerSideRuleClass() {
         return switchRequest;
     }
 
+    let rebuffers = new Set();
+
     function shouldAbandon(rulesContext) {
-        const switchRequest = SwitchRequest(factoryCtx).create(
+        let switchRequest = SwitchRequest(factoryCtx).create(
             SwitchRequest.NO_CHANGE, {}
         );
 
@@ -102,7 +120,7 @@ function ServerSideRuleClass() {
         const mediaType = rulesContext.getMediaType();
         const req = rulesContext.getCurrentRequest();
         const index = req.index;
-        
+
         let metricsModel = MetricsModel(factoryCtx).getInstance();
         let dashMetrics = metricsModel.getMetricsFor(mediaType, true);
 
@@ -113,17 +131,35 @@ function ServerSideRuleClass() {
             if (dashMetrics.BufferLevel && dashMetrics.BufferLevel.length > 0) {
                 bufferLevel = dashMetrics.BufferLevel[dashMetrics.BufferLevel.length - 1].level;
             }
-            const minBufferLevel = 2000;
+            const minBufferLevel = 5000;
             const minIndex = 5;
 
             // if buffer level is below our limit and we passed startup
-            if (bufferLevel < minBufferLevel && index >= minIndex) {
+            if (bufferLevel < minBufferLevel && index >= minIndex && !rebuffers.has(index)) {
+                rebuffers.add(index);
+                
                 abandon_logger.log(`Buffer level ${bufferLevel} under ${minBufferLevel}.`);
                 abandon_logger.log("Possible rebuffer detected");
                 
-                // [TODO] need to contact backend to ensure we switch to recovery ABR state 
-                // [TODO]  -- how do we do the re-request?
-                // [TODO] need to do switchRequest again 
+                const interceptor = getInterceptor();
+
+                // switch to lowest quality if that's not the case yet
+                if (getQualityController().getQuality(index, 1) > 0) {
+                    switchRequest = SwitchRequest(factoryCtx).create();
+                    switchRequest.quality = 0;
+                    switchRequest.reason = 'Possible rebuffer detected!';
+                   
+                    // [TODO] use intercetor to abort the current request
+                    let abrXmlRequest = interceptor._toIntercept[index + 1]["ctx"];
+                    let backendXmlRequest = interceptor.context(index + 1);
+                    abandon_logger.log('Real req', backendXmlRequest);
+                    if (backendXmlRequest.readyState != 4) {
+                        backendXmlRequest.abort();
+                    }
+
+                    abandon_logger.log("Switch request", switchRequest);
+                    return switchRequest;
+                }
             }
         }
         return switchRequest;
@@ -137,8 +173,10 @@ function ServerSideRuleClass() {
     return instance;
 }
 
-export function GetServerSideRule(player) {
+export function GetServerSideRule(player, shim, interceptor) {
     setPlayer(player);
+    setShim(shim);
+    setInterceptor(interceptor);
 
     ServerSideRuleClass.__dashjs_factory_name = 'ServerSideRule';
     return getFactory().getClassFactory(ServerSideRuleClass);
