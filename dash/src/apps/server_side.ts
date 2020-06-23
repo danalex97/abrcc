@@ -148,7 +148,10 @@ export class ServerSideApp implements App {
                 this.interceptor.intercept(index);
             })
             .afterResourceSend((index: number, request: XMLHttpRequest) => {
-                this.interceptor.setContext(index, request);
+                this.interceptor.setContext(index, {
+                    'xmlRequest': request,
+                    'requestObject': this.requestController.getResourceRequest(index),
+                });
             })
             .onResourceProgress((index: number, event: Event) => {
                let loaded: number | undefined = (<any>event).loaded; 

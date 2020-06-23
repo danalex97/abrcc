@@ -71,6 +71,7 @@ export function onEvent(event, callback) {
 function initScheduleController(context) {
     context.streamController.getActiveStreamProcessors().forEach(streamProcessor => {
         context.scheduleController = streamProcessor.getScheduleController();
+        context.streamProcessor = streamProcessor;
     });
 }
 
@@ -88,6 +89,7 @@ function ServerSideRuleClass() {
     context.player = getPlayer();
     context.streamController = StreamController(factoryCtx).getInstance();
     context.scheduleController = undefined;
+    context.streamProcessor = undefined;
 
     initScheduleController(context);
 
@@ -110,6 +112,7 @@ function ServerSideRuleClass() {
     }
 
     let rebuffers = new Set();
+    let once = true;
 
     function shouldAbandon(rulesContext) {
         let switchRequest = SwitchRequest(factoryCtx).create(
@@ -123,6 +126,7 @@ function ServerSideRuleClass() {
 
         let metricsModel = MetricsModel(factoryCtx).getInstance();
         let dashMetrics = metricsModel.getMetricsFor(mediaType, true);
+        
 
         // if the request was made
         if (!isNaN(index)) {
@@ -142,19 +146,75 @@ function ServerSideRuleClass() {
                 abandon_logger.log("Possible rebuffer detected");
                 
                 const interceptor = getInterceptor();
-
+                const shim = getShim();
+        
                 // switch to lowest quality if that's not the case yet
                 if (getQualityController().getQuality(index, 1) > 0) {
-                    switchRequest = SwitchRequest(factoryCtx).create();
+                    /*switchRequest = SwitchRequest(factoryCtx).create();
                     switchRequest.quality = 0;
                     switchRequest.reason = 'Possible rebuffer detected!';
-                   
-                    // [TODO] use intercetor to abort the current request
+                    */
+
                     let abrXmlRequest = interceptor._toIntercept[index + 1]["ctx"];
-                    let backendXmlRequest = interceptor.context(index + 1);
+                    let backendXmlRequest = interceptor.context(index + 1)['xmlRequest'];
+                    let backendRequest = interceptor.context(index + 1)['requestObject'];
                     abandon_logger.log('Real req', backendXmlRequest);
-                    if (backendXmlRequest.readyState != 4) {
+                    if (backendXmlRequest.readyState != 4 && once) {
+                        // abort the backend request
                         backendXmlRequest.abort();
+                        
+                        /*
+                        let fragmentModel = context.streamProcessor.getFragmentModel();
+                        let req = fragmentModel.getRequests({
+                            state: 'loading', 
+                            index: index,
+                        })[0];
+                        */
+
+                        once = false;
+                        //setTimeout(() => {
+                            let request_url = shim.bypassRequest().addIndex(index).addQuality(0).url();
+                            let newRequest = shim.bypassRequest();
+                            newRequest
+                                .addIndex(index)
+                                .addQuality(0)
+                                .onSuccessResponse((res) => { 
+                                    abrXmlRequest.url = request_url;
+
+                                    backendRequest.request = newRequest.request;
+                                    backendRequest._onResponse(res);
+                                
+                                    abandon_logger.log('Overrided!!', abrXmlRequest);
+                                    if (context.player.isPaused()) {
+                                        context.player.play();
+                                    }
+                                })
+                                .send();
+                            /*
+                            // abort old request
+                            abrXmlRequest.abort();
+                            
+                            // get info
+                            let streamId  = context.streamProcessor.getStreamInfo().id;
+                            let mediaType = 'video'; 
+                            let request_url = shim.bypassRequest().addIndex(index).addQuality(0).url();
+                            
+                            // build  new request
+                            let request = {};
+                            Object.assign(request, abrXmlRequest);
+                            request.url = request_url;
+                            
+                            // send new request to the scheduleController
+                            context.scheduleController.replaceRequest(request);
+                            if (!context.scheduleController.isStarted()) {
+                                context.scheduleController.start();
+                            }
+                            /*context.scheduleController.onFragmentLoadingAbandoned({
+                                'streamId': streamId,
+                                'mediaType': mediaType,
+                                'request': request,
+                            });*/
+                        //}, 0);
                     }
 
                     abandon_logger.log("Switch request", switchRequest);

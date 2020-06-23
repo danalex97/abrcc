@@ -66,7 +66,9 @@ export class RequestController {
 
     _resourceRequest(index: number): void {
         this._resourceRequests[index] = this._shim
-            .resourceRequest()
+            .resourceRequest();
+        
+        this._resourceRequests[index]
             .addIndex(index)
             .onSend((url, content) => {
                 this._resourceSend(index, url, content);    

@@ -337,6 +337,31 @@ export class ResourceRequest extends Request {
     }
 }
 
+export class BypassRequest extends ResourceRequest {
+    quality: number | undefined;
+
+    constructor(shim: BackendShim) {
+        super(shim);
+    }
+    
+    addQuality(quality: number): BypassRequest {
+        this.quality = quality;
+        return this;
+    }
+
+    url(): string {
+        return `${this.shim.basePath}/video${this.quality}/${this.index}.m4s`;
+    }
+
+    send(): Request {
+        return this._nativeGet(
+            this.shim.basePath, 
+            `/video${this.quality}/${this.index}.m4s`, 
+            "arraybuffer"
+        );
+    }
+}
+
 
 export class BackendShim {
     _base_path: string;
@@ -380,6 +405,10 @@ export class BackendShim {
 
     resourceRequest(): ResourceRequest {
         return new ResourceRequest(this);
+    }
+
+    bypassRequest(): BypassRequest {
+        return new BypassRequest(this);
     }
 
     get basePath(): string {
