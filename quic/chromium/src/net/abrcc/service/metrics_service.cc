@@ -47,4 +47,17 @@ std::vector<std::unique_ptr<Metrics>> MetricsService::GetMetrics() {
   return out;
 }
 
+void MetricsService::AddAbort(int abort_index) {
+  QuicWriterMutexLock lock(&mutex_);
+  this->aborts.push_back(abort_index);
+}
+
+std::vector<int> MetricsService::GetAborts() {
+  QuicWriterMutexLock lock(&mutex_);
+
+  std::vector<int> out = std::move(aborts);
+  aborts = std::vector<int>();
+  return out;
+}
+
 }

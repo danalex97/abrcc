@@ -21,6 +21,7 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_text_utils.h"
 
 const std::string API_PATH = "/request";
+const std::string ABORT_PATH = "/abort";
 const std::string PIECE_PATH = "/piece";
 
 using spdy::SpdyHeaderBlock;
@@ -118,9 +119,18 @@ void DashBackend::FetchResponseFromBackend(
     } else if (path.find(PIECE_PATH) != std::string::npos) {
       // a request for a piece was received
       polling->AddRequest(request_headers, request_body, std::move(quic_stream));
+    } else if (path.find(ABORT_PATH) != std::string::npos) {
+      std::string index_raw = std::string(path).substr(
+        path.find(ABORT_PATH) + ABORT_PATH.size() + 1
+      );
+      int abort_index = std::stoi(index_raw);
+      
+      QUIC_LOG(WARNING) << "Aborting: " << abort_index;
+      metrics->AddAbort(abort_index);
     } else {
       // serving pieces
       store->FetchResponseFromBackend(request_headers, request_body, quic_stream);
+      QUIC_LOG(WARNING) << "Serving: " << path;
     }
   } else {
     store->FetchResponseFromBackend(request_headers, request_body, quic_stream);

@@ -167,105 +167,28 @@ function ServerSideRuleClass() {
                         // abort the backend request
                         backendXmlRequest.abort();
                         
-                        /*
-                        let fragmentModel = context.streamProcessor.getFragmentModel();
-                        let req = fragmentModel.getRequests({
-                            state: 'loading', 
-                            index: index,
-                        })[0];
-                        */
-
+                        // tell backend to abort request
+                        shim.abortRequest()
+                            .addIndex(index + 1)
+                            .send();
+                        
+                        // [TODO] fix this
                         once = false;
-                        //setTimeout(() => {
-                            let request_url = shim.bypassRequest().addIndex(index + 1).addQuality(0).url();
-                            let newRequest = shim.bypassRequest();
-                            
-                            abandon_logger.log('Setting bypass for: ', index + 1);
-                            interceptor.setBypass(index + 1);
+                        
+                        // set bypass in interceptor for newly generated request 
+                        abandon_logger.log('Setting bypass for: ', index + 1);
+                        interceptor.setBypass(index + 1);
 
-                            /*
-                            newRequest
-                                .addIndex(index + 1)
-                                .addQuality(0)
-                                .onSuccessResponse((res) => { 
-                                    */ /*
-                                    abrXmlRequest.url = request_url;
-
-                                    backendRequest.request = newRequest.request;
-                                    backendRequest._onResponse(res);
-                                
-                                    abandon_logger.log('Overrided!!', abrXmlRequest);
-                                    if (context.player.isPaused()) {
-                                        context.player.play();
-                                    }
-                                    */
                                     
-                                    let ctx = abrXmlRequest;
-                                    /*
-                                    makeWritable(ctx, 'response', true); 
-                                    makeWritable(ctx, 'readyState', true);
-                                    makeWritable(ctx, 'status', true);
-                                    makeWritable(ctx, 'responseType', true);
-                                    makeWritable(ctx, 'statusText', true);
-        
-                                    // modify response
-                                    ctx.responseType = "text";
-                                    ctx.response = "Not found";
-                                    ctx.readyState = 4;
-                                    ctx.status = 404;
-                                    ctx.statusText = "Not found";
-
-                                    execute(ctx.onload, newEvent('load', {
-                                        'lengthComputable': true, 
-                                        'loaded': total, 
-                                        'total': total,
-                                    }));
-                                    execute(ctx.onloadend);
-                                    */
-
-                                    /*
-                                    setTimeout(() => {
-                                        abandon_logger.log('new req', newRequest);
-                                        let new_intercept = interceptor._toIntercept[index + 1]["ctx"];
-                                        abandon_logger.log('new intercept', new_intercept); 
-                                    }, 0);*/
-                                /*})
-                                .send();
-                            */
-
-                            // abort old request
-                            abrXmlRequest.abort();
-                            execute(abrXmlRequest.onabort, new Event('abort'));
+                        // abort old request
+                        abrXmlRequest.abort();
+                        execute(abrXmlRequest.onabort, new Event('abort'));
                             
-                            /*
-                            // get info
-                            let streamId  = context.streamProcessor.getStreamInfo().id;
-                            let mediaType = 'video'; 
-                            let request_url = shim.bypassRequest().addIndex(index).addQuality(0).url();
-                            
-                            // build  new request
-                            let request = {};
-                            Object.assign(request, abrXmlRequest);
-                            request.url = request_url;
-                            
-                            // send new request to the scheduleController
-                            context.scheduleController.replaceRequest(request);
-                            if (!context.scheduleController.isStarted()) {
-                                context.scheduleController.start();
-                            }
-                            */
-                            /*context.scheduleController.onFragmentLoadingAbandoned({
-                                'streamId': streamId,
-                                'mediaType': mediaType,
-                                'request': request,
-                            });*/
-                        //}, 0);
-
+                        // Create the switch request
                         switchRequest.quality = 0;
                         switchRequest.reason = "Rebuff detected";                       
+                        abandon_logger.log("Switch request", switchRequest);
                     }
-
-                    abandon_logger.log("Switch request", switchRequest);
                     return switchRequest;
                 }
             }

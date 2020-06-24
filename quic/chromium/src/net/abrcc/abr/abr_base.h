@@ -8,6 +8,7 @@
 #include "net/abrcc/dash_config.h"
 
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // interfaces
@@ -23,6 +24,7 @@ class SegmentProgressAbr : public AbrInterface {
   ~SegmentProgressAbr() override;
 
   void registerMetrics(const abr_schema::Metrics &) override;
+  void registerAbort(const int) override;
   abr_schema::Decision decide() override;
 
   virtual int decideQuality(int index) = 0; 
@@ -30,7 +32,8 @@ class SegmentProgressAbr : public AbrInterface {
   const std::shared_ptr<DashBackendConfig>& config;
   std::unordered_map<int, abr_schema::Segment> last_segment;  
   std::unordered_map<int, abr_schema::Decision> decisions; 
-  
+  std::unordered_set<int> aborted;
+
   int decision_index;
   int last_timestamp;
   int last_segment_time_length;

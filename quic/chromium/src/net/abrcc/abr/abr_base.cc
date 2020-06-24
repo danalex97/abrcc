@@ -64,6 +64,10 @@ void SegmentProgressAbr::update_segment(abr_schema::Segment segment) {
   log_segment(segment);
 }
 
+void SegmentProgressAbr::registerAbort(const int index) {
+  aborted.insert(index);  
+}
+
 void SegmentProgressAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   for (const auto& segment : metrics.segments) {
     last_timestamp = std::max(last_timestamp, segment->timestamp);
@@ -106,6 +110,10 @@ bool SegmentProgressAbr::should_send(int index) {
 
   if (1.0 * segment.loaded / segment.total >= 0.8) {
     // segment has been downloaded more than 80%
+    return true;
+  }
+
+  if (aborted.find(index - 1) != aborted.end()) {
     return true;
   }
 

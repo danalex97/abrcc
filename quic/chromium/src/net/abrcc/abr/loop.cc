@@ -73,6 +73,11 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
       loop->interface->registerMetrics(*metrics);
     }
 
+    // register aborts
+    for (auto& abort : loop->metrics->GetAborts()) {
+      loop->interface->registerAbort(abort);
+    }
+
     // get decision
     auto decision = loop->interface->decide(); 
     if (loop->sent.find(decision.path()) == loop->sent.end()) {

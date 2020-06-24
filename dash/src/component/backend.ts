@@ -295,6 +295,16 @@ export class PieceRequest extends Request {
 }
 
 
+export class AbortRequest extends PieceRequest {
+    send(): Request {
+        if (this.index === undefined) {
+            throw new TypeError(`PieceRequest made without index: ${this}`); 
+        }
+        return this._request(request.get, this.shim.abortPath, "/" + this.index, {});
+    }
+}
+
+
 export class HeaderRequest extends Request {
     quality: number | undefined;
 
@@ -337,35 +347,10 @@ export class ResourceRequest extends Request {
     }
 }
 
-export class BypassRequest extends ResourceRequest {
-    quality: number | undefined;
-
-    constructor(shim: BackendShim) {
-        super(shim);
-    }
-    
-    addQuality(quality: number): BypassRequest {
-        this.quality = quality;
-        return this;
-    }
-
-    url(): string {
-        return `${this.shim.basePath}/video${this.quality}/${this.index}.m4s`;
-    }
-
-    send(): Request {
-        return this._nativeGet(
-            this.shim.basePath, 
-            `/video${this.quality}/${this.index}.m4s`, 
-            "arraybuffer"
-        );
-    }
-}
-
-
 export class BackendShim {
     _base_path: string;
     _path: string;
+    _abort: string;
     _resource_path: string;
     _experiment_path: string;
     
@@ -373,6 +358,7 @@ export class BackendShim {
         // the base path refers to the backend server
         this._base_path = `https://${site}:${quic_port}`;
         this._path = `https://${site}:${quic_port}/request`;
+        this._abort = `https://${site}:${quic_port}/abort`;
         this._resource_path = `https://${site}:${quic_port}/piece`;    
 
         // the experiment path is used as a logging and control service
@@ -407,10 +393,10 @@ export class BackendShim {
         return new ResourceRequest(this);
     }
 
-    bypassRequest(): BypassRequest {
-        return new BypassRequest(this);
+    abortRequest(): AbortRequest {
+        return new AbortRequest(this);
     }
-
+    
     get basePath(): string {
         return this._base_path;
     }
@@ -421,6 +407,10 @@ export class BackendShim {
 
     get path(): string {
         return this._path;
+    }
+
+    get abortPath(): string {
+        return this._abort;
     }
 
     get experimentPath(): string {

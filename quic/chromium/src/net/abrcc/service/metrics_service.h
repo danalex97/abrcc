@@ -24,15 +24,20 @@ class MetricsService {
       const spdy::SpdyHeaderBlock& request_headers,
       const std::string& request_body,
       QuicSimpleServerBackend::RequestHandler* quic_server_stream);
-  
   // Get all registered metrics so far
   std::vector<std::unique_ptr<abr_schema::Metrics>> GetMetrics();
  
+
+  // Add aborting a request
+  void AddAbort(int index);
+  // Get all registered aborts so far
+  std::vector<int> GetAborts();
  private:
   mutable QuicMutex mutex_;
   
   void AddMetricsImpl(abr_schema::Metrics* metrics);
   std::vector<std::unique_ptr<abr_schema::Metrics>> metrics;
+  std::vector<int> aborts;
 };
 
 }
