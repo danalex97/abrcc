@@ -149,13 +149,17 @@ function ServerSideRuleClass() {
                 const shim = getShim();
         
                 // switch to lowest quality if that's not the case yet
-                if (getQualityController().getQuality(index, 1) > 0) {
+                if (getQualityController().getQuality(index + 1, 1) > 0) {
                     /*switchRequest = SwitchRequest(factoryCtx).create();
                     switchRequest.quality = 0;
                     switchRequest.reason = 'Possible rebuffer detected!';
                     */
 
                     let abrXmlRequest = interceptor._toIntercept[index + 1]["ctx"];
+                    const makeWritable = interceptor._toIntercept[index + 1]["makeWritable"];
+                    const execute = interceptor._toIntercept[index + 1]["execute"];
+                    const newEvent = interceptor._toIntercept[index + 1]["newEvent"];
+                    
                     let backendXmlRequest = interceptor.context(index + 1)['xmlRequest'];
                     let backendRequest = interceptor.context(index + 1)['requestObject'];
                     abandon_logger.log('Real req', backendXmlRequest);
@@ -173,12 +177,18 @@ function ServerSideRuleClass() {
 
                         once = false;
                         //setTimeout(() => {
-                            let request_url = shim.bypassRequest().addIndex(index).addQuality(0).url();
+                            let request_url = shim.bypassRequest().addIndex(index + 1).addQuality(0).url();
                             let newRequest = shim.bypassRequest();
+                            
+                            abandon_logger.log('Setting bypass for: ', index + 1);
+                            interceptor.setBypass(index + 1);
+
+                            /*
                             newRequest
-                                .addIndex(index)
+                                .addIndex(index + 1)
                                 .addQuality(0)
                                 .onSuccessResponse((res) => { 
+                                    */ /*
                                     abrXmlRequest.url = request_url;
 
                                     backendRequest.request = newRequest.request;
@@ -188,12 +198,46 @@ function ServerSideRuleClass() {
                                     if (context.player.isPaused()) {
                                         context.player.play();
                                     }
-                                })
+                                    */
+                                    
+                                    let ctx = abrXmlRequest;
+                                    /*
+                                    makeWritable(ctx, 'response', true); 
+                                    makeWritable(ctx, 'readyState', true);
+                                    makeWritable(ctx, 'status', true);
+                                    makeWritable(ctx, 'responseType', true);
+                                    makeWritable(ctx, 'statusText', true);
+        
+                                    // modify response
+                                    ctx.responseType = "text";
+                                    ctx.response = "Not found";
+                                    ctx.readyState = 4;
+                                    ctx.status = 404;
+                                    ctx.statusText = "Not found";
+
+                                    execute(ctx.onload, newEvent('load', {
+                                        'lengthComputable': true, 
+                                        'loaded': total, 
+                                        'total': total,
+                                    }));
+                                    execute(ctx.onloadend);
+                                    */
+
+                                    /*
+                                    setTimeout(() => {
+                                        abandon_logger.log('new req', newRequest);
+                                        let new_intercept = interceptor._toIntercept[index + 1]["ctx"];
+                                        abandon_logger.log('new intercept', new_intercept); 
+                                    }, 0);*/
+                                /*})
                                 .send();
-                            /*
+                            */
+
                             // abort old request
                             abrXmlRequest.abort();
+                            execute(abrXmlRequest.onabort, new Event('abort'));
                             
+                            /*
                             // get info
                             let streamId  = context.streamProcessor.getStreamInfo().id;
                             let mediaType = 'video'; 
@@ -209,12 +253,16 @@ function ServerSideRuleClass() {
                             if (!context.scheduleController.isStarted()) {
                                 context.scheduleController.start();
                             }
+                            */
                             /*context.scheduleController.onFragmentLoadingAbandoned({
                                 'streamId': streamId,
                                 'mediaType': mediaType,
                                 'request': request,
                             });*/
                         //}, 0);
+
+                        switchRequest.quality = 0;
+                        switchRequest.reason = "Rebuff detected";                       
                     }
 
                     abandon_logger.log("Switch request", switchRequest);

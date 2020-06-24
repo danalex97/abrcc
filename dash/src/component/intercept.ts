@@ -106,7 +106,8 @@ export class Interceptor extends InterceptorUtil {
     _onIntercept: Dict<number | string, (context: Dict<string, object>) => void>;
     _objects: Dict<number | string, object>;
     _done: Dict<number, string>;
-    
+    _bypass: Set<number>;
+
     constructor(videoInfo: VideoInfo) {
         super();
 
@@ -126,6 +127,9 @@ export class Interceptor extends InterceptorUtil {
         // map of done requests
         // the retries will not be requested, but only logged
         this._done = {};
+
+        // set of bypass requests
+        this._bypass = new Set();
     }
    
     onRequest(callback: (ctx: ExternalDependency, index: number) => void): Interceptor {
@@ -178,6 +182,11 @@ export class Interceptor extends InterceptorUtil {
         return this;
     }
     
+    setBypass(index: number): Interceptor {
+        this._bypass.add(index);
+        return this;
+    }
+
     intercept(index: number | string): Interceptor {
         this._toIntercept[index] = null;
         return this;
@@ -193,6 +202,7 @@ export class Interceptor extends InterceptorUtil {
             let ctx = this;
             let oldSend = this.send;
 
+            let bypassDetected = false;
             // modify url
             if (url.includes('video') && url.endsWith('.m4s') && !url.includes('Header')) {
                 logger.log('To modify', url);
@@ -207,10 +217,23 @@ export class Interceptor extends InterceptorUtil {
                         interceptor._onRequest(ctx, index);
                         interceptor._done[index] = url;
                     } else {
-                        logger.log("Retry on request", index, url);
+                        if (interceptor._bypass.has(index)) {
+                            // Bypass detected
+                            logger.log("Bypass detected", index, url);
+                            
+                            bypassDetected = true;
+                            interceptor._onRequest(ctx, index);
+                            interceptor._done[index] = url;
+                        } else {
+                            logger.log("Retry on request", index, url);
+                        }
                     }
                 }
             }
+            if (bypassDetected) {
+                return oldOpen.apply(this, arguments); 
+            }
+
             ctx.send = function() {
                 if (url.includes('video') && url.endsWith('.m4s')) {
                     logger.log(url);
@@ -224,7 +247,7 @@ export class Interceptor extends InterceptorUtil {
                     } else {
                         let index = maybeIndex as number;
                         if (interceptor._toIntercept[index] !== undefined) {
-                            logger.log("intercepted", url);
+                            logger.log("intercepted", url, ctx);
 
                             // adding the context
                             interceptor._toIntercept[index] = {
