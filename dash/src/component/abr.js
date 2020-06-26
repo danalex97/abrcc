@@ -112,7 +112,7 @@ function ServerSideRuleClass() {
     }
 
     let rebuffers = new Set();
-    let once = true;
+    let lastRecoveryIndex = 0;
 
     function shouldAbandon(rulesContext) {
         let switchRequest = SwitchRequest(factoryCtx).create(
@@ -126,7 +126,9 @@ function ServerSideRuleClass() {
 
         let metricsModel = MetricsModel(factoryCtx).getInstance();
         let dashMetrics = metricsModel.getMetricsFor(mediaType, true);
-        
+        const recoveryCooldown = 2; // in number of segments
+        const minIndex = 5; // minimum index for checking small buffer
+        const minBufferLevel = 5000;
 
         // if the request was made
         if (!isNaN(index)) {
@@ -135,26 +137,25 @@ function ServerSideRuleClass() {
             if (dashMetrics.BufferLevel && dashMetrics.BufferLevel.length > 0) {
                 bufferLevel = dashMetrics.BufferLevel[dashMetrics.BufferLevel.length - 1].level;
             }
-            const minBufferLevel = 5000;
-            const minIndex = 5;
 
             // if buffer level is below our limit and we passed startup
-            if (bufferLevel < minBufferLevel && index >= minIndex && !rebuffers.has(index)) {
+            if (bufferLevel < minBufferLevel && 
+                index >= minIndex && 
+                !rebuffers.has(index) && 
+                index > lastRecoveryIndex + recoveryCooldown
+            ) {
+                // add to rebuffer set, so we don't call the recovery more times
                 rebuffers.add(index);
                 
                 abandon_logger.log(`Buffer level ${bufferLevel} under ${minBufferLevel}.`);
                 abandon_logger.log("Possible rebuffer detected");
-                
+               
+                // obtain the context variables
                 const interceptor = getInterceptor();
                 const shim = getShim();
         
                 // switch to lowest quality if that's not the case yet
                 if (getQualityController().getQuality(index + 1, 1) > 0) {
-                    /*switchRequest = SwitchRequest(factoryCtx).create();
-                    switchRequest.quality = 0;
-                    switchRequest.reason = 'Possible rebuffer detected!';
-                    */
-
                     let abrXmlRequest = interceptor._toIntercept[index + 1]["ctx"];
                     const makeWritable = interceptor._toIntercept[index + 1]["makeWritable"];
                     const execute = interceptor._toIntercept[index + 1]["execute"];
@@ -163,7 +164,10 @@ function ServerSideRuleClass() {
                     let backendXmlRequest = interceptor.context(index + 1)['xmlRequest'];
                     let backendRequest = interceptor.context(index + 1)['requestObject'];
                     abandon_logger.log('Real req', backendXmlRequest);
-                    if (backendXmlRequest.readyState != 4 && once) {
+                    if (backendXmlRequest.readyState != 4) {
+                        // update lastRecoveryIndex
+                        lastRecoveryIndex = index;
+                        
                         // abort the backend request
                         backendXmlRequest.abort();
                         
@@ -171,9 +175,6 @@ function ServerSideRuleClass() {
                         shim.abortRequest()
                             .addIndex(index + 1)
                             .send();
-                        
-                        // [TODO] fix this
-                        once = false;
                         
                         // set bypass in interceptor for newly generated request 
                         abandon_logger.log('Setting bypass for: ', index + 1);
