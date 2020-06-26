@@ -9,6 +9,7 @@ const logger = logging('RequestController');
 
 type ResourceSendCallback = (index: number, url: string, content: string | undefined) => void;
 type ResourceSendAfterCallback = (index: number, req: XMLHttpRequest) => void;
+type ResourceOnAbortCallback = (index: number, req: XMLHttpRequest) => void;
 type ResourceProgressCallback = (index: number, event: Event) => void;
 type ResourceSuccessCallback = (index: number, res: XMLHttpRequest) => void;
 type PieceSuccessCallback = (index: number, body: Body) => void; 
@@ -23,6 +24,7 @@ export class RequestController {
 
     _resourceSend: ResourceSendCallback;
     _resourceAfterSend: ResourceSendAfterCallback;
+    _resourceOnAbort: ResourceOnAbortCallback;
     _resourceProgress: ResourceProgressCallback;
     _resourceSuccess: ResourceSuccessCallback;
     _pieceSuccess: PieceSuccessCallback; 
@@ -118,6 +120,11 @@ export class RequestController {
 
     afterResourceSend(callback: ResourceSendAfterCallback): RequestController {
         this._resourceAfterSend = callback;
+        return this;
+    }
+
+    onResourceAbort(callback: ResourceOnAbortCallback): RequestController {
+        this._resourceOnAbort = callback;
         return this;
     }
 

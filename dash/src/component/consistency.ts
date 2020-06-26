@@ -74,6 +74,10 @@ class ConsistencyChecker {
         }
         this._streams[name].push(value);
     }
+
+    replace(name: string, index: number, value: any): void {
+        this._values[name][index] = value;
+    }
 }
 
 
@@ -89,6 +93,10 @@ class TargetedChecker {
     
     push(value: any): void {
         checker.push(this.name, value);
+    }
+
+    replace(index: number, value: any): void {
+        checker.replace(this.name, index, value); 
     }
 }
 

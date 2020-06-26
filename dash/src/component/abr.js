@@ -128,7 +128,13 @@ function ServerSideRuleClass() {
         let dashMetrics = metricsModel.getMetricsFor(mediaType, true);
         const recoveryCooldown = 2; // in number of segments
         const minIndex = 5; // minimum index for checking small buffer
-        const minBufferLevel = 5000;
+        const minBufferLevel = 3500;
+   
+        // obtain the context variables
+        const interceptor = getInterceptor();
+        const shim = getShim();
+        const videoLength = interceptor.videoLength;
+
 
         // if the request was made
         if (!isNaN(index)) {
@@ -142,7 +148,8 @@ function ServerSideRuleClass() {
             if (bufferLevel < minBufferLevel && 
                 index >= minIndex && 
                 !rebuffers.has(index) && 
-                index > lastRecoveryIndex + recoveryCooldown
+                index > lastRecoveryIndex + recoveryCooldown && 
+                index < videoLength - 1 
             ) {
                 // add to rebuffer set, so we don't call the recovery more times
                 rebuffers.add(index);
@@ -150,10 +157,6 @@ function ServerSideRuleClass() {
                 abandon_logger.log(`Buffer level ${bufferLevel} under ${minBufferLevel}.`);
                 abandon_logger.log("Possible rebuffer detected");
                
-                // obtain the context variables
-                const interceptor = getInterceptor();
-                const shim = getShim();
-        
                 // switch to lowest quality if that's not the case yet
                 if (getQualityController().getQuality(index + 1, 1) > 0) {
                     let abrXmlRequest = interceptor._toIntercept[index + 1]["ctx"];
@@ -179,7 +182,6 @@ function ServerSideRuleClass() {
                         // set bypass in interceptor for newly generated request 
                         abandon_logger.log('Setting bypass for: ', index + 1);
                         interceptor.setBypass(index + 1);
-
                                     
                         // abort old request
                         abrXmlRequest.abort();

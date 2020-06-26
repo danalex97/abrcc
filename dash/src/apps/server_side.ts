@@ -171,7 +171,7 @@ export class ServerSideApp implements App {
                     this.statsController.addMetrics(metrics);
                 }
             })
-            .onResourceSuccess((index, res) => {
+            .onResourceSuccess((index, res) => { // [TODO] to add types
                 let quality: number | undefined = this.qualityController.getQuality(index);
                 if (quality === undefined) {
                     throw new TypeError(`onResourceSuccess - missing quality:` 
@@ -191,6 +191,12 @@ export class ServerSideApp implements App {
                 this.interceptor.onIntercept(index, (object) => { 
                     cacheHit(object, res);
                 });
+            })
+            .onResourceAbort((index: number, req: XMLHttpRequest) => {
+                // WARN: note this behavior is dependent on the 
+                //   -- in case that changes, we need to invalidate the index for the streams,
+                //      rather than modifying the value to 0
+                qualityStream.replace(index, 0);
             })
             .start();
 

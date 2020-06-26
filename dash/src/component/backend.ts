@@ -20,6 +20,7 @@ export abstract class Request {
     _error: () => void;
     _onSend: (url: string, content: Json | undefined) => void;
     _afterSend: (res: XMLHttpRequest) => void;
+    _onAbort: (res: XMLHttpRequest) => void;
     _progress: (event: Event) => void;
     _log: boolean;
 
@@ -30,6 +31,7 @@ export abstract class Request {
         this._error = () => {};
         this._onSend = (url, content) => {};
         this._afterSend = (request) => {};
+        this._onAbort = (request) => {};
         this._progress = (event) => {}; 
         this._log = false;
         
@@ -84,6 +86,9 @@ export abstract class Request {
         xhr.onprogress = (event) => {
             this._progress(event);
         };
+        xhr.onabort = () => {
+            this._onAbort(xhr);
+        };
 
         this._onSend(path + resource, undefined);
         xhr.send();
@@ -137,10 +142,16 @@ export abstract class Request {
         return this;
     }
 
-    
     afterSend(callback: (request: XMLHttpRequest) => void): Request {
-        // only works for native requests
+        // only works for native GET requests
         this._afterSend = callback;
+        return this;
+    }
+
+
+    onAbort(callback: (request: XMLHttpRequest) => void): Request {
+        // only works for native GET requests
+        this._onAbort = callback;
         return this;
     }
 

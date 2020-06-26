@@ -131,7 +131,11 @@ export class Interceptor extends InterceptorUtil {
         // set of bypass requests
         this._bypass = new Set();
     }
-   
+  
+    get videoLength(): number {
+        return this._videoInfo.info[this._videoInfo.bitrateArray[0]].length;
+    }
+
     onRequest(callback: (ctx: ExternalDependency, index: number) => void): Interceptor {
         this._onRequest = callback;
         return this;
