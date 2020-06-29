@@ -81,6 +81,9 @@ export class RequestController {
             .onProgress((event) => {
                 this._resourceProgress(index, event);
             })
+            .onAbort((request) => {
+                this._resourceOnAbort(index, request);
+            })
             .onSuccessResponse((res) => {    
                 this._resourceSuccess(index, res);
             

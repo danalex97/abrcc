@@ -196,7 +196,22 @@ export class ServerSideApp implements App {
                 // WARN: note this behavior is dependent on the 
                 //   -- in case that changes, we need to invalidate the index for the streams,
                 //      rather than modifying the value to 0
+                logger.log('Fixing quality stream at index ', index); 
                 qualityStream.replace(index, 0);
+
+                // Add metrics so that the experimental setup knows about the
+                // newly uploaded segment.
+                let segment = new Segment()
+                    .withQuality(0)
+                    .withState(SEGMENT_STATE.LOADING)
+                    .withIndex(index);
+                let metrics = new Metrics()
+                    .withSegment(segment);
+                logger.log('Sending extra metrics', metrics.serialize(true));
+                this.shim
+                    .metricsLoggingRequest()
+                    .addStats(metrics.serialize(true))
+                    .send();
             })
             .start();
 

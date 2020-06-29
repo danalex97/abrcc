@@ -1,12 +1,13 @@
 import { JsonDict, Json } from '../types';
 
 import * as request from 'request';
+import * as retryrequest from 'requestretry';
 import { logging } from '../common/logger'; 
 
 const logger = logging('BackendBackendShim');
 
 type RequestFunction = (
-    url: string, 
+    url: string | Json, 
     content: Json, 
     callback: (error: Error, res: request, body: Body) => void,
 ) => XMLHttpRequest;
@@ -108,24 +109,51 @@ export abstract class Request {
             logger.log('sending request', path + resource, content);
         }
         this._onSend(path + resource, content);
-        this.request = requestFunc(path + resource, content, (error, res, body) => {
-            if (error) {
-                logger.log(error);
-                this._error();
-                return;
-            }
-            let statusCode = res.statusCode;
-            if (statusCode != 200) {
-                logger.log(`status code ${statusCode}`, res, body);
-                this._error();
-                return;
-            }
-            if (this._log) {
-                logger.log('successful request');
-            }
-            this._onBody(body);
-            this._onResponse(res);
-        });
+        if (requestFunc === request.get || requestFunc === request.post) {
+            this.request = requestFunc(path + resource, content, (error, res, body) => {
+                if (error) {
+                    logger.log(error);
+                    this._error();
+                    return;
+                }
+                let statusCode = res.statusCode;
+                if (statusCode != 200) {
+                    logger.log(`status code ${statusCode}`, res, body);
+                    this._error();
+                    return;
+                }
+                if (this._log) {
+                    logger.log('successful request');
+                }
+                this._onBody(body);
+                this._onResponse(res);
+            });
+        } else if (requestFunc === retryrequest.post) {
+            this.request = requestFunc(path + resource, {
+                'uri': path + resource, 
+                'method': 'POST',
+                'json': content,
+                'maxAttempts': 1,
+                'retryDelay': 100000,
+            }, (error, res, body) => {
+                if (error) {
+                    logger.log(error);
+                    this._error();
+                    return;
+                }
+                let statusCode = res.statusCode;
+                if (statusCode != 200) {
+                    logger.log(`status code ${statusCode}`, res, body);
+                    this._error();
+                    return;
+                }
+                if (this._log) {
+                    logger.log('successful request');
+                }
+                this._onBody(body);
+                this._onResponse(res);
+            });
+        }
         return this;
     }
 
@@ -147,7 +175,6 @@ export abstract class Request {
         this._afterSend = callback;
         return this;
     }
-
 
     onAbort(callback: (request: XMLHttpRequest) => void): Request {
         // only works for native GET requests
@@ -215,7 +242,7 @@ export class StartLoggingRequest extends Request {
     }
 
     send(): Request {
-        return this._request(request.post, this.shim.experimentPath, "/start", {
+        return this._request(retryrequest.post, this.shim.experimentPath, "/start", {
             'start' : true,
         });
     }
@@ -278,7 +305,7 @@ export class MetricsLoggingRequest extends MetricsRequest {
     }
 
     send(): Request {
-        return this._request(request.post, this.shim.experimentPath, "/metrics", {
+        return this._request(retryrequest.post, this.shim.experimentPath, "/metrics", {
             json: this._json,
         });
     }
