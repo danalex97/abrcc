@@ -41,7 +41,7 @@ class MetricsProcessor:
         # Adjusts quality in case the rebuffering mechanism steps in
         last_segment = self.segments[-1]
         if segment.quality == last_segment.quality:
-            return
+            return None
         if segment.index == last_segment.index and segment.timestamp > last_segment.timestamp:
             print(f'Correction detected @{segment.index}: '
                   f'{last_segment.quality} -> {segment.quality}')
@@ -51,13 +51,14 @@ class MetricsProcessor:
             self.segments[-1] = last_segment
             
             # update vmaf previous
-            vmaf = get_vmaf(self.video, self.index, segment.quality)
+            quality = get_video_bit_rate(self.video, segment.quality)
+            vmaf = get_vmaf(self.video, self.index, quality)
             self.vmaf_previous = vmaf
 
             # Sending the metric updates
             return {
                 'index' : self.index,
-                'quality' : segment.quality,
+                'quality' : quality,
                 'vmaf' : self.vmaf_previous,
                 'timestamp' : segment.timestamp - self.timestamps[1], 
             }
@@ -165,7 +166,7 @@ class MetricsProcessor:
                 yield self.advance(segment)
             elif segment.loading:
                 maybe_check_quality = self.check_quality(segment)
-                if maybe_check_quality:
+                if maybe_check_quality is not None:
                     print(maybe_check_quality)
                     yield maybe_check_quality
 
@@ -212,7 +213,7 @@ class Monitor(Component):
         vmaf = processed_metrics.get('vmaf', None)
         vmaf_qoe = processed_metrics.get('vmaf_qoe', None)
         bw = processed_metrics.get('bw', None)
-        idx = processed_metrics.get('index', None)
+        idx = processed_metrics['index']
 
         port = self.request_port
         timestamp = int(processed_metrics['timestamp']/1000)
@@ -223,7 +224,7 @@ class Monitor(Component):
         make_bw = lambda value: {
             'name': self.name, 'timestamp': timestamp, 'value': Value(value, timestamp).json
         }
-        
+         
         if rebuffer is not None: post_after_async(make_value(rebuffer), 0, "/rebuffer", port=port)
         if quality is not None:  post_after_async(make_value(quality), 0, "/quality", port=port)
         if raw_qoe is not None:  post_after_async(make_value(raw_qoe), 0, "/raw_qoe", port=port)
@@ -249,6 +250,8 @@ class Monitor(Component):
             await self.advance(processed_metrics)
     
     async def process(self, json: JSONType) -> JSONType:
+        if 'json' in json:
+            json = json['json']
         if 'stats' in json:
             metrics = Metrics.from_json(json['stats'])
             asyncio.gather(*[

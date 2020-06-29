@@ -97,8 +97,7 @@ def test2(args: Namespace) -> None:
 
             server = f"--cc {cc} --server-algo {algo} --name abrcc --video {video}"
             for trace in [
-                #str(traces / "norway_ferry_11.txt"), 
-                str(traces / "norway_train_13.txt"), 
+                str(traces / "norway_tram_5.txt"), 
             ]:
                 trace_name = trace.split('/')[-1].split('.')[0]
                 path = str(Path(subpath) / f'{name}_{trace_name}')
@@ -125,7 +124,6 @@ def test3(args: Namespace) -> None:
             experiment_path = str(Path(root_path) / video)
             latency = 500
             for bandwidth in [1, 2, 3]:
-                # robustMpc vs Target, xTarget, Target2 
                 subpath = str(Path(experiment_path) / "versus_rmpc")
                 for (algo1, cc1) in compete1:
                     for (algo2, cc2) in compete2:
