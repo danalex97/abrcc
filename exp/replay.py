@@ -108,9 +108,6 @@ def run(args: Namespace) -> None:
     for algo, log in algo_to_log.items():
         futures.append(replay_async(algo, log, monitors[algo]))
    
-    # start server
-    # multiprocessing.Process(target=server.run).start()
-
     # run monitors
     def start():
         loop = asyncio.new_event_loop()
