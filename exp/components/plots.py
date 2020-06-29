@@ -48,21 +48,37 @@ class Dataset:
 
         self.x = list(range(0, range_size + 1))
         self.y = [0] * (range_size + 1)
+        self.w = [0] * (range_size + 1)
        
         self.data, = self.axes.plot(self.x, self.y, label=name)
 
-    def update(self, x: int, y: float) -> None: 
+    def update(self, x: int, y: float, w: float) -> None: 
         while len(self.x) < x - 1:
             self.x.append(len(self.x))
             self.y.append(y)
-        self.x[x - 1] = x
-        self.y[x - 1] = y
-   
-    def update_before(self, x: int, y: float) -> None:
-        self.update(x + 1, y)
+            self.w.append(w)
+        if self.w[x - 1] <= w:
+            self.x[x - 1] = x
+            self.y[x - 1] = y
+            self.w[x - 1] = w
+
+    def update_before(self, x: int, y: float, w: float) -> None:
+        old_value = 0
+        if x < len(self.x):
+            old_value = self.y[x]
+        self.update(x + 1, y, w)
+        while len(self.x) < x:
+            self.x.append(len(self.x))
+            self.y.append(y)
+            self.w.append(w)
+        if self.w[x] <= w:
+            self.x[x] = x
+            self.y[x] = y
+            self.w[x] = w
         pl = x - 1
-        while pl >= 0 and self.y[pl] == 0:
+        while pl >= 0 and (self.y[pl] == 0 or (self.w[pl] <= w and self.y[pl] == old_value)):
             self.y[pl] = y
+            self.w[pl] = w
             pl -= 1
 
     def draw(self) -> None:
@@ -83,9 +99,9 @@ class LivePlot(Component):
         return axes 
 
     def __init__(self, 
-        figure_name="default", 
-        y_label="y_label", 
-        range_size=RANGE_SIZE, 
+        figure_name: str="default", 
+        y_label: str="y_label", 
+        range_size: int=RANGE_SIZE,
     ) -> None:
         self.axes: Axes = self.get_canvas()
         self.figure: Figure = self.FIGURE
@@ -107,7 +123,7 @@ class LivePlot(Component):
         self.first_call = True
         self.last_referesh = timer()
 
-    async def update(self, name: str, x: int, y: float) -> None:
+    async def update(self, name: str, x: int, y: float, w: float) -> None:
         if name not in self.datasets:
             self.datasets[name] = Dataset(
                 axes=self.axes,
@@ -117,7 +133,7 @@ class LivePlot(Component):
             self.axes.legend(loc="upper left")
 
         dataset = self.datasets[name]
-        dataset.update(x, y)
+        dataset.update(x, y, w)
 
         if self.first_call:
             asyncio.ensure_future(
@@ -144,8 +160,9 @@ class LivePlot(Component):
     async def process(self, json: JSONType) -> JSONType:
         name  = json['name']
         value = Value.from_json(json['value'])
-       
-        await self.update(name, value.timestamp, value.value)
+        watermark = json.get('timestamp', 0)
+
+        await self.update(name, value.timestamp, value.value, watermark)
         if timer() - self.last_referesh > 3:
             await self.draw(auto=False, limit_y=True)
 
@@ -154,9 +171,9 @@ class LivePlot(Component):
 
 class BandwidthPlot(LivePlot):
     def __init__(self, 
-        figure_name="default", 
-        y_label="y_label",
-        range_size=300, # seconds
+        figure_name: str="default", 
+        y_label: str="y_label",
+        range_size: int=300, # seconds
         trace: Optional[str] =  None,
         bandwidth: Optional[int] = None,
     ) -> None:
@@ -191,7 +208,7 @@ class BandwidthPlot(LivePlot):
         self.axes.grid(which='major', alpha=0.5)
         self.axes.grid()
 
-    async def update(self, name: str, x: int, y: float) -> None:
+    async def update(self, name: str, x: int, y: float, w: float) -> None:
         # [TODO] remove duplication
         if name not in self.datasets:
             self.datasets[name] = Dataset(
@@ -202,7 +219,7 @@ class BandwidthPlot(LivePlot):
             self.axes.legend(loc="upper left")
 
         dataset = self.datasets[name]
-        dataset.update_before(x, y)
+        dataset.update_before(x, y, w)
 
         if self.first_call:
             asyncio.ensure_future(
@@ -213,8 +230,9 @@ class BandwidthPlot(LivePlot):
     async def process(self, json: JSONType) -> JSONType:
         name  = json['name']
         value = Value.from_json(json['value'])
-        
-        await self.update(name, value.timestamp, value.value)
+        watermark = json.get('timestamp', 0)
+
+        await self.update(name, value.timestamp, value.value, watermark)
         if timer() - self.last_referesh > 3:
             await self.draw(auto=False, limit_y=self.limit_y)
 
