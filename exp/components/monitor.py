@@ -37,9 +37,34 @@ class MetricsProcessor:
         self.logging = logging
         self.vmaf_previous = 0
 
-    def advance(self, segment: Segment) -> None:
+    def check_quality(self, segment: Segment) -> Optional[Dict[str, float]]:
+        # Adjusts quality in case the rebuffering mechanism steps in
+        last_segment = self.segments[-1]
+        if segment.quality == last_segment.quality:
+            return
+        if segment.index == last_segment.index and segment.timestamp > last_segment.timestamp:
+            print(f'Correction detected @{segment.index}: '
+                  f'{last_segment.quality} -> {segment.quality}')
+
+            # update segment
+            last_segment.quality = segment.quality
+            self.segments[-1] = last_segment
+            
+            # update vmaf previous
+            vmaf = get_vmaf(self.video, self.index, segment.quality)
+            self.vmaf_previous = vmaf
+
+            # Sending the metric updates
+            return {
+                'index' : self.index,
+                'quality' : segment.quality,
+                'vmaf' : self.vmaf_previous,
+                'timestamp' : segment.timestamp - self.timestamps[1], 
+            }
+        return None
+
+    def advance(self, segment: Segment) -> Dict[str, float]:
         self.index += 1
-        self.segments.append(segment)
         
         # We synchronize on the timestamp of segments getting loaded
         last_timestamp = self.timestamps[-1]
@@ -85,36 +110,41 @@ class MetricsProcessor:
         if len(buffer_levels) > 0 and min([l.value for l in buffer_levels]) >= rebuffer * delay_snapshot * 2:
             rebuffer = 0
         
+        # ---------------------- Raw qoe logic --------------------------------
         quality = get_video_bit_rate(self.video, segment.quality)
         switch = (abs(get_video_bit_rate(self.video, self.segments[-1].quality) 
                     - get_video_bit_rate(self.video, self.segments[-2].quality))
             if len(self.segments) > 1 else 0)
-       
+      
         # Compute raw qoe
         raw_qoe = (quality / K_in_M * BOOST_QUALITY 
             - PENALTY_REBUF * rebuffer 
             - PENALTY_QSWITCH * switch / K_in_M)
      
+        # ---------------------- Vmaf qoe logic --------------------------------
         # Get vmaf
         vmaf = get_vmaf(self.video, self.index, quality)
         
-        # [TODO] Check this is ok
         # Compute vmaf qoe
         reward_vmaf = (vmaf 
             - REBUF_PENALITY_QOE * rebuffer 
             - SWITCING_PENALITY_QOE * abs(vmaf - self.vmaf_previous))
         self.vmaf_previous = vmaf
     
+
+        # ---------------------- Bw estimation qoe -----------------------------
         # Current bw estimate - note this is an estiamte because the backend can transmit 
         # 2 segments at the same time: hence the actual value may be around 20% bigger/smaller
-        # [TODO] this can be fixed by using e.g. progress segments 
         segment_size = 8 * get_chunk_size(self.video, segment.quality, self.index - 1)
         time = timestamp - last_timestamp
-        # [TODO] can I do something smarted
         if time <= 0:
            time = 1
         bw = segment_size / time / 1000. # mbps
 
+        # Appending the segment
+        self.segments.append(segment)
+        
+        # Sending the metrics
         return {
             'index' : self.index,
             'quality' : quality,
@@ -123,9 +153,7 @@ class MetricsProcessor:
             'vmaf' : vmaf,
             'vmaf_qoe' : reward_vmaf,
             'bw' : bw,
-            # [TODO] do this properly
             'timestamp' : timestamp - self.timestamps[1], 
-            # So we (approx) align metrics that are per-timestamp
         }
     
     def compute_qoe(self, metrics: Metrics) -> Generator[Dict[str, float], None, None]: 
@@ -135,6 +163,11 @@ class MetricsProcessor:
                 if self.logging:
                     print(segment)
                 yield self.advance(segment)
+            elif segment.loading:
+                maybe_check_quality = self.check_quality(segment)
+                if maybe_check_quality:
+                    print(maybe_check_quality)
+                    yield maybe_check_quality
 
 
 class Monitor(Component):
@@ -172,25 +205,31 @@ class Monitor(Component):
     async def advance(self, processed_metrics: Dict[str, float]) -> None:
         if not self.plot:
             return 
+        
+        rebuffer = processed_metrics.get('rebuffer', None)
+        quality = processed_metrics.get('quality', None)
+        raw_qoe = processed_metrics.get('raw_qoe', None)
+        vmaf = processed_metrics.get('vmaf', None)
+        vmaf_qoe = processed_metrics.get('vmaf_qoe', None)
+        bw = processed_metrics.get('bw', None)
+        idx = processed_metrics.get('index', None)
 
-        rebuffer = processed_metrics['rebuffer']
-        quality = processed_metrics['quality']
-        raw_qoe = processed_metrics['raw_qoe']
-        vmaf = processed_metrics['vmaf']
-        vmaf_qoe = processed_metrics['vmaf_qoe']
-        bw = processed_metrics['bw']
-        idx = processed_metrics['index']
         port = self.request_port
         timestamp = int(processed_metrics['timestamp']/1000)
         
-        make_value = lambda value: {'name': self.name, 'value': Value(value, idx).json}
-        make_bw = lambda value: {'name': self.name, 'value': Value(value, timestamp).json}
-        post_after_async(make_value(rebuffer), 0, "/rebuffer", port=port)
-        post_after_async(make_value(quality), 0, "/quality", port=port)
-        post_after_async(make_value(raw_qoe), 0, "/raw_qoe", port=port)
-        post_after_async(make_value(vmaf), 0, "/vmaf", port=port)
-        post_after_async(make_value(vmaf_qoe), 0, "/vmaf_qoe", port=port)
-        post_after_async(make_bw(bw), 0, "/bw", port=port)
+        make_value = lambda value: {
+            'name': self.name, 'timestamp': timestamp, 'value': Value(value, idx).json
+        }
+        make_bw = lambda value: {
+            'name': self.name, 'timestamp': timestamp, 'value': Value(value, timestamp).json
+        }
+        
+        if rebuffer is not None: post_after_async(make_value(rebuffer), 0, "/rebuffer", port=port)
+        if quality is not None:  post_after_async(make_value(quality), 0, "/quality", port=port)
+        if raw_qoe is not None:  post_after_async(make_value(raw_qoe), 0, "/raw_qoe", port=port)
+        if vmaf is not None:     post_after_async(make_value(vmaf), 0, "/vmaf", port=port)
+        if vmaf_qoe is not None: post_after_async(make_value(vmaf_qoe), 0, "/vmaf_qoe", port=port)
+        if bw is not None:       post_after_async(make_bw(bw), 0, "/bw", port=port)
 
         if self.training:
             await post_after(
