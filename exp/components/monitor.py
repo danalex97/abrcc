@@ -54,9 +54,8 @@ class MetricsProcessor:
         player_times  = get_values(m.playerTime for m in self.metrics)
         buffer_levels = get_values(m.bufferLevel for m in self.metrics)
 
-        # [TODO] See rebuffer time issue
         # Compute quality, rebuffering time and difference in quality switches
-        rebuffer = 0 # in s
+        rebuffer = 0
         delay_snapshot = 100
         for time1, time2 in zip(player_times[:-1], player_times[1:]):
             real_time2 = time2.timestamp
@@ -66,12 +65,26 @@ class MetricsProcessor:
             player_time1 = time1.value
             
             player_diffence = (real_time2 - real_time1) - (player_time2 - player_time1)
-            rebuffer += max(0, player_diffence) / 1000.
+            
+            rebuffer += player_diffence / 1000.
+            if rebuffer < 0:
+                rebuffer = 0
 
-        # if buffer_levels are all much bigger then the player difference, we only encounter variance
+        # Addjust for variance while treating all timestamps as a single one
+        if len(player_times) > 1:
+            t1 = player_times[0].timestamp
+            t2 = player_times[-1].timestamp
+            t3 = player_times[0].value
+            t4 = player_times[-1].value
+            once = ((t2 - t1) - (t4 - t3)) / 1000.
+            maxerr = abs(once - rebuffer)
+            rebuffer = rebuffer + maxerr
+        
+        # if buffer_levels are all much bigger then the player difference, 
+        # we only encounter variance
         if len(buffer_levels) > 0 and min([l.value for l in buffer_levels]) >= rebuffer * delay_snapshot * 2:
             rebuffer = 0
-
+        
         quality = get_video_bit_rate(self.video, segment.quality)
         switch = (abs(get_video_bit_rate(self.video, self.segments[-1].quality) 
                     - get_video_bit_rate(self.video, self.segments[-2].quality))
@@ -149,7 +162,6 @@ class Monitor(Component):
         self.request_port = request_port
         self.log_to_file = log_to_file
         self.training = training
-
 
     async def log_path(self, metrics: Metrics) -> None:
         if self.log_to_file:
