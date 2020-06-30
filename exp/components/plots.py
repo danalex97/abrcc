@@ -103,6 +103,8 @@ class LivePlot(Component):
         y_label: str="y_label", 
         range_size: int=RANGE_SIZE,
     ) -> None:
+        super().__init__()
+        
         self.axes: Axes = self.get_canvas()
         self.figure: Figure = self.FIGURE
         
@@ -179,6 +181,7 @@ class BandwidthPlot(LivePlot):
     ) -> None:
         self.limit_y = (trace or bandwidth) is None
         if trace != None:   
+            Component.__init__(self)
             to_timestamp = lambda x: tuple(map(float, x))
             with open(trace, 'r') as f:
                 content = f.read()

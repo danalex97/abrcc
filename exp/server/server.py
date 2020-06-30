@@ -4,6 +4,7 @@ import copy
 import json
 import random
 import string
+import logging
 
 from abc import ABC, abstractmethod
 from enum import Enum
@@ -50,7 +51,20 @@ def post_after_async(data: JSONType, wait: int, resource: str, port: int = 8080)
     asyncio.ensure_future(post_after(data, wait, resource, port))
 
 
-class Component(ABC):
+class LogAccessMixin(ABC):
+    def __init__(self):   
+        self.loggers = []
+
+    def log(self, *args):
+        out = ' | '.join(map(str, args))
+        for logger in self.loggers:
+            logger.debug(out)
+
+    def add_logger(self, logger: logging.Logger) -> None:
+        self.loggers.append(logger)
+
+
+class Component(LogAccessMixin):
     """
     A component class that receives JSON requests and returns stringyfied jsons.
     To implement a new component, extend this class.
@@ -60,6 +74,9 @@ class Component(ABC):
         async def process(self, json: JSONType) -> JSONType:
             return 'OK'
     """
+    def __init__(self):
+        LogAccessMixin.__init__(self)
+    
     @abstractmethod
     async def process(self, json: JSONType) -> JSONType:
         pass
@@ -168,6 +185,7 @@ class Server:
         self.__backend = backend
         self.__name = name
         self.__port = port
+        self.__logger_called = False
         self.components = []
 
     def __add_method(self, 
@@ -196,6 +214,52 @@ class Server:
             else:
                 raise UncompatibleBackendError()
         self.__app.route(route, methods=[method, 'OPTIONS'])(binder())
+        return self
+
+    def add_logger(self, name: str, path: str) -> 'Server':
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+        sanic_formatter= logging.Formatter(
+            '%(asctime)s - (%(name)s)[%(levelname)s][%(host)s]: '
+            '%(request)s %(message)s %(status)d %(byte)d'
+        )
+
+        if not self.__logger_called and self.__backend is Backend.SANIC:
+            # Add file handler for native sanic loggers 
+            self.__logger_called = True
+            for name, fmt in [
+                ('sanic.access', sanic_formatter),
+                ('sanic.error', formatter),
+            ]:
+                logger = logging.getLogger(name)  
+                
+                file_handler = logging.FileHandler(path)
+                file_handler.setLevel(logging.DEBUG)
+                file_handler.setFormatter(fmt)
+
+                logger.addHandler(file_handler)
+        
+        # Add stream and file handler for the server logger
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.DEBUG)
+
+        file_handler = logging.FileHandler(path)
+        file_handler.setLevel(logging.DEBUG)
+
+        stream_handler = logging.StreamHandler()
+        stream_handler.setLevel(logging.DEBUG)
+        
+        file_handler.setFormatter(formatter)
+        stream_handler.setFormatter(formatter)
+        
+        logger.addHandler(file_handler)
+        logger.addHandler(stream_handler)
+       
+        # attach logger to all components
+        for component in self.components:
+            component.add_logger(logger)
+
         return self
 
     def add_get(self, route: str, component: Component) -> 'Server':

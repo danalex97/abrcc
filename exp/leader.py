@@ -149,7 +149,8 @@ def run(args: Namespace) -> None:
         .add_post('/destroy', multiple_sync(
             OnComplete(path, 'leader', plots, args.video),
             controller.on_destroy()
-        )))
+        ))
+        .add_logger('leader', str(Path(path) / f'sanic_leader.log')))
     server.run()
 
 

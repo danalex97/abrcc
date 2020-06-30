@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import List, Optional, Generator, Dict
 
 from server.data import Metrics, Segment, Value
-from server.server import post_after, post_after_async, Component, JSONType
+from server.server import post_after, post_after_async, Component, LogAccessMixin, JSONType
 from abr.video import get_video_bit_rate, get_vmaf, get_chunk_size
 
 
@@ -22,13 +22,15 @@ SWITCING_PENALITY_QOE = 2.5
 SEGMENT_LENGTH = 4.0
 
 
-class MetricsProcessor:
+class MetricsProcessor(LogAccessMixin):
     metrics: List[Metrics]
     timestamps: List[int]
     segments: List[Segment] 
     index: int 
 
     def __init__(self, video: str, logging: bool = False) -> None:
+        super().__init__()
+        
         self.video = video 
         self.metrics = []
         self.timestamps = [0]
@@ -43,8 +45,8 @@ class MetricsProcessor:
         if segment.quality == last_segment.quality:
             return None
         if segment.index == last_segment.index and segment.timestamp > last_segment.timestamp:
-            print(f'Correction detected @{segment.index}: '
-                  f'{last_segment.quality} -> {segment.quality}')
+            self.log(f'Correction detected @{segment.index}: '
+                     f'{last_segment.quality} -> {segment.quality}')
 
             # update segment
             last_segment.quality = segment.quality
@@ -162,13 +164,12 @@ class MetricsProcessor:
         for segment in metrics.segments:
             if segment.index >= self.index + 1 and segment.loading:
                 if self.logging:
-                    print(segment)
+                    self.log('Current segment: ', segment)
                 yield self.advance(segment)
             elif segment.loading:
                 maybe_check_quality = self.check_quality(segment)
                 if maybe_check_quality is not None:
-                    print(maybe_check_quality)
-                    yield maybe_check_quality
+                    self.log('Quality check successful: ', maybe_check_quality)
 
 
 class Monitor(Component):
@@ -187,6 +188,8 @@ class Monitor(Component):
         training: bool = False,
         log_to_file: bool = True,
     ) -> None:
+        super().__init__()
+
         self.path = path / f'{name}_metrics.log' 
         self.port = port
         self.name = name
@@ -254,6 +257,7 @@ class Monitor(Component):
             json = json['json']
         if 'stats' in json:
             metrics = Metrics.from_json(json['stats'])
+            self.log('Processing ', metrics)
             asyncio.gather(*[
                 self.log_path(metrics),
                 self.compute_qoe(metrics),

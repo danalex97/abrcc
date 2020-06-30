@@ -16,6 +16,8 @@ class OnComplete(Component):
         plots: Dict[str, LivePlot], 
         video: str
     ) -> None:
+        super().__init__()
+        
         self.browser_path= path / f'{name}_browser.log'
         self.plots_path = path / f'{name}_plots.log'
         self.draw_path = path / f'{name}_plots.png'

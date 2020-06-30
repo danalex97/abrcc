@@ -94,7 +94,7 @@ def run(args: Namespace) -> None:
     server.add_post('/complete', multiple_sync(
         OnComplete(path, name, plots, args.video), 
         controller.on_complete(),
-    )) 
+    )).add_logger(name, str(Path(path) / f'sanic_{name}.log'))  
     server.run()
 
 
