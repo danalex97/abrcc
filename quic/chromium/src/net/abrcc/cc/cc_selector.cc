@@ -21,6 +21,8 @@ bool CCSelector::getNoAdaptation() {
 void CCSelector::setCongestionControlType(const std::string& cc_type) {
   if (cc_type == "bbr") {
     type = kBBR;
+  } else if (cc_type == "bbr2") {
+    type = kBBRv2;
   } else if (cc_type == "abbr") {
     type = kAbbr;
   } else if (cc_type == "xbbr") {

@@ -34,6 +34,8 @@ NN_MODEL = '/results/pretrain_linear_reward.ckpt'
 
 class Pensieve(Component):
     def __init__(self, video: str)-> None:
+        super().__init__()
+        
         sess = tf.Session()
 
         # save video name

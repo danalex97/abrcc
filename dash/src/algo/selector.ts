@@ -3,6 +3,7 @@ import { BB } from '../algo/bb';
 import { RB } from '../algo/rb';
 import { Festive } from '../algo/festive';
 import { Bola } from '../algo/bola';
+import { Dynamic } from '../algo/dynamic';
 import { RemoteAbr } from '../algo/remote';
 
 import { BackendShim } from '../component/backend';
@@ -25,6 +26,9 @@ export function GetAlgorithm(
     }
     if (name == 'bola') {
         return new Bola();
+    }
+    if (name == 'dynamic') {
+        return new Dynamic();
     }
     if (name == 'pensieve') {
         return new RemoteAbr(shim);

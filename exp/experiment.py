@@ -72,7 +72,7 @@ def test(args: Namespace) -> None:
                         server2 = f"--server-algo {algo2} --name abrcc2 --cc {cc2} --video {video}"
                         
                         path = str(Path(subpath) / f"{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
-                        run_subexp(bandwidth, latency, path, server1, server2, burst=2000, video=video, force_run=True)
+                        run_subexp(bandwidth, latency, path, [server1, server2], burst=2000, video=video, force_run=True)
 
 
 @experiment
@@ -113,7 +113,7 @@ def test3(args: Namespace) -> None:
     os.system(f"mkdir -p {root_path}")
    
     compete1 = [
-        ('robustMpc', 'bbr'),
+        ('dynamic', 'bbr2'),
     ]
     compete2 = [
         ('remote', 'target')
@@ -131,7 +131,7 @@ def test3(args: Namespace) -> None:
                         server2 = f"--server-algo {algo2} --name abrcc --cc {cc2} --video {video} --training"
                         
                         path = str(Path(subpath) / f"{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
-                        run_subexp(bandwidth, latency, path, server1, server2, burst=2000, video=video, force_run=True)
+                        run_subexp(bandwidth, latency, path, [server1, server2], burst=2000, video=video, force_run=True)
 
 
 def check_replays(video, bandwidth, path):
@@ -153,7 +153,6 @@ def multiple(args: Namespace) -> None:
         run_trace  = lambda *args, **kwargs: None
         run_subexp = lambda *args, **kwargs: None 
 
-    # videos = ['maca', 'got', 'bojack', 'guard', 'cook']
     videos = ['got', 'bojack', 'cook', 'guard']
 
     root_path = str(Path("experiments") / "multiple_videos")
@@ -163,18 +162,19 @@ def multiple(args: Namespace) -> None:
     compete1 = [
         ('robustMpc', 'cubic'),
         ('robustMpc', 'bbr'),
+        ('robustMpc', 'bbr2'),
+        ('dynamic', 'bbr2'),
+        ('dynamic', 'cubic'),
     ]
     compete2 = [
-        # ('target2', 'target'),
-        ('gap', 'target'),
         ('gap', 'gap'),
-        ('remote', 'target')
+        # ('remote', 'target')
     ]
 
     for video in videos:
         experiments = []
         experiment_path = str(Path(root_path) / video)
-        for run_id in range(4):
+        for run_id in range(3):
             latency = 500
             for bandwidth in [3, 2, 1]:
                 # robustMpc vs Target, xTarget, Target2 
@@ -187,7 +187,7 @@ def multiple(args: Namespace) -> None:
                         path = str(Path(subpath) / f"{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
                         runner_log.write(f'> {path}\n')
                         
-                        run_subexp(bandwidth, latency, path, server1, server2, burst=2000, video=video)
+                        run_subexp(bandwidth, latency, path, [server1, server2], burst=2000, video=video)
                         
                         check_replays(video, bandwidth, path)
                         if cc2 == "gap":
@@ -209,7 +209,7 @@ def multiple(args: Namespace) -> None:
                     
                     path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
                     runner_log.write(f'> {path}\n')
-                    run_subexp(bandwidth, latency, path, server1, server2, burst=2000, video=video)
+                    run_subexp(bandwidth, latency, path, [server1, server2], burst=2000, video=video)
                     
                     if cc == "gap":
                         cc = "gap2"
@@ -224,34 +224,41 @@ def multiple(args: Namespace) -> None:
 
                 # robustMpc
                 subpath = str(Path(experiment_path) / "rmpc")
-                for cc1, cc2 in [('cubic', 'bbr'), ('bbr', 'bbr'), ('cubic', 'cubic')]:
-                    server1 = f"--algo robustMpc --name rmpc1 --cc {cc1} --video {video}"
-                    server2 = f"--algo robustMpc --name rmpc2 --cc {cc2} --video {video}"
- 
+                for cc1, cc2 in [('cubic', 'bbr2'), ('bbr2', 'bbr2'), ('cubic', 'cubic')]:
+                    for algo in ['robustMpc', 'dynamic']:
+                        server1 = f"--algo {algo} --name rmpc1 --cc {cc1} --video {video}"
+                        server2 = f"--algo {algo} --name rmpc2 --cc {cc2} --video {video}"
 
-                    path = str(Path(subpath) / f"{cc1}_{cc2}_{bandwidth}_run{run_id}")
-                    runner_log.write(f'> {path}\n')
-                    run_subexp(
-                        bandwidth, latency, path, server1, server2, burst=2000, video=video
-                    )
-                    # check_replays(video, bandwidth, path)
-                    experiments.append(Experiment(
-                        video = video,
-                        path = str(Path(path) / "leader_plots.log"),
-                        latency = latency,
-                        bandwidth = bandwidth,
-                        extra = ["rmpc", cc1 + '1', cc2 + '2', video],
-                        run_id = run_id,
-                    ))
+                        path = str(Path(subpath) / f"{cc1}_{cc2}_{bandwidth}_run{run_id}")
+                        runner_log.write(f'> {path}\n')
+                        run_subexp(
+                            bandwidth, latency, path, [server1, server2], burst=2000, video=video
+                        )
+
+                        extra = 'rmpc'
+                        if algo == 'dynamic':
+                            extra = 'dynamic'
+                        
+                        # check_replays(video, bandwidth, path)
+                        experiments.append(Experiment(
+                            video = video,
+                            path = str(Path(path) / "leader_plots.log"),
+                            latency = latency,
+                            bandwidth = bandwidth,
+                            extra = [extra, cc1 + '1', cc2 + '2', video],
+                            run_id = run_id,
+                        ))
         
         # traces
         subpath = str(Path(experiment_path) / "traces")
         server1 = f"--cc target --server-algo target2 --name abrcc --video {video}"
-        server2 = f"--cc bbr --algo robustMpc --name robustMpc --video {video}"
+        server2 = f"--cc bbr2 --algo robustMpc --name robustMpc --video {video}"
         server3 = f"--cc gap --server-algo gap --name abrcc --video {video}"
         server4 = f"--cc gap --server-algo remote --name abrcc --video {video}"
+        server5 = f"--cc cubic --algo robustMpc --name robustMpc --video {video}"
         for plot_name, name, server in [
-            ("robustMpc", "robustMpc", server2), 
+            ("robustMpc", "rmpc_bbr", server2), 
+            ("robustMpc", "rmpc_cubic", server5), 
             ("abrcc", "target2", server1),
             ("abrcc", "gap_pid", server3), 
             ("abrcc", "remote", server4),
@@ -297,6 +304,97 @@ def multiple(args: Namespace) -> None:
             generate_summary(experiment_path, experiments)
 
 
+
+@experiment
+def multiple2(args: Namespace) -> None:
+    global run_trace, run_subexp
+    if args.dry:
+        run_trace  = lambda *args, **kwargs: None
+        run_subexp = lambda *args, **kwargs: None 
+
+    videos = ['got', 'bojack', 'cook', 'guard']
+
+    root_path = str(Path("experiments") / "multiple_videos2")
+    os.system(f"mkdir -p {root_path}")
+    runner_log = open(str(Path(root_path) / 'exp.log'), 'w')
+   
+    compete1 = [
+        ('robustMpc', 'cubic'),
+        ('robustMpc', 'bbr2'),
+        ('dynamic', 'bbr2'),
+        ('dynamic', 'cubic'),
+    ]
+    compete2 = [
+        ('gap', 'gap'),
+    ]
+
+    for video in videos:
+        experiments = []
+        experiment_path = str(Path(root_path) / video)
+        for run_id in range(3):
+            latency = 500
+            for bandwidth in [4, 3, 2]:
+                # versus 
+                subpath = str(Path(experiment_path) / "versus")
+                for (algo1, cc1) in compete1:
+                    for (algo2, cc2) in compete2:
+                        server1 = f"--algo {algo1} --name robustMpc --cc {cc1} --video {video}" 
+                        server3 = f"--algo {algo1} --name robustMpc2 --cc {cc1} --video {video}" 
+                        server2 = f"--server-algo {algo2} --name abrcc --cc {cc2} --video {video}"
+                        
+                        path = str(Path(subpath) / f"{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
+                        runner_log.write(f'> {path}\n')
+                        
+                        run_subexp(bandwidth, latency, path, [server1, server3, server2], burst=2000, video=video)
+                        
+                        check_replays(video, bandwidth, path)
+                        if cc2 == "gap":
+                            cc2 = "gap2"
+                        experiments.append(Experiment(
+                            video = video,
+                            path = str(Path(path) / "leader_plots.log"),
+                            latency = latency,
+                            bandwidth = bandwidth,
+                            extra = ["versus", cc1, algo2, cc2, video],
+                            run_id = run_id,
+                        ))
+
+                # same type
+                subpath = str(Path(experiment_path) / "rmpc")
+                for cc in ['cubic', 'bbr']:
+                    for algo in ['robustMpc']:
+                        server1 = f"--algo {algo} --name rmpc1 --cc {cc} --video {video}"
+                        server2 = f"--algo {algo} --name rmpc2 --cc {cc} --video {video}"
+                        server3 = f"--algo {algo} --name rmpc3 --cc {cc} --video {video}"
+
+                        path = str(Path(subpath) / f"{cc}_{bandwidth}_run{run_id}")
+                        runner_log.write(f'> {path}\n')
+                        run_subexp(
+                            bandwidth, latency, path, [server1, server2, server3], burst=2000, video=video
+                        )
+
+                        extra = 'rmpc'
+                        if algo == 'dynamic':
+                            extra = 'dynamic'
+                        
+                        # check_replays(video, bandwidth, path)
+                        experiments.append(Experiment(
+                            video = video,
+                            path = str(Path(path) / "leader_plots.log"),
+                            latency = latency,
+                            bandwidth = bandwidth,
+                            extra = [extra, cc + '1', cc + '2', cc + '3', video],
+                            run_id = run_id,
+                        ))
+        
+        if args.dry:
+            print(experiments)
+            print(len(experiments))
+        else:
+            save_experiments(experiment_path, experiments)
+            generate_summary(experiment_path, experiments)
+
+
 @experiment
 def hetero(args: Namespace) -> None:
     global run_trace, run_subexp
@@ -311,11 +409,9 @@ def hetero(args: Namespace) -> None:
     runner_log = open(str(Path(root_path) / 'exp.log'), 'w')
    
     compete1 = [
-        # ('robustMpc', 'cubic'),
-        ('robustMpc', 'bbr'),
+        ('robustMpc', 'bbr2'),
     ]
     compete2 = [
-        ('gap', 'target'),
         ('gap', 'gap'),
     ]
 
@@ -339,7 +435,7 @@ def hetero(args: Namespace) -> None:
                                 runner_log.write(f'> {path}\n')
                        
                                 run_subexp(
-                                    bandwidth, latency, path, server1, server2, burst=2000, video=longer_video
+                                    bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video
                                 )
                                 if cc2 == "gap":
                                     cc2 = "gap2"
@@ -361,7 +457,7 @@ def hetero(args: Namespace) -> None:
                             path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
                             runner_log.write(f'> {path}\n')
                             run_subexp(
-                                bandwidth, latency, path, server1, server2, burst=2000, video=longer_video
+                                bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video
                             )
                         
                             if cc == "gap":
@@ -377,7 +473,6 @@ def hetero(args: Namespace) -> None:
 
                         # robustMpc
                         subpath = str(Path(experiment_path) / "rmpc")
-                        # for cc1, cc2 in [('cubic', 'bbr'), ('bbr', 'bbr'), ('cubic', 'cubic')]:
                         for cc1, cc2 in [('cubic', 'bbr'), ('bbr', 'bbr')]:
                             server1 = f"--algo robustMpc --name rmpc1 --cc {cc1} --video {video1}"
                             server2 = f"--algo robustMpc --name rmpc2 --cc {cc2} --video {video2}"
@@ -385,7 +480,7 @@ def hetero(args: Namespace) -> None:
                             path = str(Path(subpath) / f"{cc1}_{cc2}_{bandwidth}_run{run_id}")
                             runner_log.write(f'> {path}\n')
                             run_subexp(
-                                bandwidth, latency, path, server1, server2, burst=2000, video=longer_video
+                                bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video
                             )
                             # check_replays(video, bandwidth, path)
                             experiments.append(Experiment(
@@ -490,6 +585,13 @@ def generate_plots(args: Namespace) -> None:
             (["rmpc", "bbr1", "bbr2"], (min, "rmpc_bbr", 1) ),
             (["rmpc", "cubic1", "cubic2"], (min, "rmpc_bbr", 1) ),
         ])
+
+
+@experiment
+def run_all(args: Namespace) -> None:
+    multiple(args)
+    multiple2(args)
+    hetero(args) 
 
 
 @experiment

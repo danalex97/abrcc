@@ -41,6 +41,7 @@
         "./src/algo/bb.ts",
         "./src/algo/festive.ts",
         "./src/algo/bola.ts",
+        "./src/algo/dynamic.ts",
         "./src/algo/rb.ts",
         "./src/algo/selector.ts",
         

@@ -19,6 +19,8 @@ MIN_BW_EST_MBPS = 0.1
 
 class RobustMpc(Component):
     def __init__(self, video: str)-> None:
+        super().__init__()
+        
         self.video = video
 
         self.last_rebuffer_time: float = 0

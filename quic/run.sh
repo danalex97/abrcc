@@ -184,6 +184,8 @@ function parse_command_line_options() {
                 shift
                 if [ $1 == "bbr" ]; then
                     CC=$1
+                elif [ $1 == "bbr2" ]; then
+                    CC=$1
                 elif [ $1 == "abbr" ]; then # Custom #1
                     CC=$1
                 elif [ $1 == "xbbr" ]; then # Custom #1 -- no adaptation

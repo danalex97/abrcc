@@ -1,6 +1,6 @@
 from argparse import Namespace
 from subprocess import Popen
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, List, Optional
 from wrapt_timeout_decorator import timeout as timeout_func
 from functools import wraps
 
@@ -34,16 +34,19 @@ def run_cmd_async(cmd: str) -> Popen:
     return Popen([arg for arg in cmd.split(' ') if len(arg) > 0])
 
 
-def run_cmds(leader_cmd: str, cmd1: str, cmd2: str) -> None:
+def run_cmds(leader_cmd: str, cmds: List[str]) -> None:
     leader = run_cmd_async(leader_cmd)
     time.sleep(1)
-    instance1 = run_cmd_async(cmd1)
-    time.sleep(20)
-    instance2 = run_cmd_async(cmd2)
+    
+    instances = []
+    instances.append(run_cmd_async(cmds[0]))
+    for cmd in cmds[1:]:
+        time.sleep(20)
+        instances.append(run_cmd_async(cmd))
 
     leader.wait()
-    instance1.wait()
-    instance2.wait()
+    for instance in instances:
+        instance.wait()
 
 
 def retry(tries: int = 2, timeout: int = 600) -> Callable[[Callable], Callable]:
@@ -79,8 +82,7 @@ def run_subexp(
     bandwidth: int, 
     latency: int, 
     path: str, 
-    server1: str, 
-    server2: str, 
+    servers: List[str], 
     force_run: bool = False,
     burst: int = 20000,
     video: Optional[str] = None,
@@ -88,18 +90,25 @@ def run_subexp(
     cleanup_files()
     if os.path.isdir(path) and not force_run:
         return   
+    
+    wait_for = len(servers)
     leader_cmd = (
-        f"python3 leader.py -b {bandwidth} -l {latency} --port 8800 2 --path {path} --plot --burst {burst}"
+        f"python3 leader.py -b {bandwidth} -l {latency} --port 8800 {wait_for} --path {path} --plot --burst {burst}"
     )
     if video:
         leader_cmd += f' --video {video}'
-    cmd1 = (
-        f"python3 run.py --port 8001 --quic-port 4001 -lp 8800 {server1} --path {path}"
-    )
-    cmd2 = (
-        f"python3 run.py --port 8002 --quic-port 4002 -lp 8800 {server2} --path {path}"
-    )
-    run_cmds(leader_cmd, cmd1, cmd2)
+    
+    ports_start = 8000
+    q_ports_start = 4000
+
+    cmds = []
+    for i, server in enumerate(servers):
+        port = ports_start + i + 1
+        q_port = q_ports_start + i + 1
+        cmds.append(
+            f"python3 run.py --port {port} --quic-port {q_port} -lp 8800 {server} --path {path}"
+        )
+    run_cmds(leader_cmd, cmds)
 
 
 @retry(tries=2, timeout=350)

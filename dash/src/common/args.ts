@@ -22,6 +22,10 @@ export class ArgsParser {
         return this.frontEnd == 'bola';
     }
 
+    get dynamic(): boolean {
+        return this.frontEnd == 'dynamic';
+    }
+
     get recordMetrics(): boolean {
         return this.args.includes('record')
             || this.args.includes('record-metrics');

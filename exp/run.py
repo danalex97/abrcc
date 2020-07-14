@@ -12,9 +12,9 @@ from server.server import Server, multiple_sync
 from scripts.network import Network
 
 
-ABR_ALGORITHMS = ['bola', 'bb', 'festive', 'rb', 'robustMpc', 'pensieve']
+ABR_ALGORITHMS = ['bola', 'dynamic', 'bb', 'festive', 'rb', 'robustMpc', 'pensieve']
 SERVER_ABR_ALGORITHMS = ['bb', 'random', 'worthed', 'target', 'target2', 'target3', 'gap', 'remote']
-CC_ALGORITHMS = ['bbr', 'pcc', 'reno', 'cubic', 'abbr', 'xbbr', 'target', 'gap']
+CC_ALGORITHMS = ['bbr', 'bbr2', 'pcc', 'reno', 'cubic', 'abbr', 'xbbr', 'target', 'gap']
 PYTHON_ABR_ALGORITHMS = ['robustMpc', 'pensieve']
 
 

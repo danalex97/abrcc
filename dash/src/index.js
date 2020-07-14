@@ -20,7 +20,7 @@ const LARGE_BUFFER_TIME = 100000;
 
     
 function updateAbrSettings(player, parser, shim, interceptor) {
-    if (!parser.bola) {
+    if (!parser.bola && !parser.dynamic) {
         player.updateSettings({
             'streaming': {
                 'abr': {
@@ -31,18 +31,22 @@ function updateAbrSettings(player, parser, shim, interceptor) {
                 },
                 'stableBufferTime': LARGE_BUFFER_TIME, // we use this to request continuously
                 'bufferTimeAtTopQuality': LARGE_BUFFER_TIME, // we use this to request continously
-                'abandonLoadTimeout' : 1000, // make small so abandon request go out early [TODO] ok?
+                'abandonLoadTimeout' : 1000, // make small so abandon request go out early
              },  
             'debug': { 
                 'logLevel': Debug.LOG_LEVEL_INFO,
             },
         });
     } else {
+        let algo = 'abrBola';
+        if (parser.dynamic) {
+            algo = 'abrDynamic';
+        }
         player.updateSettings({
             'streaming' : {
                 'abr' : {
                     'useDefaultABRRules': true,
-                    'ABRStrategy': 'abrThroughput',
+                    'ABRStrategy': algo,
                     'enableBufferOccupancyABR' : true,
                 }
             },
