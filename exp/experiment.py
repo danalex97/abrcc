@@ -131,7 +131,9 @@ def test3(args: Namespace) -> None:
                         server2 = f"--server-algo {algo2} --name abrcc --cc {cc2} --video {video} --training"
                         
                         path = str(Path(subpath) / f"{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
-                        run_subexp(bandwidth, latency, path, [server1, server2], burst=2000, video=video, force_run=True)
+                        run_subexp(
+                            bandwidth, latency, path, [server1, server2], burst=2000, video=video, force_run=True,
+                        )
 
 
 def check_replays(video, bandwidth, path):
@@ -187,7 +189,10 @@ def multiple(args: Namespace) -> None:
                         path = str(Path(subpath) / f"{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
                         runner_log.write(f'> {path}\n')
                         
-                        run_subexp(bandwidth, latency, path, [server1, server2], burst=2000, video=video)
+                        run_subexp(
+                            bandwidth, latency, path, [server1, server2], burst=2000, video=video,
+                            headless=args.headless
+                        )
                         
                         check_replays(video, bandwidth, path)
                         if cc2 == "gap":
@@ -209,7 +214,10 @@ def multiple(args: Namespace) -> None:
                     
                     path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
                     runner_log.write(f'> {path}\n')
-                    run_subexp(bandwidth, latency, path, [server1, server2], burst=2000, video=video)
+                    run_subexp(
+                        bandwidth, latency, path, [server1, server2], burst=2000, video=video,
+                        headless=args.headless
+                    )
                     
                     if cc == "gap":
                         cc = "gap2"
@@ -232,7 +240,8 @@ def multiple(args: Namespace) -> None:
                         path = str(Path(subpath) / f"{cc1}_{cc2}_{bandwidth}_run{run_id}")
                         runner_log.write(f'> {path}\n')
                         run_subexp(
-                            bandwidth, latency, path, [server1, server2], burst=2000, video=video
+                            bandwidth, latency, path, [server1, server2], burst=2000, video=video,
+                            headless=args.headless
                         )
 
                         extra = 'rmpc'
@@ -345,7 +354,10 @@ def multiple2(args: Namespace) -> None:
                         path = str(Path(subpath) / f"{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
                         runner_log.write(f'> {path}\n')
                         
-                        run_subexp(bandwidth, latency, path, [server1, server3, server2], burst=2000, video=video)
+                        run_subexp(
+                            bandwidth, latency, path, [server1, server3, server2], burst=2000, video=video,
+                            headless=args.headless
+                        )
                         
                         check_replays(video, bandwidth, path)
                         if cc2 == "gap":
@@ -370,7 +382,8 @@ def multiple2(args: Namespace) -> None:
                         path = str(Path(subpath) / f"{cc}_{bandwidth}_run{run_id}")
                         runner_log.write(f'> {path}\n')
                         run_subexp(
-                            bandwidth, latency, path, [server1, server2, server3], burst=2000, video=video
+                            bandwidth, latency, path, [server1, server2, server3], burst=2000, video=video,
+                            headless=args.headless
                         )
 
                         extra = 'rmpc'
@@ -435,7 +448,8 @@ def hetero(args: Namespace) -> None:
                                 runner_log.write(f'> {path}\n')
                        
                                 run_subexp(
-                                    bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video
+                                    bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video,
+                                    headless=args.headless
                                 )
                                 if cc2 == "gap":
                                     cc2 = "gap2"
@@ -457,7 +471,8 @@ def hetero(args: Namespace) -> None:
                             path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
                             runner_log.write(f'> {path}\n')
                             run_subexp(
-                                bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video
+                                bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video, 
+                                headless=args.headless
                             )
                         
                             if cc == "gap":
@@ -480,7 +495,8 @@ def hetero(args: Namespace) -> None:
                             path = str(Path(subpath) / f"{cc1}_{cc2}_{bandwidth}_run{run_id}")
                             runner_log.write(f'> {path}\n')
                             run_subexp(
-                                bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video
+                                bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video,
+                                headless=args.headless
                             )
                             # check_replays(video, bandwidth, path)
                             experiments.append(Experiment(
@@ -620,6 +636,7 @@ if __name__ == "__main__":
         f'Available experiments: {list(experiments().keys())}')
     parser.add_argument('name', type=str, help='Experiment name.')
     parser.add_argument('-d', '--dry', action='store_true', dest='dry', help='Dry run.')
+    parser.add_argument('-hl', '--headless', action='store_true', dest='headless', help='Hide the UI.')
     args = parser.parse_args()
 
     if args.name in experiments():

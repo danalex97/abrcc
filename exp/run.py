@@ -5,7 +5,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
 from components.monitor import Monitor 
-from components.plots import attach_plot_components
+from components.plots import attach_plot_components, set_headless_plots
 from components.complete import OnComplete
 from controller import Controller
 from server.server import Server, multiple_sync
@@ -21,6 +21,9 @@ PYTHON_ABR_ALGORITHMS = ['robustMpc', 'pensieve']
 def run(args: Namespace) -> None:
     path = Path(args.path)
     name = args.name
+
+    if getattr(args, 'headless', False):
+        set_headless_plots()
 
     if not args.leader_port:  
         shutil.rmtree(path, ignore_errors=True)
@@ -64,6 +67,7 @@ def run(args: Namespace) -> None:
         path = path,
         leader_port = args.leader_port,
         video = args.video,
+        headless = getattr(args, 'headless', False),
     )
        
     # Handle controller communication and metrics
@@ -116,6 +120,7 @@ if __name__ == "__main__":
     parser.add_argument('--server-algo', choices=SERVER_ABR_ALGORITHMS, help='Choose server abr algorithm.')
     parser.add_argument('--cc', choices=CC_ALGORITHMS, default='bbr', help='Choose cc algorithm.') 
     parser.add_argument('--training', action='store_true', help='Enable traning statistics for learning algorithms.')
+    parser.add_argument('--headless', action='store_true', help='Allow Chrome and plot components to run headless.')
     parser.add_argument('--plot', action='store_true', help='Enable plotting.')
     parser.add_argument('-lp', '--leader-port', dest='leader_port', type=int, required=False, help='Port of the leader.')
     run(parser.parse_args())   

@@ -9,7 +9,7 @@ from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from threading import Thread
 
-from components.plots import attach_plot_components
+from components.plots import attach_plot_components, set_headless_plots
 from components.complete import OnComplete
 from server.server import ctx_component, multiple_sync, do_nothing, JSONType, Server, post_after
 from server.process import kill_subprocess 
@@ -117,6 +117,9 @@ class LeaderController:
 def run(args: Namespace) -> None:
     path = Path(args.path)
 
+    if getattr(args, 'headless', False):
+        set_headless_plots()
+
     print(f'Running leader with {args.instances} instances.')
     shutil.rmtree(path, ignore_errors=True)
     os.system(f"mkdir -p {path}")
@@ -164,5 +167,6 @@ if __name__ == "__main__":
     parser.add_argument('--burst', type=float, help='Burst of the link.')
     parser.add_argument('-b', '--bandwidth', type=float, help='Bandwidth of the link.')
     parser.add_argument('-t', '--trace', type=str, help='Trace of bandwidth.')
+    parser.add_argument('--headless', action='store_true', help='Allow Chrome and plot components to run headless.')
     parser.add_argument('--plot', action='store_true', help='Enable plotting.')
     run(parser.parse_args())   

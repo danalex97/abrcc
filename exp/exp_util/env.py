@@ -86,6 +86,7 @@ def run_subexp(
     force_run: bool = False,
     burst: int = 20000,
     video: Optional[str] = None,
+    headless: bool = False,
 ) -> None:
     cleanup_files()
     if os.path.isdir(path) and not force_run:
@@ -97,7 +98,9 @@ def run_subexp(
     )
     if video:
         leader_cmd += f' --video {video}'
-    
+    if headless:
+        leader_cmd += " --headless"
+
     ports_start = 8000
     q_ports_start = 4000
 
@@ -108,6 +111,8 @@ def run_subexp(
         cmds.append(
             f"python3 run.py --port {port} --quic-port {q_port} -lp 8800 {server} --path {path}"
         )
+        if headless:
+            cmds[-1] += " --headless"
     run_cmds(leader_cmd, cmds)
 
 
@@ -116,6 +121,7 @@ def run_trace(
     path: str, 
     server: str,
     force_run: bool = False,
+    headless: bool = False,
 ):
     cleanup_files()
     if os.path.isdir(path) and not force_run:
@@ -125,6 +131,8 @@ def run_trace(
     cmd = (
         f"python3 run.py {ports} {server} {extra} --path {path}"
     )
+    if headless:
+        cmd += " --headless"
     
     instance = run_cmd_async(cmd)
     instance.wait()

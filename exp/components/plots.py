@@ -22,7 +22,16 @@ VERTICAL = 2
 RANGE_SIZE = 50
 
 
+HEADLESS = False
+
+
+def set_headless_plots() -> None:
+    global HEADLESS
+    HEADLESS = True
+
+
 def make_canvases() -> Tuple[Figure, List[Axes]]:
+    global HEADLESS
     fig, axes = plt.subplots(VERTICAL, HORIZONTAL, sharex=False, sharey=False)
 
     plots = []
@@ -31,7 +40,8 @@ def make_canvases() -> Tuple[Figure, List[Axes]]:
             plots.append(axes[i, j])
     
     fig.tight_layout()
-    plt.show(block=False)
+    if not HEADLESS:
+        plt.show(block=False)
     window = plt.get_current_fig_manager().window
 
     plt.get_current_fig_manager().resize(
@@ -247,7 +257,7 @@ def attach_plot_components(
     server: Server,
     trace: Optional[str] = None,
     bandwidth: Optional[int] = None,
-    no_plot: bool = False, 
+    no_plot: bool = False,
 ) -> Dict[str, LivePlot]:
     segments = get_video_chunks(video) + 1
     max_playback = int(1.25 * get_approx_video_length(video))

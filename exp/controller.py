@@ -62,6 +62,7 @@ class Controller:
         path: Path,
         leader_port: Optional[int] = None,
         video: Optional[str] = None,
+        headless: bool = False,
     ) -> None:
         self.dash = dash
         self.only_server = only_server
@@ -73,7 +74,8 @@ class Controller:
         
         ports = ['--port', f"{quic_port}", '-mp', f"{port}", '--site', site]
         self.chrome  = SubprocessStream(
-            [script] + ports + ['--chrome', '--profile', name]
+            [script] + ports + ['--chrome', '--profile', name] +
+            (['--headless'] if headless else [])
         ) 
         self.backend = BackendProcessor( 
             cmd=[script, '--port', f"{quic_port}", '-mp', f"{port}"] +
