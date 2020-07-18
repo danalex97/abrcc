@@ -8,6 +8,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
+DPI = 100
+
+
 Tag = List[str]
 
 Name = str
@@ -88,7 +91,7 @@ def plot_cdf(
         plt.ylabel('CDF')
         plt.xlabel(metric)
         
-        plt.savefig(plot_name, dpi=900)
+        plt.savefig(plot_name, dpi=DPI)
         ax.cla()
 
 
@@ -167,7 +170,7 @@ def plot_bar(
             [0] * len(instances) for _ in range(len(plot_data))
         ])
     )
-    for metric, plane_matrix in named_data_matrix.items():
+    for metric, plane_matrix in sorted(named_data_matrix.items()):
         for plane, matrix in sorted(plane_matrix.items()):
             for idx, line in enumerate(matrix):
                 for name, value in line:
@@ -176,6 +179,9 @@ def plot_bar(
     # plot stuff
     colors = ['b', 'g', 'r', 'y', 'c', 'm', 'orange', 'mediumspringgreen', 'peru']
     for metric, plane_matrix in data_matrix.items(): 
+        if metric == 'raw_qoe':
+            continue
+
         hatches = ['x', None]
         max_plane = max(plane_matrix.keys())
         if max_plane == 1:
@@ -201,7 +207,7 @@ def plot_bar(
                 )
         ax.get_xaxis().set_visible(False)
         plt.ylabel(metric)
-        
+       
         ax.legend(instances, loc=1)
-        plt.savefig(plot_name, dpi=900)
+        plt.savefig(plot_name, dpi=DPI)
         plt.cla()

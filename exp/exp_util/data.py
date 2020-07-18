@@ -116,7 +116,7 @@ class Experiment:
                     total_qoe = sum(qoe_vals) / len(qoe_vals)
 
                     vmaf_vals = list(vmaf_qoe[name].values())
-                    total_vmaf = sum(vmaf_vals)
+                    total_vmaf = sum(vmaf_vals) / len(qoe_vals)
                     
                     out.append(RawQoe(name, total_qoe))
                     out.append(VmafQoe(name, total_vmaf))
