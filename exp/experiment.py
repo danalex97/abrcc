@@ -163,14 +163,12 @@ def multiple(args: Namespace) -> None:
    
     compete1 = [
         ('robustMpc', 'cubic'),
-        ('robustMpc', 'bbr'),
         ('robustMpc', 'bbr2'),
         ('dynamic', 'bbr2'),
         ('dynamic', 'cubic'),
     ]
     compete2 = [
         ('gap', 'gap'),
-        # ('remote', 'target')
     ]
 
     for video in videos:
@@ -187,6 +185,8 @@ def multiple(args: Namespace) -> None:
                         server2 = f"--server-algo {algo2} --name abrcc --cc {cc2} --video {video}"
                         
                         path = str(Path(subpath) / f"{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
+                        if algo1 != 'robustMpc': # since we don't want to repet old experiments
+                            path = str(Path(subpath) / f"{algo1}_{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
                         runner_log.write(f'> {path}\n')
                         
                         run_subexp(
@@ -202,7 +202,7 @@ def multiple(args: Namespace) -> None:
                             path = str(Path(path) / "leader_plots.log"),
                             latency = latency,
                             bandwidth = bandwidth,
-                            extra = ["versus", cc1, algo2, cc2, video],
+                            extra = ["versus", algo1, cc1, algo2, cc2, video],
                             run_id = run_id,
                         ))
 
@@ -230,7 +230,7 @@ def multiple(args: Namespace) -> None:
                         run_id = run_id,
                     ))
 
-                # robustMpc
+                # baselines
                 subpath = str(Path(experiment_path) / "rmpc")
                 for cc1, cc2 in [('cubic', 'bbr2'), ('bbr2', 'bbr2'), ('cubic', 'cubic')]:
                     for algo in ['robustMpc', 'dynamic']:
@@ -238,6 +238,8 @@ def multiple(args: Namespace) -> None:
                         server2 = f"--algo {algo} --name rmpc2 --cc {cc2} --video {video}"
 
                         path = str(Path(subpath) / f"{cc1}_{cc2}_{bandwidth}_run{run_id}")
+                        if algo != 'robustMpc': # since we don't want to repet old experiments
+                            path = str(Path(subpath) / f"{algo}_{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
                         runner_log.write(f'> {path}\n')
                         run_subexp(
                             bandwidth, latency, path, [server1, server2], burst=2000, video=video,
@@ -262,12 +264,14 @@ def multiple(args: Namespace) -> None:
         subpath = str(Path(experiment_path) / "traces")
         server1 = f"--cc target --server-algo target2 --name abrcc --video {video}"
         server2 = f"--cc bbr2 --algo robustMpc --name robustMpc --video {video}"
+        server6 = f"--cc bbr2 --algo dynamic --name dynamic --video {video}"
         server3 = f"--cc gap --server-algo gap --name abrcc --video {video}"
         server4 = f"--cc gap --server-algo remote --name abrcc --video {video}"
         server5 = f"--cc cubic --algo robustMpc --name robustMpc --video {video}"
         for plot_name, name, server in [
             ("robustMpc", "rmpc_bbr", server2), 
             ("robustMpc", "rmpc_cubic", server5), 
+            ("dynamic", "dynamic_bbr", server6), 
             ("abrcc", "target2", server1),
             ("abrcc", "gap_pid", server3), 
             ("abrcc", "remote", server4),
@@ -296,7 +300,7 @@ def multiple(args: Namespace) -> None:
                 trace_name = trace.split('/')[-1].split('.')[0]
                 path = str(Path(subpath) / f'{name}_{trace_name}')
                 runner_log.write(f'> {path}\n')
-                run_trace(path, f"{server} -l {latency} -t {trace}")
+                run_trace(path, f"{server} -l {latency} -t {trace}", headless=args.headless)
                 experiments.append(Experiment(
                     video = video,
                     path = str(Path(path) / f"{plot_name}_plots.log"),
@@ -352,6 +356,8 @@ def multiple2(args: Namespace) -> None:
                         server2 = f"--server-algo {algo2} --name abrcc --cc {cc2} --video {video}"
                         
                         path = str(Path(subpath) / f"{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
+                        if algo1 != 'robustMpc': # since we don't want to repet old experiments
+                            path = str(Path(subpath) / f"{algo1}_{cc1}_{algo2}_{cc2}_{bandwidth}_run{run_id}")
                         runner_log.write(f'> {path}\n')
                         
                         run_subexp(
@@ -367,7 +373,7 @@ def multiple2(args: Namespace) -> None:
                             path = str(Path(path) / "leader_plots.log"),
                             latency = latency,
                             bandwidth = bandwidth,
-                            extra = ["versus", cc1, algo2, cc2, video],
+                            extra = ["versus", algo1, cc1, algo2, cc2, video],
                             run_id = run_id,
                         ))
 
@@ -380,6 +386,8 @@ def multiple2(args: Namespace) -> None:
                         server3 = f"--algo {algo} --name rmpc3 --cc {cc} --video {video}"
 
                         path = str(Path(subpath) / f"{cc}_{bandwidth}_run{run_id}")
+                        if algo1 != 'robustMpc': # since we don't want to repet old experiments
+                            path = str(Path(subpath) / f"{algo1}_{cc}_{bandwidth}_run{run_id}")
                         runner_log.write(f'> {path}\n')
                         run_subexp(
                             bandwidth, latency, path, [server1, server2, server3], burst=2000, video=video,
@@ -420,7 +428,8 @@ def hetero(args: Namespace) -> None:
     root_path = str(Path("experiments") / "hetero")
     os.system(f"mkdir -p {root_path}")
     runner_log = open(str(Path(root_path) / 'exp.log'), 'w')
-   
+    
+    # only for rmpc at the moment
     compete1 = [
         ('robustMpc', 'bbr2'),
     ]
@@ -562,41 +571,26 @@ def generate_plots(args: Namespace) -> None:
         ]], [])
     
         os.system(f"mkdir -p {experiment_path}/{video}")
-        plot_bar(str(Path(experiment_path) / video / "versus_cubic"), experiments, [
-            # performance
-            (["versus", "cubic", "remote"], ("abrcc", "auto-target", 1) ),
-            (["versus", "cubic", "gap2"], ("abrcc", "gap-pid", 1) ),
-            (["versus", "cubic", "gap"], ("abrcc", "gap", 1) ),
-            #(["versus", "cubic", "target2"], ("abrcc", "target2", 1) ),
-            (["rmpc", "cubic1", "bbr2"], ("rmpc2", "rmpc-cubic", 1) ),
-        
-            # fairness
-            (["versus", "cubic", "remote"], ("robustMpc", "auto-target", 2) ),
-            (["versus", "cubic", "gap2"], ("robustMpc", "gap-pid", 2) ),
-            (["versus", "cubic", "gap"], ("robustMpc", "gap", 2) ),
-            #(["versus", "cubic", "target2"], ("robustMpc", "target2", 2) ),
-            (["rmpc", "cubic1", "bbr2"], ("rmpc1", "rmpc-cubic", 2) ),
-        ])
-        plot_bar(str(Path(experiment_path) / video / "versus_bbr"), experiments, [
-            # performance
-            (["versus", "bbr", "remote"], ("abrcc", "auto-target", 1) ),
-            (["versus", "bbr", "gap2"], ("abrcc", "gap-pid", 1) ),
-            (["versus", "bbr", "gap"], ("abrcc", "gap", 1) ),
-            #(["versus", "bbr", "target2"], ("abrcc", "target2", 1) ),
-            (["rmpc", "cubic1", "bbr2"], ("rmpc1", "rmpc_cubic", 1) ),
-        
-            # fairness
-            (["versus", "bbr", "remote"], ("robustMpc", "auto-target", 2) ),
-            (["versus", "bbr", "gap2"], ("robustMpc", "gap-pid", 2) ),
-            (["versus", "bbr", "gap"], ("robustMpc", "gap", 2) ),
-            #(["versus", "bbr", "target2"], ("robustMpc", "target2", 2) ),
-            (["rmpc", "cubic1", "bbr2"], ("rmpc2", "rmpc_cubic", 2) ),
-        ])
+        for cc in ['cubic', 'bbr2']:
+            # rmpc versus plots
+            plot_bar(str(Path(experiment_path) / video / f"{cc}"), experiments, [
+                # performance
+                (["versus", "robustMpc", f"{cc}", "gap2"], ("abrcc", "Gap-RobustMpc", 1) ),
+                (["versus", "dynamic", f"{cc}", "gap2"], ("abrcc", "Gap-Dynamic", 1) ),
+                (["rmpc", f"{cc}1", f"{cc}2"], ("rmpc2", "RobustMpc", 1) ),
+                (["dynamic", f"{cc}1", f"{cc}2"], ("rmpc2", "Dynamic", 1) ),
+            
+                # fairness
+                (["versus", "robustMpc", f"{cc}", "gap2"], ("robustMpc", "Gap-RobustMpc", 2) ),
+                (["versus", "dynamic", f"{cc}", "gap2"], ("robustMpc", "Gap-Dynamic", 2) ),
+                (["rmpc", f"{cc}1", f"{cc}2"], ("rmpc1", "RobustMpc", 2) ),
+                (["dynamic", f"{cc}1", f"{cc}2"], ("rmpc1", "Dynamic", 2) ),
+            ])
         plot_bar(str(Path(experiment_path) / video / "self"), experiments, [
             # performance
-            (["self", "remote"], (min, "auto-target", 1) ),
+            #(["self", "remote"], (min, "auto-target", 1) ),
             (["self", "gap", "gap2"], (min, "gap-pid", 1) ),
-            (["self", "gap", "target"], (min, "gap", 1) ),
+            #(["self", "gap", "target"], (min, "gap", 1) ),
             #(["self", "target2", "target"], (min, "target2", 1) ),
             (["rmpc", "bbr1", "bbr2"], (min, "rmpc_bbr", 1) ),
             (["rmpc", "cubic1", "cubic2"], (min, "rmpc_bbr", 1) ),
@@ -624,6 +618,7 @@ def plot_traces(args: Namespace) -> None:
         os.system(f"mkdir -p {experiment_path}/{video}")
         plot_cdf(str(Path(experiment_path) / video / "traces"), experiments, [
             (["traces", "robustMpc"], ("robustMpc", "robustMpc", 1) ),
+            (["traces", "dynamic"], ("robustMpc", "dynamic", 1) ),
             (["traces", "target2"], ("abrcc", "target2", 1) ),
             (["traces", "gap_pid"], ("abrcc", "gap-pid", 1) ),
             (["traces", "remote"], ("abrcc", "auto-target", 1) ),
