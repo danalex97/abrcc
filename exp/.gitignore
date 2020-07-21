@@ -5,3 +5,5 @@ experiments
 *.swm
 old/
 test/
+crawler/cache
+crawler/cache/

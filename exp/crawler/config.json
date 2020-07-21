@@ -1,0 +1,34 @@
+{
+    "root_urls": [
+        "http://4chan.org",
+        "https://www.reddit.com",
+        "https://www.yahoo.com",
+        "http://www.cnn.com",
+        "http://www.ebay.com",
+        "https://wikipedia.org",
+        "https://youtube.com",
+        "https://github.com",
+        "https://medium.com",
+        "https://thepiratebay.org"
+    ],
+    "blacklisted_urls": [
+        "https://t.co",
+        "t.umblr.com",
+        "messenger.com",
+        "itunes.apple.com",
+        "l.facebook.com",
+        "bit.ly",
+        "mediawiki",
+        ".css",
+        ".ico",
+        ".xml",
+        "intent/tweet",
+        "twitter.com/share",
+        "dialog/feed?",
+        ".json",
+        "zendesk",
+        "clickserve",
+        ".png",
+        ".iso"
+    ]
+}
