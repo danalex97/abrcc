@@ -4,6 +4,7 @@ import os
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
+from crawler.traffic_gen import TrafficGenerator, EmptyTrafficGenerator 
 from components.monitor import Monitor 
 from components.plots import attach_plot_components, set_headless_plots
 from components.complete import OnComplete
@@ -38,7 +39,7 @@ def run(args: Namespace) -> None:
 
     server = Server('experiment', args.port)
  
-    # Haandle Abr requests
+    # Handle Abr requests
     if args.algo in PYTHON_ABR_ALGORITHMS:
         if args.algo == 'robustMpc':
             from abr.robust_mpc import RobustMpc
@@ -46,6 +47,10 @@ def run(args: Namespace) -> None:
         elif args.algo == 'pensieve':
             from abr.pensieve import Pensieve
             server.add_post('/decision', Pensieve(args.video))
+
+    traffic_generator = EmptyTrafficGenerator()
+    if getattr(args, 'traffic', False):
+        traffic_generator = TrafficGenerator()
 
     # Add controller for launching the QUIC server and browser 
     controller = Controller(
@@ -58,7 +63,7 @@ def run(args: Namespace) -> None:
             delay=getattr(args, 'delay', None),
             trace_path=getattr(args, 'trace', None),
             burst=getattr(args, 'burst', None),
-            ports=[args.quic_port],
+            ports=[args.quic_port] + traffic_generator.ports,
         ),
         dash = args.dash,
         quic_port = args.quic_port,
@@ -74,7 +79,10 @@ def run(args: Namespace) -> None:
     request_port = args.leader_port if args.leader_port else args.port 
     (server
         .add_post('/init', controller.on_init())
-        .add_post('/start', controller.on_start())
+        .add_post('/start', multiple_sync(
+            controller.on_start(),
+            traffic_generator.on_start(),
+        ))
         .add_post('/metrics', Monitor(
             video = args.video,
             path = path, 
@@ -98,6 +106,7 @@ def run(args: Namespace) -> None:
     server.add_post('/complete', multiple_sync(
         OnComplete(path, name, plots, args.video), 
         controller.on_complete(),
+        traffic_generator.on_complete(),
     )).add_logger(name, str(Path(path) / f'sanic_{name}.log'))  
     server.run()
 
@@ -121,6 +130,7 @@ if __name__ == "__main__":
     parser.add_argument('--cc', choices=CC_ALGORITHMS, default='bbr', help='Choose cc algorithm.') 
     parser.add_argument('--training', action='store_true', help='Enable traning statistics for learning algorithms.')
     parser.add_argument('--headless', action='store_true', help='Allow Chrome and plot components to run headless.')
+    parser.add_argument('--traffic', action='store_true', help='Enable TCP generated traffic.')
     parser.add_argument('--plot', action='store_true', help='Enable plotting.')
     parser.add_argument('-lp', '--leader-port', dest='leader_port', type=int, required=False, help='Port of the leader.')
     run(parser.parse_args())   

@@ -1,3 +1,8 @@
+import os.path, sys # need this to be able to import server.server for priveleged processes
+sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir))
+
+print(sys)
+
 from server.server import Server, Component
 from server.data import JSONType
 
@@ -72,5 +77,5 @@ def main(args: argparse.Namespace) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--port', metavar='-p', type=int, help='Port.', default=8080)
-    parser.add_argument('--cache', metavar='-c', type=int, help='Cache size in mbit.', default=100)
+    parser.add_argument('--cache', metavar='-c', type=int, help='Cache size in MB.', default=100)
     main(parser.parse_args()) 

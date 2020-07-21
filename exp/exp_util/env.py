@@ -115,6 +115,27 @@ def run_subexp(
             cmds[-1] += " --headless"
     run_cmds(leader_cmd, cmds)
 
+@retry(tries=2, timeout=350)
+def run_traffic(
+    path: str, 
+    server: str,
+    force_run: bool = False,
+    headless: bool = False,
+):
+    cleanup_files()
+    if os.path.isdir(path) and not force_run:
+        return   
+    ports = "--port 8001 --quic-port 4001"
+    extra = "--burst 20000 --plot --traffic"
+    cmd = (
+        f"python3 run.py {ports} {server} {extra} --path {path}"
+    )
+    if headless:
+        cmd += " --headless"
+    
+    instance = run_cmd_async(cmd)
+    instance.wait()
+
 
 @retry(tries=2, timeout=350)
 def run_trace(

@@ -6,4 +6,4 @@ experiments
 old/
 test/
 crawler/cache
-crawler/cache/
+crawler/logs
