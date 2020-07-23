@@ -36,5 +36,8 @@ export function GetAlgorithm(
     if (name == 'robustMpc') {
         return new RemoteAbr(shim);
     }
+    if (name == 'minerva') {
+        return new RemoteAbr(shim);
+    }
     throw new TypeError(`Unrecogniez ABR algorithm: ${name}`);
 }

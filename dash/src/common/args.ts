@@ -26,6 +26,10 @@ export class ArgsParser {
         return this.frontEnd == 'dynamic';
     }
 
+    get minerva(): boolean {
+        return this.frontEnd == 'minerva';
+    }
+    
     get recordMetrics(): boolean {
         return this.args.includes('record')
             || this.args.includes('record-metrics');

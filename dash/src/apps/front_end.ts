@@ -26,6 +26,7 @@ export class FrontEndApp implements App {
     statsController: StatsController;
     qualityController: QualityController;
     algorithm: AbrAlgorithm;
+    algorithmName: string;
     recordMetrics: boolean;
     max_index: number;
 
@@ -43,6 +44,7 @@ export class FrontEndApp implements App {
         this.statsController = new StatsController();
         this.qualityController = new QualityController();
         this.algorithm = GetAlgorithm(name, shim, videoInfo);
+        this.algorithmName = name;
 
         this.recordMetrics = recordMetrics;
         this.max_index = videoInfo.info[videoInfo.bitrateArray[0]].length;
@@ -65,6 +67,13 @@ export class FrontEndApp implements App {
                     this.shim
                         .metricsLoggingRequest()
                         .addStats(metrics.serialize(true))
+                        .send();
+                }
+                if (this.algorithmName === "minerva") {
+                    logger.log('Sending stats to back-end', metrics.serialize());
+                    this.shim
+                        .metricsRequest()
+                        .addStats(metrics.serialize())
                         .send();
                 }
                 
