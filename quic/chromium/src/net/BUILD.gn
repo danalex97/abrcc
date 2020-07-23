@@ -1212,6 +1212,8 @@ component("net") {
       "abrcc/cc/target.h",
       "abrcc/cc/gap.cc",
       "abrcc/cc/gap.h",
+      "abrcc/cc/minerva.cc",
+      "abrcc/cc/minerva.h",
       "abrcc/structs/averages.h",
       "abrcc/structs/averages.cc",
       "abrcc/structs/estimators.h",
@@ -3670,6 +3672,8 @@ if (!is_ios) {
       "abrcc/cc/target.h",
       "abrcc/cc/gap.cc",
       "abrcc/cc/gap.h",
+      "abrcc/cc/minerva.cc",
+      "abrcc/cc/minerva.h",
 
       "abrcc/service/schema.cc",
       "abrcc/service/schema.h",

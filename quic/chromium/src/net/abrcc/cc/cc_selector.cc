@@ -38,6 +38,8 @@ void CCSelector::setCongestionControlType(const std::string& cc_type) {
     type = kTarget;
   } else if (cc_type == "gap") {
     type = kGap;
+  } else if (cc_type == "minerva") {
+    type = kMinervaBytes;
   }
 }
 

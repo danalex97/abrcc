@@ -15,6 +15,7 @@ TC=/sbin/tc
 RESET=""
 BURST="20000"
 CERTS=""
+HEADLESS=""
 VIDEO="bojack"
 DASH_ARGS=""
 DASH_COMPRESS=""
@@ -104,6 +105,7 @@ function quic_chrome {
     if [[ -v SUDO_USER ]]; then
         sudo -u $SUDO_USER google-chrome-stable \
             --v=1 \
+            $HEADLESS \
             --user-data-dir=/tmp/$PROFILE \
             --no-proxy-server \
             --enable-quic \
@@ -118,6 +120,7 @@ function quic_chrome {
     else
         google-chrome-stable \
             --v=1 \
+            $HEADLESS \
             --user-data-dir=/tmp/$PROFILE \
             --no-proxy-server \
             --enable-quic \
@@ -153,6 +156,7 @@ function usage() {
     printf "\t %- 30s %s\n" "--site [url]" "Change the site serverd. (default www.example.org)"
     printf "\t %- 30s %s\n" "--certs" "Regenerate and install server certificates."
     printf "\t %- 30s %s\n" "-d | --dash" "Pass a command line argument to dash."
+    printf "\t %- 30s %s\n" "--headless" "Activate headless mode for Chrome."
     printf "\t %- 30s %s\n" "-dc | --dash-compress" "Compress the dash js bundle."
     
     echo -e "\nExamples: "
@@ -200,6 +204,8 @@ function parse_command_line_options() {
                     CC=$1
                 elif [ $1 == "gap" ]; then 
                     CC=$1
+                elif [ $1 == "minerva" ]; then 
+                    CC=$1
                 else
                     echo "Congestion control $1 not recognized."
                 fi
@@ -244,6 +250,9 @@ function parse_command_line_options() {
                 ;;
             --reset)
                 RESET="yes"
+                ;;
+            --headless)
+                HEADLESS="--headless --disable-gpu --remote-debugging-port=9222"
                 ;;
             --profile)
                 shift

@@ -389,6 +389,7 @@ enum QuicPacketPrivateFlags {
 // (Reno and Cubic are the classic example for that).
 enum CongestionControlType {
   kCubicBytes,
+  kMinervaBytes,
   kRenoBytes,
   kBBR,
   kPCC,

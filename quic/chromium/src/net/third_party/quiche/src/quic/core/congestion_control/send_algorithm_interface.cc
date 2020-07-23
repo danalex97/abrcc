@@ -9,6 +9,7 @@
 #include "net/abrcc/cc/bbr_adapter.h"
 #include "net/abrcc/cc/target.h"
 #include "net/abrcc/cc/gap.h"
+#include "net/abrcc/cc/minerva.h"
 
 #include "net/third_party/quiche/src/quic/core/congestion_control/bbr_sender.h"
 #include "net/third_party/quiche/src/quic/core/congestion_control/tcp_cubic_sender_bytes.h"
@@ -85,6 +86,11 @@ SendAlgorithmInterface* SendAlgorithmInterface::Create(
       instance = new TcpCubicSenderBytes(
           clock, rtt_stats, false /* don't use Reno */,
           initial_congestion_window, max_congestion_window, stats);
+      break;
+    case kMinervaBytes:
+      QUIC_LOG(WARNING) << "Using Minerva";
+      instance = new TcpMinervaSenderBytes(
+          rtt_stats, initial_congestion_window, max_congestion_window, stats);
       break;
     case kRenoBytes:
       QUIC_LOG(WARNING) << "Using Reno";
