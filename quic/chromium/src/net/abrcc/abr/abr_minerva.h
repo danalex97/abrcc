@@ -30,12 +30,16 @@ class MinervaAbr : public SegmentProgressAbr {
   int decideQuality(int index) override;
   
  private:
+  // return the update interval in ms as measured currently
   base::Optional<int> updateIntervalMs();
-  void onUpdate();
+  void onStartRateUpdate();
+  void onWeightUpdate();
 
   TcpMinervaSenderBytes::MinervaInterface* interface; 
 
   std::chrono::high_resolution_clock::time_point timestamp_;
+  base::Optional<int> update_interval_;
+  bool started_rate_update;
 };
 
 }
