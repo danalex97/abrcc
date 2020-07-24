@@ -13,6 +13,9 @@
 #include "net/third_party/quiche/src/quic/core/quic_time.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_export.h"
 
+#include "net/abrcc/cc/singleton.h"
+#include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
+
 namespace quic {
 
 class RttStats;
@@ -64,6 +67,33 @@ class QUIC_EXPORT_PRIVATE MinervaBytes {
 
 class QUIC_EXPORT_PRIVATE TcpMinervaSenderBytes : public SendAlgorithmInterface {
  public:
+
+  // Interface for ABR loop to CC communication
+  class __attribute__((packed)) MinervaInterface {
+   public:
+    virtual ~MinervaInterface();
+    static MinervaInterface* GetInstance();
+  
+    // general access functions
+    base::Optional<int> minRtt() const;
+   private:
+    MinervaInterface();
+    
+    // CC-side update functions
+    void updateMinRtt();
+
+    // parent to be attached when instance changes
+    TcpMinervaSenderBytes *parent;
+    base::Optional<int> min_rtt_;
+
+    // locks
+    mutable QuicMutex min_rtt_mutex_;
+
+    friend class TcpMinervaSenderBytes;
+    friend class MinervaAbr;
+  };
+
+
   TcpMinervaSenderBytes(const RttStats* rtt_stats,
                       QuicPacketCount initial_tcp_congestion_window,
                       QuicPacketCount max_congestion_window,
@@ -155,6 +185,9 @@ class QUIC_EXPORT_PRIVATE TcpMinervaSenderBytes : public SendAlgorithmInterface 
   const QuicByteCount initial_tcp_congestion_window_;
   const QuicByteCount initial_max_tcp_congestion_window_;
   QuicByteCount min_slow_start_exit_window_;
+
+  // Minerva interface 
+  MinervaInterface *interface;
 };
 
 }  // namespace quic

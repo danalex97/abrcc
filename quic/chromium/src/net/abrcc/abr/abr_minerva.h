@@ -10,6 +10,10 @@
 // interfaces
 #include "net/abrcc/abr/interface.h"
 #include "net/abrcc/abr/abr_base.h"
+#include "net/abrcc/cc/minerva.h"
+
+// timestamps
+#include <chrono>
 
 namespace quic {
 
@@ -24,6 +28,14 @@ class MinervaAbr : public SegmentProgressAbr {
   void registerAbort(const int) override;
   abr_schema::Decision decide() override;
   int decideQuality(int index) override;
+  
+ private:
+  base::Optional<int> updateIntervalMs();
+  void onUpdate();
+
+  TcpMinervaSenderBytes::MinervaInterface* interface; 
+
+  std::chrono::high_resolution_clock::time_point timestamp_;
 };
 
 }

@@ -11,6 +11,11 @@
 #include "net/third_party/quiche/src/quic/platform/api/quic_flags.h"
 #include "net/third_party/quiche/src/quic/platform/api/quic_logging.h"
 
+#include "net/third_party/quiche/src/quic/platform/api/quic_mutex.h"
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
+
 namespace quic {
 
 namespace {
@@ -205,6 +210,39 @@ QuicByteCount MinervaBytes::CongestionWindowAfterAck(
   return target_congestion_window;
 }
 
+/// ------------------------------------------------------------------
+/// ------------------------ MinervaInterface ------------------------
+/// ------------------------------------------------------------------
+
+TcpMinervaSenderBytes::MinervaInterface* 
+    TcpMinervaSenderBytes::MinervaInterface::GetInstance() {
+  return GET_SINGLETON(TcpMinervaSenderBytes::MinervaInterface);
+}
+
+TcpMinervaSenderBytes::MinervaInterface::MinervaInterface() {}
+TcpMinervaSenderBytes::MinervaInterface::~MinervaInterface() {}
+
+void TcpMinervaSenderBytes::MinervaInterface::updateMinRtt() {
+  if (parent == nullptr) {
+    return;
+  }
+  
+  QuicWriterMutexLock lock(&min_rtt_mutex_);
+  int min_rtt = parent->rtt_stats_->min_rtt().ToMilliseconds(); 
+  if (min_rtt == 0) {
+    return;
+  }
+  min_rtt_ = min_rtt;
+}
+
+base::Optional<int> TcpMinervaSenderBytes::MinervaInterface::minRtt() const {
+  if (parent == nullptr) {
+    return base::nullopt;
+  }
+  
+  QuicReaderMutexLock lock(&min_rtt_mutex_);
+  return min_rtt_;
+}
 
 /// ------------------------------------------------------------------
 /// ---------------------- TcpMinervaSenderBytes ---------------------
@@ -230,7 +268,10 @@ TcpMinervaSenderBytes::TcpMinervaSenderBytes(
                                      kDefaultTCPMSS),
       initial_max_tcp_congestion_window_(max_congestion_window *
                                          kDefaultTCPMSS),
-      min_slow_start_exit_window_(min_congestion_window_) {}
+      min_slow_start_exit_window_(min_congestion_window_),
+      interface(MinervaInterface::GetInstance()) {
+  interface->parent = this;
+}
 
 TcpMinervaSenderBytes::~TcpMinervaSenderBytes() {}
 
@@ -261,6 +302,9 @@ void TcpMinervaSenderBytes::OnCongestionEvent(
     OnPacketAcked(acked_packet.packet_number, acked_packet.bytes_acked,
                   prior_in_flight, event_time);
   }
+
+  // call interface update methods
+  interface->updateMinRtt();
 }
 
 void TcpMinervaSenderBytes::OnPacketAcked(QuicPacketNumber acked_packet_number,
@@ -299,6 +343,9 @@ void TcpMinervaSenderBytes::OnPacketSent(
          largest_sent_packet_number_ < packet_number);
   largest_sent_packet_number_ = packet_number;
   hybrid_slow_start_.OnPacketSent(packet_number);
+
+  // call interface update methods
+  interface->updateMinRtt();
 }
 
 bool TcpMinervaSenderBytes::CanSend(QuicByteCount bytes_in_flight) {
@@ -511,7 +558,7 @@ void TcpMinervaSenderBytes::OnConnectionMigration() {
 }
 
 CongestionControlType TcpMinervaSenderBytes::GetCongestionControlType() const {
-  return kCubicBytes; // [TODO] change
+  return kMinervaBytes; 
 }
 
 std::string TcpMinervaSenderBytes::GetDebugState() const { return ""; }
@@ -519,3 +566,5 @@ void TcpMinervaSenderBytes::OnApplicationLimited(QuicByteCount) {}
 void TcpMinervaSenderBytes::SetFromConfig(const QuicConfig&, Perspective) {}
 
 } 
+
+#pragma GCC diagnostic pop
