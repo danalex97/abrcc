@@ -3655,6 +3655,8 @@ if (!is_ios) {
       "abrcc/abr/abr_worthed.cc",
       "abrcc/abr/abr_target.h",
       "abrcc/abr/abr_target.cc",
+      "abrcc/abr/abr_minerva.h",
+      "abrcc/abr/abr_minerva.cc",
       "abrcc/abr/abr_gap.h",
       "abrcc/abr/abr_gap.cc",
       "abrcc/abr/abr_remote.h",

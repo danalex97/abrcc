@@ -97,7 +97,7 @@ void DashBackend::FetchResponseFromBackend(
       // new metrics received
       metrics->AddMetrics(request_headers, request_body, quic_stream);
  
-      // resond with 'OK'
+      // respond with 'OK'
       QuicStringPiece response_body("OK");
       SpdyHeaderBlock response_headers;
       response_headers[":status"] = QuicTextUtils::Uint64ToString(200);

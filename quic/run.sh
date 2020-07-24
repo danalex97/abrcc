@@ -228,6 +228,8 @@ function parse_command_line_options() {
                     ABR=$1
                 elif [ $1 == "remote" ]; then 
                     ABR=$1
+                elif [ $1 == "minerva" ]; then 
+                    ABR=$1
                 else
                     echo "Abr $1 not recognized."
                 fi

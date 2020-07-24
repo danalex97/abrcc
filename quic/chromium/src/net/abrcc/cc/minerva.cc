@@ -402,8 +402,6 @@ void TcpMinervaSenderBytes::ExitSlowstart() {
 void TcpMinervaSenderBytes::OnPacketLost(QuicPacketNumber packet_number,
                                        QuicByteCount lost_bytes,
                                        QuicByteCount prior_in_flight) {
-  // TCP NewReno (RFC6582) says that once a loss occurs, any losses in packets
-  // already sent should be treated as a single loss event, since it's expected.
   if (largest_sent_at_last_cutback_.IsInitialized() &&
       packet_number <= largest_sent_at_last_cutback_) {
     if (last_cutback_exited_slowstart_) {
@@ -428,7 +426,6 @@ void TcpMinervaSenderBytes::OnPacketLost(QuicPacketNumber packet_number,
 
   prr_.OnPacketLost(prior_in_flight);
 
-  // TODO(b/77268641): Separate out all of slow start into a separate class.
   if (slow_start_large_reduction_ && InSlowStart()) {
     DCHECK_LT(kDefaultTCPMSS, congestion_window_);
     if (congestion_window_ >= 2 * initial_tcp_congestion_window_) {

@@ -80,6 +80,14 @@ static void Loop(AbrLoop *loop, const scoped_refptr<base::SingleThreadTaskRunner
 
     // get decision
     auto decision = loop->interface->decide(); 
+    
+    // sleep if decision is noop; this means that we only register metrics
+    // and call the function loop->interface->decide function every 20ms
+    if (decision.noop()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      continue;
+    }
+    
     if (loop->sent.find(decision.path()) == loop->sent.end()) {
       bool sent = false;
       while (!sent) {

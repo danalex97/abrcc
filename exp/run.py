@@ -14,7 +14,7 @@ from scripts.network import Network
 
 
 ABR_ALGORITHMS = ['bola', 'dynamic', 'bb', 'festive', 'rb', 'robustMpc', 'pensieve', 'minerva']
-SERVER_ABR_ALGORITHMS = ['bb', 'random', 'worthed', 'target', 'target2', 'target3', 'gap', 'remote']
+SERVER_ABR_ALGORITHMS = ['bb', 'random', 'worthed', 'target', 'target2', 'target3', 'gap', 'remote', 'minerva']
 CC_ALGORITHMS = ['bbr', 'bbr2', 'pcc', 'reno', 'cubic', 'abbr', 'xbbr', 'target', 'gap', 'minerva']
 PYTHON_ABR_ALGORITHMS = ['robustMpc', 'pensieve', 'minerva']
 

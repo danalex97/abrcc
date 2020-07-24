@@ -20,6 +20,9 @@ struct Decision {
   std::string path();
   std::string resourcePath();
   std::string videoPath();
+
+  // noop decision -- to integrate Minerva
+  bool noop();
 };
 
 }

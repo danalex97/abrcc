@@ -2,6 +2,7 @@
 #include "net/abrcc/abr/abr_worthed.h"
 #include "net/abrcc/abr/abr_target.h"
 #include "net/abrcc/abr/abr_gap.h"
+#include "net/abrcc/abr/abr_minerva.h"
 #include "net/abrcc/abr/abr_remote.h"
 
 #include "net/abrcc/abr/abr.h"
@@ -35,8 +36,11 @@ AbrInterface* getAbr(
     QUIC_LOG(WARNING) << "Gap abr selected";
     return new GapAbr(config);
   } else if (abr_type == "remote") {
-    QUIC_LOG(WARNING) << "Remote abr selecte";
+    QUIC_LOG(WARNING) << "Remote abr selected";
     return new RemoteAbr(config);
+  } else if (abr_type == "minerva") {
+    QUIC_LOG(WARNING) << "Minerva abr selected";
+    return new MinervaAbr(config);
   }
   QUIC_LOG(WARNING) << "Defaulting to BB abr";
   return new BBAbr(config);
