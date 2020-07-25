@@ -15,6 +15,9 @@
 // timestamps
 #include <chrono>
 
+// utilities
+#include <deque>
+
 namespace quic {
 
 class MinervaAbr : public SegmentProgressAbr {
@@ -28,10 +31,15 @@ class MinervaAbr : public SegmentProgressAbr {
   void registerAbort(const int) override;
   abr_schema::Decision decide() override;
   int decideQuality(int index) override;
-  
+ 
  private:
+  // computes a conservative rate measurement
+  int conservativeRate() const;
+  
   // return the update interval in ms as measured currently
   base::Optional<int> updateIntervalMs();
+  
+  // callbacks for update rates
   void onStartRateUpdate();
   void onWeightUpdate();
 
@@ -40,6 +48,10 @@ class MinervaAbr : public SegmentProgressAbr {
   std::chrono::high_resolution_clock::time_point timestamp_;
   base::Optional<int> update_interval_;
   bool started_rate_update;
+
+  // rate computation variables
+  std::deque<int> past_rates;
+  double moving_average_rate;
 };
 
 }

@@ -1,6 +1,7 @@
 #include "net/abrcc/abr/abr_minerva.h"
 
 #include <chrono>
+#include <cmath>
 using namespace std::chrono;
 
 namespace quic { 
@@ -8,6 +9,10 @@ namespace quic {
 namespace MinervaConstants {
   const int updateIntervalFactor = 25; 
   const int minRttStart = 10;
+  const int varianceQueueLength = 4;
+
+  const int initMovingAverageRate = -1;
+  const double movingAverageRateProportion = .9;
 }
 
 MinervaAbr::MinervaAbr(const std::shared_ptr<DashBackendConfig>& config) 
@@ -15,7 +20,10 @@ MinervaAbr::MinervaAbr(const std::shared_ptr<DashBackendConfig>& config)
   , interface(MinervaInterface::GetInstance())
   , timestamp_(high_resolution_clock::now()) 
   , update_interval_(base::nullopt) 
-  , started_rate_update(false) {}
+  , started_rate_update(false)
+  , past_rates()
+  , moving_average_rate(MinervaConstants::initMovingAverageRate) {}
+
 MinervaAbr::~MinervaAbr() {}
 
 int MinervaAbr::decideQuality(int index) { return 0; }
@@ -84,7 +92,42 @@ void MinervaAbr::onWeightUpdate() {
   double half_interval = (double)update_interval_.value() / 2000.; // in seconds
   int current_rate = (int)(8. * interface->ackedBytes() / half_interval / 1000.); // in kbps
   
-  QUIC_LOG(WARNING) << "RATE " << current_rate;
+  // update past rates for the correct conservative rate estimate
+  past_rates.push_back(current_rate);
+  if (past_rates.size() > MinervaConstants::varianceQueueLength) {
+    past_rates.pop_front();
+  }
+
+  // initialize of update hte moving average rate
+  if (moving_average_rate == MinervaConstants::initMovingAverageRate) {
+    moving_average_rate = conservativeRate();
+  } else {
+    moving_average_rate = MinervaConstants::movingAverageRateProportion * moving_average_rate 
+                        + (1 - MinervaConstants::movingAverageRateProportion) * conservativeRate();
+  }
+
+  QUIC_LOG(WARNING) << "MAR " << moving_average_rate;
+}
+
+int MinervaAbr::conservativeRate() const {
+  if (past_rates.size() < MinervaConstants::varianceQueueLength) {
+    return int(.8 * past_rates.back()); 
+  }
+
+  double mean = 0;
+  for (auto &x : past_rates) {
+    mean += x;
+  }
+  mean /= past_rates.size();
+
+  double variance = 0;
+  for (auto &x : past_rates) {
+    variance += ((double)x - mean) * ((double)x - mean);
+  }
+  variance /= past_rates.size();
+  double std = std::sqrt(variance);
+
+  return std::max(int(.8 * past_rates.back()), int(past_rates.back() - .5 * std));
 }
 
 }
