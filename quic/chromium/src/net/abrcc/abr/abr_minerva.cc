@@ -7,11 +7,12 @@ namespace quic {
 
 namespace MinervaConstants {
   const int updateIntervalFactor = 25; 
+  const int minRttStart = 10;
 }
 
 MinervaAbr::MinervaAbr(const std::shared_ptr<DashBackendConfig>& config) 
   : SegmentProgressAbr(config)
-  , interface(TcpMinervaSenderBytes::MinervaInterface::GetInstance())
+  , interface(MinervaInterface::GetInstance())
   , timestamp_(high_resolution_clock::now()) 
   , update_interval_(base::nullopt) 
   , started_rate_update(false) {}
@@ -38,7 +39,7 @@ abr_schema::Decision MinervaAbr::decide() {
     
     auto current_time = high_resolution_clock::now();
     duration<double, std::milli> time_span = current_time - timestamp_;
-  
+ 
     if (time_span.count() > update_interval_.value() / 2 && !started_rate_update) {
       // we are at the start of moment rate udpdate
       onStartRateUpdate();
@@ -52,6 +53,7 @@ abr_schema::Decision MinervaAbr::decide() {
     
       // update the update_interval_ based on newer min_rtt estimations
       update_interval_ = updateIntervalMs();
+      timestamp_ = high_resolution_clock::now();
     }
   }
 
@@ -65,15 +67,24 @@ base::Optional<int> MinervaAbr::updateIntervalMs() {
   if (min_rtt == base::nullopt) {
     return base::nullopt;
   }
+  if (min_rtt.value() < MinervaConstants::minRttStart) {
+    return MinervaConstants::minRttStart * MinervaConstants::updateIntervalFactor; 
+  }
   return min_rtt.value() * MinervaConstants::updateIntervalFactor; 
 }
 
 void MinervaAbr::onStartRateUpdate() {
-  QUIC_LOG(WARNING) << "MINERVA ON START RATE UPDATE";
+  QUIC_LOG(WARNING) << "START UPDATED";
+  
+  // reset the byte counter for second half of the min_rtt * 25 interval
+  interface->resetAckedBytes();
 }
 
 void MinervaAbr::onWeightUpdate() {
-  QUIC_LOG(WARNING) << "MINERVA ON WEIGHT UPDATE";
+  double half_interval = (double)update_interval_.value() / 2000.; // in seconds
+  int current_rate = (int)(8. * interface->ackedBytes() / half_interval / 1000.); // in kbps
+  
+  QUIC_LOG(WARNING) << "RATE " << current_rate;
 }
 
 }

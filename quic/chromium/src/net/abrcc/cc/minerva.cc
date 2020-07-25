@@ -63,7 +63,7 @@ const QuicPacketCount kMaxResumptionCongestionWindow = 200;
 MinervaBytes::MinervaBytes() 
     : num_connections_(kDefaultNumConnections),
       epoch_(QuicTime::Zero()) {
-  ResetCubicState();
+ ResetCubicState();
 }
 
 void MinervaBytes::SetNumConnections(int num_connections) {
@@ -95,6 +95,7 @@ float MinervaBytes::BetaLastMax() const {
 }
 
 void MinervaBytes::ResetCubicState() {
+  interface = MinervaInterface::GetInstance();
   epoch_ = QuicTime::Zero();             // Reset time.
   last_max_congestion_window_ = 0;
   acked_bytes_count_ = 0;
@@ -214,15 +215,17 @@ QuicByteCount MinervaBytes::CongestionWindowAfterAck(
 /// ------------------------ MinervaInterface ------------------------
 /// ------------------------------------------------------------------
 
-TcpMinervaSenderBytes::MinervaInterface* 
-    TcpMinervaSenderBytes::MinervaInterface::GetInstance() {
-  return GET_SINGLETON(TcpMinervaSenderBytes::MinervaInterface);
+MinervaInterface *MinervaInterface::GetInstance() {
+  return GET_SINGLETON(MinervaInterface);
 }
 
-TcpMinervaSenderBytes::MinervaInterface::MinervaInterface() {}
-TcpMinervaSenderBytes::MinervaInterface::~MinervaInterface() {}
+MinervaInterface::MinervaInterface()
+  : parent(nullptr) 
+  , min_rtt_(base::nullopt)
+  , acked_bytes_(0) {}
+MinervaInterface::~MinervaInterface() {}
 
-void TcpMinervaSenderBytes::MinervaInterface::updateMinRtt() {
+void MinervaInterface::updateMinRtt() {
   if (parent == nullptr) {
     return;
   }
@@ -235,13 +238,29 @@ void TcpMinervaSenderBytes::MinervaInterface::updateMinRtt() {
   min_rtt_ = min_rtt;
 }
 
-base::Optional<int> TcpMinervaSenderBytes::MinervaInterface::minRtt() const {
+base::Optional<int> MinervaInterface::minRtt() const {
   if (parent == nullptr) {
     return base::nullopt;
   }
   
   QuicReaderMutexLock lock(&min_rtt_mutex_);
   return min_rtt_;
+}
+
+
+int MinervaInterface::ackedBytes() const {
+  QuicReaderMutexLock lock(&acked_bytes_mutex_);
+  return acked_bytes_;
+}
+
+void MinervaInterface::addAckedBytes(const int bytes) {
+  QuicWriterMutexLock lock(&acked_bytes_mutex_);
+  acked_bytes_ += bytes;
+}
+
+void MinervaInterface::resetAckedBytes() {
+  QuicWriterMutexLock lock(&acked_bytes_mutex_);
+  acked_bytes_ = 0;
 }
 
 /// ------------------------------------------------------------------
@@ -311,6 +330,9 @@ void TcpMinervaSenderBytes::OnPacketAcked(QuicPacketNumber acked_packet_number,
                                         QuicByteCount acked_bytes,
                                         QuicByteCount prior_in_flight,
                                         QuicTime event_time) {
+  // add acked bytes to measure the instant rate measurement
+  interface->addAckedBytes(acked_bytes);
+  
   largest_acked_packet_number_.UpdateMax(acked_packet_number);
   if (InRecovery()) {
     prr_.OnPacketAcked(acked_bytes);
@@ -533,7 +555,8 @@ void TcpMinervaSenderBytes::MaybeIncreaseCwnd(
       max_congestion_window_,
       cubic_.CongestionWindowAfterAck(acked_bytes, congestion_window_,
                                       rtt_stats_->min_rtt(), event_time));
-  QUIC_DVLOG(1) << "Cubic; congestion window: " << congestion_window_
+  
+    QUIC_DVLOG(1) << "Cubic; congestion window: " << congestion_window_
                 << " slowstart threshold: " << slowstart_threshold_;
 }
 

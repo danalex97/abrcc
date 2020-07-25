@@ -18,7 +18,43 @@
 
 namespace quic {
 
+class TcpMinervaSenderBytes;
+class MinervaBytes;
 class RttStats;
+
+// Interface for ABR loop to CC communication
+class __attribute__((packed)) MinervaInterface {
+ public:
+  virtual ~MinervaInterface();
+  static MinervaInterface* GetInstance();
+
+  // general access functions
+  base::Optional<int> minRtt() const;
+  int ackedBytes() const;
+
+  // shared update functions
+  void addAckedBytes(const int bytes);
+  void resetAckedBytes();
+
+ private:
+  MinervaInterface();
+  
+  // CC-side update functions
+  void updateMinRtt();
+
+  // parent to be attached when instance changes
+  TcpMinervaSenderBytes *parent;
+  base::Optional<int> min_rtt_;
+  int acked_bytes_;
+
+  // locks
+  mutable QuicMutex min_rtt_mutex_;
+  mutable QuicMutex acked_bytes_mutex_;
+
+  friend class TcpMinervaSenderBytes;
+  friend class MinervaAbr;
+  friend class MinervaBytes;
+};
 
 class QUIC_EXPORT_PRIVATE MinervaBytes {
  public:
@@ -61,39 +97,15 @@ class QUIC_EXPORT_PRIVATE MinervaBytes {
 
   // Last congestion window in packets computed by cubic function.
   QuicByteCount last_target_congestion_window_;
+  MinervaInterface *interface;
+  
+  friend class MinervaInterface;
 };
 
 
 
 class QUIC_EXPORT_PRIVATE TcpMinervaSenderBytes : public SendAlgorithmInterface {
  public:
-
-  // Interface for ABR loop to CC communication
-  class __attribute__((packed)) MinervaInterface {
-   public:
-    virtual ~MinervaInterface();
-    static MinervaInterface* GetInstance();
-  
-    // general access functions
-    base::Optional<int> minRtt() const;
-   private:
-    MinervaInterface();
-    
-    // CC-side update functions
-    void updateMinRtt();
-
-    // parent to be attached when instance changes
-    TcpMinervaSenderBytes *parent;
-    base::Optional<int> min_rtt_;
-
-    // locks
-    mutable QuicMutex min_rtt_mutex_;
-
-    friend class TcpMinervaSenderBytes;
-    friend class MinervaAbr;
-  };
-
-
   TcpMinervaSenderBytes(const RttStats* rtt_stats,
                       QuicPacketCount initial_tcp_congestion_window,
                       QuicPacketCount max_congestion_window,
@@ -188,6 +200,8 @@ class QUIC_EXPORT_PRIVATE TcpMinervaSenderBytes : public SendAlgorithmInterface 
 
   // Minerva interface 
   MinervaInterface *interface;
+
+  friend class MinervaInterface;
 };
 
 }  // namespace quic

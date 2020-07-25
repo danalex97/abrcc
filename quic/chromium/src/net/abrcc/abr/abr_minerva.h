@@ -35,7 +35,7 @@ class MinervaAbr : public SegmentProgressAbr {
   void onStartRateUpdate();
   void onWeightUpdate();
 
-  TcpMinervaSenderBytes::MinervaInterface* interface; 
+  MinervaInterface* interface; 
 
   std::chrono::high_resolution_clock::time_point timestamp_;
   base::Optional<int> update_interval_;
