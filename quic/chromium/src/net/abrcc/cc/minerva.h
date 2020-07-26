@@ -53,6 +53,7 @@ class __attribute__((packed)) MinervaInterface {
   mutable QuicMutex min_rtt_mutex_;
   mutable QuicMutex acked_bytes_mutex_;
   mutable QuicMutex link_weight_mutex_;
+  mutable QuicMutex parent_mutex_;
 
   friend class TcpMinervaSenderBytes;
   friend class MinervaAbr;
@@ -102,7 +103,7 @@ class QUIC_EXPORT_PRIVATE MinervaBytes {
   // Last congestion window in packets computed by cubic function.
   QuicByteCount last_target_congestion_window_;
   MinervaInterface *interface;
-  
+ 
   friend class MinervaInterface;
 };
 

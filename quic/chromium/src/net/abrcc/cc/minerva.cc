@@ -162,7 +162,6 @@ QuicByteCount MinervaBytes::CongestionWindowAfterAck(
     QuicTime::Delta delay_min,
     QuicTime event_time) {
   acked_bytes_count_ += acked_bytes;
-
   if (!epoch_.IsInitialized()) {
     // First ACK after a loss event.
     QUIC_DVLOG(1) << "Start of epoch";
@@ -240,26 +239,28 @@ MinervaInterface *MinervaInterface::GetInstance() {
 }
 
 MinervaInterface::MinervaInterface()
-  : parent(nullptr) 
-  , min_rtt_(base::nullopt)
+  : min_rtt_(base::nullopt)
   , acked_bytes_(0)
   , link_weight_(base::nullopt) {}
 MinervaInterface::~MinervaInterface() {}
 
 void MinervaInterface::updateMinRtt() {
+  QuicReaderMutexLock parent_lock(&parent_mutex_); 
   if (parent == nullptr) {
     return;
   }
   
   QuicWriterMutexLock lock(&min_rtt_mutex_);
   int min_rtt = parent->rtt_stats_->min_rtt().ToMilliseconds(); 
-  if (min_rtt == 0) {
+  if (min_rtt == 0 && min_rtt_ != base::nullopt) {
     return;
   }
   min_rtt_ = min_rtt;
 }
 
+
 base::Optional<int> MinervaInterface::minRtt() const {
+  QuicReaderMutexLock parent_lock(&parent_mutex_); 
   if (parent == nullptr) {
     return base::nullopt;
   }
@@ -320,6 +321,7 @@ TcpMinervaSenderBytes::TcpMinervaSenderBytes(
                                          kDefaultTCPMSS),
       min_slow_start_exit_window_(min_congestion_window_),
       interface(MinervaInterface::GetInstance()) {
+  QuicWriterMutexLock lock(&interface->parent_mutex_);
   interface->parent = this;
 }
 
@@ -363,6 +365,9 @@ void TcpMinervaSenderBytes::OnPacketAcked(QuicPacketNumber acked_packet_number,
                                         QuicTime event_time) {
   // add acked bytes to measure the instant rate measurement
   interface->addAckedBytes(acked_bytes);
+
+  // call interface update methods
+  interface->updateMinRtt();
   
   largest_acked_packet_number_.UpdateMax(acked_packet_number);
   if (InRecovery()) {
@@ -382,6 +387,9 @@ void TcpMinervaSenderBytes::OnPacketSent(
     QuicPacketNumber packet_number,
     QuicByteCount bytes,
     HasRetransmittableData is_retransmittable) {
+  // call interface update methods
+  interface->updateMinRtt();
+
   if (InSlowStart()) {
     ++(stats_->slowstart_packets_sent);
   }
@@ -396,12 +404,12 @@ void TcpMinervaSenderBytes::OnPacketSent(
          largest_sent_packet_number_ < packet_number);
   largest_sent_packet_number_ = packet_number;
   hybrid_slow_start_.OnPacketSent(packet_number);
-
-  // call interface update methods
-  interface->updateMinRtt();
 }
 
 bool TcpMinervaSenderBytes::CanSend(QuicByteCount bytes_in_flight) {
+  // call interface update methods
+  interface->updateMinRtt();
+  
   if (InRecovery()) {
     return prr_.CanSend(GetCongestionWindow(), bytes_in_flight,
                         GetSlowStartThreshold());
@@ -563,12 +571,6 @@ void TcpMinervaSenderBytes::MaybeIncreaseCwnd(
     QuicByteCount acked_bytes,
     QuicByteCount prior_in_flight,
     QuicTime event_time) {
-  // Do not increase the congestion window unless the sender is close to using
-  // the current window.
-  if (!IsCwndLimited(prior_in_flight)) {
-    cubic_.OnApplicationLimited();
-    return;
-  }
   if (congestion_window_ >= max_congestion_window_) {
     return;
   }

@@ -13,6 +13,7 @@ namespace quic {
 namespace MinervaConstants {
   const int updateIntervalFactor = 25; 
   const int minRttStart = 10;
+  const int maxRttStart = 100;
   const int varianceQueueLength = 4;
 
   const int initMovingAverageRate = -1;
@@ -116,6 +117,9 @@ base::Optional<int> MinervaAbr::updateIntervalMs() {
   }
   if (min_rtt.value() < MinervaConstants::minRttStart) {
     return MinervaConstants::minRttStart * MinervaConstants::updateIntervalFactor; 
+  }
+  if (min_rtt.value() > MinervaConstants::maxRttStart) {
+    return MinervaConstants::maxRttStart * MinervaConstants::updateIntervalFactor; 
   }
   return min_rtt.value() * MinervaConstants::updateIntervalFactor; 
 }
