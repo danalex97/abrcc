@@ -31,11 +31,12 @@ class __attribute__((packed)) MinervaInterface {
   // general access functions
   base::Optional<int> minRtt() const;
   int ackedBytes() const;
+  base::Optional<double> getLinkWeight() const;
 
   // shared update functions
   void addAckedBytes(const int bytes);
   void resetAckedBytes();
-
+  void setLinkWeight(const double weight);
  private:
   MinervaInterface();
   
@@ -46,10 +47,12 @@ class __attribute__((packed)) MinervaInterface {
   TcpMinervaSenderBytes *parent;
   base::Optional<int> min_rtt_;
   int acked_bytes_;
+  base::Optional<double> link_weight_;
 
   // locks
   mutable QuicMutex min_rtt_mutex_;
   mutable QuicMutex acked_bytes_mutex_;
+  mutable QuicMutex link_weight_mutex_;
 
   friend class TcpMinervaSenderBytes;
   friend class MinervaAbr;

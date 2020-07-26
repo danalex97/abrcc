@@ -16,6 +16,7 @@ namespace MinervaConstants {
   const int varianceQueueLength = 4;
 
   const int initMovingAverageRate = -1;
+  const int initUtility = 0;
   const double movingAverageRateProportion = .9;
 }
 
@@ -120,9 +121,7 @@ base::Optional<int> MinervaAbr::updateIntervalMs() {
 }
 
 void MinervaAbr::onStartRateUpdate() {
-  QUIC_LOG(WARNING) << "START UPDATED";
-  
-  // reset the byte counter for second half of the min_rtt * 25 interval
+  // reset the byte counter for second half of the update interval
   interface->resetAckedBytes();
 }
 
@@ -146,9 +145,14 @@ void MinervaAbr::onWeightUpdate() {
 
   // compute utility
   double utility = computeUtility();
+  if (utility != MinervaConstants::initUtility) {
+    double link_weight = 1. * moving_average_rate / utility;
 
-  QUIC_LOG(WARNING) << "MAR " << moving_average_rate;
-  QUIC_LOG(WARNING) << "UTILITY " << utility;
+    QUIC_LOG(WARNING) << "[Minerva] Current moving average rate: " << moving_average_rate;
+    QUIC_LOG(WARNING) << "[Minerva] Weight updated: " << link_weight;
+
+    interface->setLinkWeight(link_weight);
+  }
 }
 
 int MinervaAbr::conservativeRate() const {
@@ -191,11 +195,10 @@ static double get_segment_length_sec(
 
 double MinervaAbr::computeUtility() {
   if (last_index == -1) {
-    return 0;
+    return MinervaConstants::initUtility;
   }
   
   int index = last_index;
-  // int quality = last_segment[index].quality;
   int rate = (int)moving_average_rate;
 
   std::vector<double> rates; // in kbps

@@ -222,7 +222,8 @@ MinervaInterface *MinervaInterface::GetInstance() {
 MinervaInterface::MinervaInterface()
   : parent(nullptr) 
   , min_rtt_(base::nullopt)
-  , acked_bytes_(0) {}
+  , acked_bytes_(0)
+  , link_weight_(base::nullopt) {}
 MinervaInterface::~MinervaInterface() {}
 
 void MinervaInterface::updateMinRtt() {
@@ -261,6 +262,16 @@ void MinervaInterface::addAckedBytes(const int bytes) {
 void MinervaInterface::resetAckedBytes() {
   QuicWriterMutexLock lock(&acked_bytes_mutex_);
   acked_bytes_ = 0;
+}
+
+void MinervaInterface::setLinkWeight(const double weight) {
+  QuicWriterMutexLock lock(&link_weight_mutex_);
+  link_weight_ = weight;
+}
+
+base::Optional<double> MinervaInterface::getLinkWeight() const {
+  QuicReaderMutexLock lock(&link_weight_mutex_);
+  return link_weight_;
 }
 
 /// ------------------------------------------------------------------
