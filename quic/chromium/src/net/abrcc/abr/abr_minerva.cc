@@ -4,6 +4,10 @@
 #include <cmath>
 using namespace std::chrono;
 
+namespace {
+  const int SECOND = 1000;
+}
+
 namespace quic { 
 
 namespace MinervaConstants {
@@ -123,8 +127,8 @@ void MinervaAbr::onStartRateUpdate() {
 }
 
 void MinervaAbr::onWeightUpdate() {
-  double half_interval = (double)update_interval_.value() / 2000.; // in seconds
-  int current_rate = (int)(8. * interface->ackedBytes() / half_interval / 1000.); // in kbps
+  double half_interval = (double)update_interval_.value() / 2 / ::SECOND; // in seconds
+  int current_rate = (int)(8. * interface->ackedBytes() / half_interval / ::SECOND); // in kbps
   
   // update past rates for the correct conservative rate estimate
   past_rates.push_back(current_rate);
@@ -168,17 +172,58 @@ int MinervaAbr::conservativeRate() const {
   return std::max(int(.8 * past_rates.back()), int(past_rates.back() - .5 * std));
 }
 
+static double get_segment_length_sec(
+  const std::vector< std::vector<VideoInfo> >& segments,
+  const int current_index,
+  const int chunk_quality
+) {
+  int ref_index = current_index;
+  while (ref_index + 1 >= int(segments[chunk_quality].size())) {
+    ref_index--;
+  }
+  int segment_length_ms = int(double(::SECOND) * 
+    (segments[chunk_quality][ref_index + 1].start_time 
+    - segments[chunk_quality][ref_index].start_time)
+  );
+  return segment_length_ms / ::SECOND;
+}
+
+
 double MinervaAbr::computeUtility() {
   if (last_index == -1) {
     return 0;
   }
   
   int index = last_index;
-  int quality = last_segment[index].quality;
+  // int quality = last_segment[index].quality;
+  int rate = (int)moving_average_rate;
 
-  QUIC_LOG(WARNING) << "SEG " << index << ' ' << quality;
-  
-  return 0;   
+  std::vector<double> rates; // in kbps
+  for (int quality = 0; quality < int(bitrate_array.size()); ++quality) {
+    double segment_length = get_segment_length_sec(segments, index, quality);
+    int segment_size_bits = 8 * segments[quality][index].size;
+
+    rates.push_back(1. * segment_size_bits / segment_length / ::SECOND);
+  }
+
+  for (int quality = 0; quality < int(bitrate_array.size()); ++quality) {
+    if (rates[quality] <= rate && (int(rates.size()) == quality + 1 || rate <= rates[quality + 1])) {
+      if (int(rates.size()) == quality + 1) {
+        return segments[quality][index].vmaf;
+      }
+
+      // interpolate the vmaf
+      double x1 = rates[quality];
+      double x2 = rates[quality + 1];
+      double x = rate; 
+      double y1 = segments[quality][index].vmaf;
+      double y2 = segments[quality + 1][index].vmaf;
+    
+      return y1 + (x - x1) / (x2 - x1) * (y2 - y1);
+    }
+  }
+
+  return segments[0][index].vmaf;
 }
 
 }
