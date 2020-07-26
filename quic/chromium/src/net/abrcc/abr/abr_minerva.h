@@ -9,7 +9,6 @@
 
 // interfaces
 #include "net/abrcc/abr/interface.h"
-#include "net/abrcc/abr/abr_base.h"
 #include "net/abrcc/cc/minerva.h"
 
 // timestamps
@@ -17,32 +16,38 @@
 
 // utilities
 #include <deque>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
 
 namespace quic {
 
-class MinervaAbr : public SegmentProgressAbr {
+class MinervaAbr : public AbrInterface {
  public:
   MinervaAbr(const std::shared_ptr<DashBackendConfig>& config);
   ~MinervaAbr() override;
 
-  // We use the same interface as SegmentProgressAbr in order to be able to keep the
-  // state management logic
   void registerMetrics(const abr_schema::Metrics &) override;
   void registerAbort(const int) override;
   abr_schema::Decision decide() override;
-  int decideQuality(int index) override;
  
+  std::vector< std::vector<VideoInfo> > segments;
+  std::vector<int> bitrate_array;
  private:
   // computes a conservative rate measurement
   int conservativeRate() const;
   
-  // return the update interval in ms as measured currently
+  // returns the update interval in ms as measured currently
   base::Optional<int> updateIntervalMs();
-  
+ 
+  // compute the utility for the current rate
+  double computeUtility();
+
   // callbacks for update rates
   void onStartRateUpdate();
   void onWeightUpdate();
-
+  
   MinervaInterface* interface; 
 
   std::chrono::high_resolution_clock::time_point timestamp_;
@@ -52,6 +57,11 @@ class MinervaAbr : public SegmentProgressAbr {
   // rate computation variables
   std::deque<int> past_rates;
   double moving_average_rate;
+
+  // front-end state
+  std::unordered_map<int, abr_schema::Segment> last_segment;  
+  int last_index;
+  int last_timestamp;
 };
 
 }

@@ -68,7 +68,7 @@ export class BufferLevelGetter extends MetricGetter {
     get value(): number {
         let value_at_timestmap = this.lastBufferLevel.value;    
         let consumed = timestamp(new Date()) - this.lastBufferLevel.timestamp;
-        return value_at_timestmap - consumed;
+        return Math.max(value_at_timestmap - consumed, 0);
     }
 }
 

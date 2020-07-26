@@ -33,6 +33,7 @@ struct Segment {
   int timestamp;
   int loaded;
   int total;
+  int quality; 
   State state;
 
   Segment();
@@ -61,6 +62,7 @@ struct Segment {
     converter->RegisterIntField("total", &Segment::total);
     converter->RegisterIntField("index", &Segment::index);
     converter->RegisterIntField("timestamp", &Segment::timestamp);
+    converter->RegisterIntField("quality", &Segment::quality);
     converter->RegisterCustomField<State>(
       "state", &Segment::state, &ParseState);
   }

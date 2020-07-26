@@ -70,10 +70,9 @@ export class FrontEndApp implements App {
                         .send();
                 }
                 if (this.algorithmName === "minerva") {
-                    logger.log('Sending stats to back-end', metrics.serialize());
                     this.shim
                         .metricsRequest()
-                        .addStats(metrics.serialize())
+                        .addStats(metrics.serialize(true))
                         .send();
                 }
                 

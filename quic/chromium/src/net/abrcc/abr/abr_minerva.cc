@@ -16,22 +16,56 @@ namespace MinervaConstants {
 }
 
 MinervaAbr::MinervaAbr(const std::shared_ptr<DashBackendConfig>& config) 
-  : SegmentProgressAbr(config)
-  , interface(MinervaInterface::GetInstance())
+  : interface(MinervaInterface::GetInstance())
   , timestamp_(high_resolution_clock::now()) 
   , update_interval_(base::nullopt) 
   , started_rate_update(false)
   , past_rates()
-  , moving_average_rate(MinervaConstants::initMovingAverageRate) {}
+  , moving_average_rate(MinervaConstants::initMovingAverageRate) 
+  , last_index(-1)
+  , last_timestamp(0) {
+
+  // compute segments
+  segments = std::vector< std::vector<VideoInfo> >();
+  for (int i = 0; i < int(config->video_configs.size()); ++i) {
+    for (auto &video_config : config->video_configs) {
+      std::string resource = "/video" + std::to_string(i);
+      if (resource == video_config->resource) {
+        std::vector<VideoInfo> info;
+        for (auto &x : video_config->video_info) {
+          info.push_back(VideoInfo(
+            x->start_time,
+            x->vmaf,
+            x->size
+          ));  
+        }
+        segments.push_back(info);
+      }
+    }
+  }
+
+  // compute bitrate array
+  bitrate_array = std::vector<int>();
+  for (auto &video_config : config->video_configs) {
+    bitrate_array.push_back(video_config->quality);
+  }
+  sort(bitrate_array.begin(), bitrate_array.end());
+}
 
 MinervaAbr::~MinervaAbr() {}
 
-int MinervaAbr::decideQuality(int index) { return 0; }
 void MinervaAbr::registerAbort(const int index) {}
 void MinervaAbr::registerMetrics(const abr_schema::Metrics &metrics) {
-  SegmentProgressAbr::registerMetrics(metrics); 
-
-  QUIC_LOG(WARNING) << "MINERVA METRICS";
+  // Register loading segments
+  for (const auto& segment : metrics.segments) {
+    last_timestamp = std::max(last_timestamp, segment->timestamp);
+    if (segment->state == abr_schema::Segment::LOADING) {
+      last_segment[segment->index] = *segment;
+      if (segment->index > last_index) {
+        last_index = segment->index;
+      }
+    }
+  }
 }
 
 abr_schema::Decision MinervaAbr::decide() {
@@ -106,7 +140,11 @@ void MinervaAbr::onWeightUpdate() {
                         + (1 - MinervaConstants::movingAverageRateProportion) * conservativeRate();
   }
 
+  // compute utility
+  double utility = computeUtility();
+
   QUIC_LOG(WARNING) << "MAR " << moving_average_rate;
+  QUIC_LOG(WARNING) << "UTILITY " << utility;
 }
 
 int MinervaAbr::conservativeRate() const {
@@ -128,6 +166,19 @@ int MinervaAbr::conservativeRate() const {
   double std = std::sqrt(variance);
 
   return std::max(int(.8 * past_rates.back()), int(past_rates.back() - .5 * std));
+}
+
+double MinervaAbr::computeUtility() {
+  if (last_index == -1) {
+    return 0;
+  }
+  
+  int index = last_index;
+  int quality = last_segment[index].quality;
+
+  QUIC_LOG(WARNING) << "SEG " << index << ' ' << quality;
+  
+  return 0;   
 }
 
 }

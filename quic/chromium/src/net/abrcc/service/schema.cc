@@ -20,13 +20,14 @@ Segment::Segment() {
 }
 Segment::Segment(const Segment& rhs) : index(rhs.index), timestamp(rhs.timestamp), 
                                        loaded(rhs.loaded), total(rhs.total),
-                                       state(rhs.state) {}
+                                       quality(rhs.quality), state(rhs.state) {}
 Segment& Segment::operator =(const Segment& rhs) {
   this->index = rhs.index; 
   this->state = rhs.state;
   this->timestamp = rhs.timestamp;
   this->loaded = rhs.loaded;
   this->total = rhs.total;
+  this->quality = rhs.quality;
   return *this;
 }
 Segment::~Segment() {}
