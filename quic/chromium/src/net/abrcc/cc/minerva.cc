@@ -78,12 +78,29 @@ float MinervaBytes::Alpha() const {
   return 3 * num_connections_ * num_connections_ * (1 - beta) / (1 + beta);
 }
 
+float MinervaBytes::WeightAdjustedBeta(const float beta) const {
+  // Minerva adjusted beta, denoted beta' in the paper
+  base::Optional<double> maybe_weight = interface->getLinkWeight();
+  if (maybe_weight == base::nullopt) {
+    return beta;
+  }
+
+  double weight = maybe_weight.value();
+  double betaPrime = (1. * beta * (weight + 1) + weight - 1)
+                   / (1. * beta * (weight - 1) + weight + 1);
+
+  return (float)betaPrime;
+}
+
 float MinervaBytes::Beta() const {
   // kNConnectionBeta is the backoff factor after loss for our N-connection
   // emulation, which emulates the effective backoff of an ensemble of N
   // TCP-Reno connections on a single loss event. The effective multiplier is
   // computed as:
-  return (num_connections_ - 1 + kDefaultCubicBackoffFactor) / num_connections_;
+  float beta = (num_connections_ - 1 + kDefaultCubicBackoffFactor) / num_connections_;
+  
+  // adjust the beta to match Minerva's adaptation decsription
+  return WeightAdjustedBeta(beta);
 }
 
 float MinervaBytes::BetaLastMax() const {
@@ -91,7 +108,10 @@ float MinervaBytes::BetaLastMax() const {
   // N-connection emulation, which emulates the additional backoff of
   // an ensemble of N TCP-Reno connections on a single loss event. The
   // effective multiplier is computed as:
-  return (num_connections_ - 1 + kBetaLastMax) / num_connections_;
+  float beta = (num_connections_ - 1 + kBetaLastMax) / num_connections_;
+
+  // adjust the beta to match Minerva's adaptation decsription
+  return WeightAdjustedBeta(beta);
 }
 
 void MinervaBytes::ResetCubicState() {

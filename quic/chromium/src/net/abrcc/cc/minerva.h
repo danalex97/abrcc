@@ -80,6 +80,7 @@ class QUIC_EXPORT_PRIVATE MinervaBytes {
     return QuicTime::Delta::FromMilliseconds(30);
   }
 
+  float WeightAdjustedBeta(const float beta) const;
   float Alpha() const;
   float Beta() const;
   float BetaLastMax() const;
