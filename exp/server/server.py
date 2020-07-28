@@ -187,6 +187,7 @@ class Server:
         self.__port = port
         self.__logger_called = False
         self.components = []
+        self.extra_loggers = []
 
     def __add_method(self, 
         route: str, 
@@ -260,6 +261,14 @@ class Server:
         for component in self.components:
             component.add_logger(logger)
 
+        # attach all extra loggers
+        for component in self.extra_loggers:
+            component.add_logger(logger)
+
+        return self
+
+    def add_extra_logger(self, logger: LogAccessMixin) -> 'Server':
+        self.extra_loggers.append(logger)
         return self
 
     def add_get(self, route: str, component: Component) -> 'Server':
@@ -270,6 +279,10 @@ class Server:
 
     def run(self):
         if self.__backend is Backend.SANIC:
+            self.__app.config.update({
+                'REQUEST_TIMEOUT' : 3600,
+                'RESPONSE_TIMEOUT' : 3600,
+            })
             self.__app.run(
                 host='0.0.0.0', 
                 port=int(self.__port),
@@ -277,6 +290,7 @@ class Server:
                     'cert' : 'certs/cert.pem',
                     'key' : 'certs/key.pem',
                 },
+                backlog=1000000,
             )
         elif self.__backend is Backend.QUART:
             self.__app.run(

@@ -64,7 +64,11 @@ def retry(tries: int = 2, timeout: int = 600) -> Callable[[Callable], Callable]:
                             kill -TERM $pid
                         done
                     """)
-                    for port in [8001, 8000, 8002, 4000, 4001, 4002, 8080, 8081, 8082, 8008]:
+                    max_clients = 10
+                    ports = [8000 + i for i in range(max_clients)]
+                          + [4000 + i for i in range(max_clients)]
+                          + [8080 + i for i in range(max_clients)]
+                    for port in ports:
                         os.system(f"kill -9 $(lsof -t -i:{port})")
                     os.system("pkill -9 chrome")
                     time.sleep(20)
@@ -77,7 +81,7 @@ def cleanup_files():
     os.system("rm -f /tmp/tmp_*")
 
 
-@retry(tries=2, timeout=350)
+@retry(tries=2, timeout=800)
 def run_subexp(
     bandwidth: int, 
     latency: int, 

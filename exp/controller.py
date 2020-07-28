@@ -11,7 +11,7 @@ from threading import Thread
 from typing import List, Optional
 
 from server.process import SubprocessStream, kill_subprocess 
-from server.server import ctx_component, Component, JSONType, post_after, post_after_async
+from server.server import ctx_component, Component, LogAccessMixin, JSONType, post_after, post_after_async
 from scripts.network import Network
 from threading import Thread
 
@@ -48,7 +48,7 @@ class BackendProcessor(SubprocessStream):
                 traceback.print_exc()
 
 
-class Controller:
+class Controller(LogAccessMixin):
     def __init__(self,
         name: str,
         site: str,
@@ -64,6 +64,8 @@ class Controller:
         video: Optional[str] = None,
         headless: bool = False,
     ) -> None:
+        LogAccessMixin.__init__(self)
+
         self.dash = dash
         self.only_server = only_server
         self.port = port
@@ -117,9 +119,16 @@ class Controller:
             await self.network.run(same_process=True)
             return 'OK'
         elif self.leader_port:
+            self.log(f"Controller:{self.port}: ON_START with leader port {self.leader_port}")
+            
             # Let the leader starts the network and wait for it to 
             # tell us it's all ok
-            await post_after({'port' : self.quic_port}, 0, "/start", port=self.leader_port)
+            try:
+                await post_after({'port' : self.quic_port}, 0, "/start", port=self.leader_port)
+            except Exception as e:
+                self.log('Exception: ', e)
+                self.log('Traceback: ', traceback.format_exc())
+                return 'OK'
             return 'OK'
 
     @ctx_component

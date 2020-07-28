@@ -78,6 +78,7 @@ def run(args: Namespace) -> None:
     # Handle controller communication and metrics
     request_port = args.leader_port if args.leader_port else args.port 
     (server
+        .add_extra_logger(controller)
         .add_post('/init', controller.on_init())
         .add_post('/start', multiple_sync(
             controller.on_start(),

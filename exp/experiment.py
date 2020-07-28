@@ -9,6 +9,7 @@ from exp_util.plot import plot_bar, plot_cdf
 
 import os
 import time
+import random
 
 
 @experiment
@@ -118,6 +119,73 @@ def traffic(args: Namespace) -> None:
             generate_summary(experiment_path, experiments)
 
 
+@experiment
+def stream_count(args: Namespace) -> None:
+    global run_trace, run_subexp
+    if args.dry:
+        run_trace  = lambda *args, **kwargs: None
+        run_subexp = lambda *args, **kwargs: None 
+
+    videos = ['got', 'bojack', 'cook', 'guard']
+
+    root_path = str(Path("experiments") / "stream_count")
+    os.system(f"mkdir -p {root_path}")
+    runner_log = open(str(Path(root_path) / 'exp.log'), 'w')
+   
+    algorithms = [
+        ('--server-algo', 'gap', 'gap'),
+        ('--algo', 'robustMpc', 'cubic'),
+        ('--algo', 'robustMpc', 'bbr2'),
+        ('--algo', 'dynamic', 'bbr2'),
+        ('--algo', 'dynamic', 'cubic'),
+    ]
+
+    experiments = []
+    experiment_path = str(Path(root_path))
+    
+    runs      = 5
+    latency   = 500
+    bandwidth = 4
+    min_streams, max_streams = 2, 8
+
+    for stream_number in range(max_streams, min_streams - 1, -1): 
+        for run_id in range(runs):
+            for (arg, algo, cc) in algorithms:
+                run_servers = []
+                run_videos  = []
+                for i in range(stream_number):
+                    video  = random.choice(videos)
+                    server = f"{arg} {algo} --name abr{i + 1} --cc {cc} --video {video}"
+
+                    run_videos.append(video)
+                    run_servers.append(server)
+                
+                video_length  = list(zip(map(get_video_chunks, run_videos), run_videos))
+                longest_video = max(video_length)[1]
+
+                path = str(Path(experiment_path) / f"{algo}_{cc}_streams{stream_number}_run{run_id}")
+                runner_log.write(f'> {path}\n')
+                
+                run_subexp(
+                   bandwidth, latency, path, run_servers, burst=2000, video=longest_video,
+                   headless=args.headless, 
+                   force_run = True,
+                )
+                experiments.append(Experiment(
+                    video = video,
+                    path  = str(Path(path) / "leader_plots.log"),
+                    latency = latency,
+                    bandwidth = bandwidth, 
+                    extra = [f"streams{stream_number}", algo, cc],
+                    run_id = run_id,
+                ))
+        
+    if args.dry:
+        print(experiments)
+        print(len(experiments))
+    else:
+        save_experiments(experiment_path, experiments)
+        generate_summary(experiment_path, experiments)
 
 
 @experiment
