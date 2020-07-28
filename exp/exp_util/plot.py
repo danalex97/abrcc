@@ -3,6 +3,7 @@ from collections import defaultdict
 
 from exp_util.data import Experiment
 
+import math
 import datetime
 import numpy as np
 import matplotlib.pyplot as plt
@@ -59,6 +60,8 @@ def plot_cdf(
 
     markers = [',', 'o', 'v', '^', '>', '<', 's', 'x', 'D', 'd', '*', '_', '']
     for metric, instance_value in metrics.items():
+        if metric == 'raw_qoe':
+            continue
         plot_name = f"{plot_base}_{metric}.png"
         
         all_values = defaultdict(list)
@@ -67,9 +70,6 @@ def plot_cdf(
             all_values[instance] = sorted(all_values[instance])
 
         ax = plt.subplot(111)
-        for k, v in all_values.items():
-            print(plot_base, k, v)
-    
         schemes = []
         marker_index = 0
         for scheme, cur_values in all_values.items():
@@ -87,6 +87,7 @@ def plot_cdf(
             )
             schemes.append(scheme)
 
+        ax.get_xaxis().set_visible(True)
         ax.legend(schemes, loc=2)
         plt.ylabel('CDF')
         plt.xlabel(metric)
@@ -152,11 +153,14 @@ def plot_bar(
             # average multiple runs
             avg_values = []
             for name, vals in grouped_values.items():
-                avg_values.append((name, sum(vals) / len(vals)))
+                avg = sum(vals) / len(vals)
+                std = math.sqrt(sum((val - avg) ** 2 for val in vals))
 
+                avg_values.append((name, avg, std))
+        
             named_data_matrix[metric_name][plane][idx] += sorted(avg_values)
             if len(avg_values) > len(instances):
-                instances = [n for n, _ in sorted(avg_values)]
+                instances = [n for n, _, _ in sorted(avg_values)]
             
         idx += 1
    
@@ -167,14 +171,14 @@ def plot_bar(
     
     data_matrix = defaultdict(
         lambda: defaultdict(lambda: [
-            [0] * len(instances) for _ in range(len(plot_data))
+            [(0, 0)] * len(instances) for _ in range(len(plot_data))
         ])
     )
     for metric, plane_matrix in sorted(named_data_matrix.items()):
         for plane, matrix in sorted(plane_matrix.items()):
             for idx, line in enumerate(matrix):
-                for name, value in line:
-                    data_matrix[metric][plane][idx][pos[name]] = value
+                for name, value, std in line:
+                    data_matrix[metric][plane][idx][pos[name]] = value, std
 
     # plot stuff
     colors = ['b', 'g', 'r', 'y', 'c', 'm', 'orange', 'mediumspringgreen', 'peru']
@@ -183,27 +187,38 @@ def plot_bar(
             continue
 
         hatches = ['x', None]
+        bar_colors = ['lightgray', 'black']
         max_plane = max(plane_matrix.keys())
         if max_plane == 1:
             hatches = [None]
         for plane, matrix in sorted(plane_matrix.items()):
             plot_name = f"{plot_base}_{metric}.png"
+           
+            data = [[val for val, std in line] for line in matrix]
+            std = [[std for val, std in line] for line in matrix]
 
             ax = plt.subplot(111)
             x = np.arange(len(plot_data))
             
-            transp = np.transpose(matrix)
-           
+            data_transp = np.transpose(data)
+            std_transp = np.transpose(std)
+
             width = 1. / (len(instances) + 1)
-            for i in range(len(transp)):
+            for i in range(len(data_transp)):
                 ax.bar(
                     x + width * i, 
-                    transp[i], 
+                    data_transp[i], 
                     color = colors[i], 
+                    #yerr = std_transp[i],
+                    #error_kw=dict(
+                    #    ecolor=bar_colors[max_plane - plane], 
+                    #    lw=(max_plane - plane + 1) * 2.5, 
+                    #    capsize=0, 
+                    #    capthick=2,
+                    #),
                     width = width * 0.8 ** (max_plane - plane),
                     alpha = 0.7 ** (max_plane - plane + 1),
                     hatch = hatches[plane - 1],
-                    # edgecolor = 'white',
                 )
         ax.get_xaxis().set_visible(False)
         plt.ylabel(metric)
