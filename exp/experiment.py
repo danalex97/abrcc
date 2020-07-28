@@ -88,35 +88,36 @@ def traffic(args: Namespace) -> None:
     experiments = []
     experiment_path = str(Path(root_path) / 'fct')
     subpath = experiment_path
-    latency = 500
-    for (where, algo, cc) in instances:
-        for run_id in range(10):
-            bandwidth = random.choice([3, 2, 1])
-            video = random.choice(videos)
+    latency = 100
+    for bandwidth in [5, 4, 3]:
+        for (where, algo, cc) in instances:
+            for run_id in range(10):
+                video = random.choice(videos)
 
-            server = f"{where} {algo} --name abr --cc {cc} --video {video}" 
-            path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
-            
-            runner_log.write(f'> {path}\n')
-            run_traffic(path, f"{server} -l {latency} -b {bandwidth}", headless=args.headless)
-            
-            if cc == "gap":
-                cc = "gap2"
-            experiments.append(Experiment(
-                video = video,
-                path = str(Path(path) / "abr_plots.log"),
-                latency = latency,
-                bandwidth = bandwidth,
-                extra = ["fct", algo, cc],
-                run_id = run_id,
-            ))
+                server = f"{where} {algo} --name abr --cc {cc} --video {video}" 
+                path = str(Path(subpath) / f"{algo}_{cc}_{bw}_run{run_id}")
+                
+                runner_log.write(f'> {path}\n')
+                run_traffic(path, f"{server} -l {latency} -b {bandwidth} --light", headless=args.headless)
+                
+                if cc == "gap":
+                    cc = "gap2"
+                experiments.append(Experiment(
+                    video = video,
+                    path = str(Path(path) / "abr_plots.log"),
+                    latency = latency,
+                    bandwidth = bandwidth,
+                    extra = ["fct", algo, cc],
+                    run_id = run_id,
+                ))
     if args.dry:
         print(experiments)
         print(len(experiments))
     else:
         save_experiments(experiment_path, experiments)
         generate_summary(experiment_path, experiments)
-    
+   
+    latency = 500
     for video in videos:
         experiments = []
         experiment_path = str(Path(root_path) / video)

@@ -15,14 +15,15 @@ from typing import List, Tuple, Optional
 DEFAULT_CACHE_SIZE = 100
 DEFAULT_CONNECTIONS = 50
 DEFAULT_INSTANCES = 5
-START_PORT = 8815
+START_PORT = 6815
 
 
 def generate_traffic(
     port: int, 
     cache: int, 
     connections: int, 
-    time_log_path: Optional[str] = None
+    time_log_path: Optional[str] = None,
+    light: bool = True,
 ) -> Tuple[Popen, Popen]:
     dir_path = os.path.dirname(os.path.realpath(__file__))
     exec_dir = str(Path(dir_path) / '..')
@@ -31,13 +32,16 @@ def generate_traffic(
     client_script = 'traffic_client.py'
 
     client_extra = []
+    server_extra = []
     if time_log_path:
         client_extra += ['--time-log', str(Path(exec_dir) / time_log_path)]
+    if light:
+        server_extra += ['--light']
 
     server = Popen([
         'python3', str(Path(dir_path) / server_script), '--port', f"{port}", 
         '--cache', f"{cache}"
-    ], cwd=exec_dir)
+    ] + server_extra, cwd=exec_dir)
     client = Popen([
         'python3', str(Path(dir_path) / client_script), '--port', f"{port}",
         '--connections', f"{connections}"
@@ -56,12 +60,14 @@ class TrafficGenerator:
         start_port: int = START_PORT, 
         instances: int = DEFAULT_INSTANCES,
         time_log_path: Optional[str] = None,
+        light: bool = True,
     ) -> None:
         self.start_port = start_port
         self.instances = instances
         self.running = []
         self.time_log_path = time_log_path
-
+        self.light = light
+        
     @property
     def ports(self) -> List[int]:
         return [self.start_port + i for i in range(self.instances)] 
@@ -76,6 +82,7 @@ class TrafficGenerator:
                 DEFAULT_CACHE_SIZE, 
                 DEFAULT_CONNECTIONS,
                 log_file,
+                self.light,
             ) 
             self.running.append(client)
             self.running.append(server)
