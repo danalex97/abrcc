@@ -65,9 +65,9 @@ def retry(tries: int = 2, timeout: int = 600) -> Callable[[Callable], Callable]:
                         done
                     """)
                     max_clients = 10
-                    ports = [8000 + i for i in range(max_clients)]
+                    ports = ([8000 + i for i in range(max_clients)]
                           + [4000 + i for i in range(max_clients)]
-                          + [8080 + i for i in range(max_clients)]
+                          + [8080 + i for i in range(max_clients)])
                     for port in ports:
                         os.system(f"kill -9 $(lsof -t -i:{port})")
                     os.system("pkill -9 chrome")

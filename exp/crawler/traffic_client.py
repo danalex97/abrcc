@@ -1,5 +1,6 @@
 import asyncio
 import aiohttp
+import os
 
 import argparse
 import random
@@ -7,8 +8,30 @@ import logging
 import time
 import functools
 
-from typing import Optional
+from typing import Optional, TextIO
 
+
+class LazyFileWriter:
+    def __init__(self, path: str) -> None:
+        os.system(f"touch -p {path}")
+        self.log = open(path, 'w')
+        self.values = []
+
+    def write(self, value: int) -> None:
+        self.values.append(value)
+        if len(self.values) > 100:
+            self.flush()
+
+    def flush(self) -> None:
+        for value in self.values:
+            self.log.write(f"{value}\n")
+        self.log.flush()
+        self.values = []
+
+
+    def __del__(self) -> None:
+        self.log.close()
+    
 
 class TimedTCPConnector(aiohttp.TCPConnector):
     def __init__(self, *args, **kwargs):
@@ -24,26 +47,29 @@ class TimedTCPConnector(aiohttp.TCPConnector):
         return await super()._create_connection(*args, **kwargs)
 
 
-async def get(port: int, time_log: Optional[str]) -> int:
+async def get(port: int, time_log: Optional[LazyFileWriter]) -> int:
     try:
         connector = TimedTCPConnector()
         async with aiohttp.ClientSession(connector=connector) as session:
             link = f'https://localhost:{port}/traffic'
-            async with session.get(link, ssl=False, timeout=5) as response:
+            async with session.get(link, ssl=False, timeout=10) as response:
                 text = await response.text()
                 started_time_connection = connector.connection_started_time 
                 if started_time_connection is not None:
                     current_time = time.time()
                     connection_time_ms = (current_time - started_time_connection) * 1000
-                    with open(time_log, 'a') as log:
-                        log.write(f"{connection_time_ms}\n")
+                    logging.info(f'Flow completion time: {connection_time_ms} ms')
+                    if time_log:
+                        time_log.write(connection_time_ms)
                 return len(text)
     except Exception as e:
+        if time_log:
+            time_log.flush()
         logging.info(f'Exception during GET request: {e}')
         return 0
 
 
-async def request(port: int, time_log: Optional[str] = None) -> None:
+async def request(port: int, time_log: Optional[LazyFileWriter] = None) -> None:
      wait = random.random() * 2 
      await asyncio.sleep(wait)
 
@@ -60,9 +86,14 @@ async def main() -> None:
     parser.add_argument('--time-log', metavar='-l', type=str, help='Location for time log.')
     args = parser.parse_args()
 
+    if args.time_log is not None:
+        time_log = LazyFileWriter(args.time_log)
+    else:
+        time_log = None
+
     while True:
         await asyncio.gather(*[
-            request(args.port, args.time_log)
+            request(args.port, time_log)
             for _ in range(args.connections)
         ])
     

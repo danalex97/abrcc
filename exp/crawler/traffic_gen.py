@@ -5,10 +5,11 @@ from server.server import ctx_component, Component, JSONType
 
 import argparse
 import os
+import uuid
 
 from pathlib import Path
 from subprocess import Popen 
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 
 DEFAULT_CACHE_SIZE = 100
@@ -17,12 +18,21 @@ DEFAULT_INSTANCES = 5
 START_PORT = 8815
 
 
-def generate_traffic(port: int, cache: int, connections: int) -> Tuple[Popen, Popen]:
+def generate_traffic(
+    port: int, 
+    cache: int, 
+    connections: int, 
+    time_log_path: Optional[str] = None
+) -> Tuple[Popen, Popen]:
     dir_path = os.path.dirname(os.path.realpath(__file__))
     exec_dir = str(Path(dir_path) / '..')
 
     server_script = 'traffic_server.py'
     client_script = 'traffic_client.py'
+
+    client_extra = []
+    if time_log_path:
+        client_extra += ['--time-log', str(Path(exec_dir) / time_log_path)]
 
     server = Popen([
         'python3', str(Path(dir_path) / server_script), '--port', f"{port}", 
@@ -31,7 +41,7 @@ def generate_traffic(port: int, cache: int, connections: int) -> Tuple[Popen, Po
     client = Popen([
         'python3', str(Path(dir_path) / client_script), '--port', f"{port}",
         '--connections', f"{connections}"
-    ], cwd=exec_dir)
+    ] + client_extra , cwd=exec_dir)
     
     return server, client
 
@@ -40,14 +50,17 @@ class TrafficGenerator:
     start_port: int
     instances: int
     running: List[Popen]
+    time_log_path: Optional[str]
 
     def __init__(self, 
         start_port: int = START_PORT, 
         instances: int = DEFAULT_INSTANCES,
+        time_log_path: Optional[str] = None,
     ) -> None:
         self.start_port = start_port
         self.instances = instances
         self.running = []
+        self.time_log_path = time_log_path
 
     @property
     def ports(self) -> List[int]:
@@ -56,7 +69,14 @@ class TrafficGenerator:
     @ctx_component
     async def on_start(self, json: JSONType) -> JSONType:
         for i in range(self.instances):
-            server, client = generate_traffic(self.start_port + i, DEFAULT_CACHE_SIZE, DEFAULT_CONNECTIONS) 
+            log_id = str(uuid.uuid1())[:8]
+            log_file = str(Path(self.time_log_path) / f'fct_{log_id}.log')
+            server, client = generate_traffic(
+                self.start_port + i, 
+                DEFAULT_CACHE_SIZE, 
+                DEFAULT_CONNECTIONS,
+                log_file,
+            ) 
             self.running.append(client)
             self.running.append(server)
         return 'OK'

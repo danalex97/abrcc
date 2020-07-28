@@ -1,8 +1,7 @@
 __pycache__
 logs/*
 experiments
-*.swp
-*.swm
+*.sw*
 old/
 test/
 crawler/cache

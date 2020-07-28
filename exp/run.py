@@ -50,7 +50,9 @@ def run(args: Namespace) -> None:
 
     traffic_generator = EmptyTrafficGenerator()
     if getattr(args, 'traffic', False):
-        traffic_generator = TrafficGenerator()
+        traffic_generator = TrafficGenerator(
+            time_log_path = path,
+        )
 
     # Add controller for launching the QUIC server and browser 
     controller = Controller(
