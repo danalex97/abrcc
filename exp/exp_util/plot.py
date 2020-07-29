@@ -1,4 +1,4 @@
-from typing import List, Union, Tuple, Callable
+from typing import Dict, List, Union, Tuple, Callable
 from collections import defaultdict
 
 from exp_util.data import Experiment
@@ -21,11 +21,11 @@ Plane = int
 TagMapping = Tuple[Tag, Tuple[Instance, Name, Plane]]
 
 
-def plot_cdf(
+def get_plot_data(
     plot_base: str,
     experiments: List[Experiment],
     tag_maps: List[TagMapping],
-) -> None:
+) -> Dict[Tuple[int, int, str], List[Tuple[Experiment, str]]]:
     plot_data = defaultdict(list)
     for tags, instance_name in tag_maps:
         for experiment in experiments: 
@@ -36,14 +36,14 @@ def plot_cdf(
                     experiment.trace,
                 )
                 plot_data[env].append((experiment, instance_name))
+    return plot_data
 
-    idx = 0
-    instances = []
 
-    # get all metrics
+def get_metrics(
+    plot_data: Dict[Tuple[int, int, str], List[Tuple[Experiment, str]]]
+) -> Dict[str, List[Tuple[str, float]]]:
     metrics = defaultdict(list)
     for env, exp_inst in plot_data.items():
-        # get plot path
         latency, bandwidth, trace = env
         
         for exp, instance_name in exp_inst: 
@@ -57,6 +57,68 @@ def plot_cdf(
                         metrics[metric.metric].append((name, metric.value))
             else:
                 raise NotImplementedError()
+    return metrics
+
+
+def get_fcts(
+    plot_data: Dict[Tuple[int, int, str], List[Tuple[Experiment, str]]]
+) -> Dict[str, List[float]]:
+    out = defaultdict(list)
+    for env, exp_inst in plot_data.items():
+        latency, bandwidth, trace = env
+        for exp, instance_name in exp_inst:
+            instance: Instance = instance_name[0]
+            name: str = instance_name[1]
+            plane: int = instance_name[2]
+
+            if type(instance) == str:
+                fcts = exp.get_flow_completion_times()
+                out[name] += [v / 1000. for v in fcts]
+            else:
+                raise NotImplementedError()
+    return out
+
+
+def plot_fct_cdf(
+    plot_base: str,
+    experiments: List[Experiment],
+    tag_maps: List[TagMapping],
+) -> None:
+    plot_data = get_plot_data(plot_base, experiments, tag_maps)
+    fcts      = get_fcts(plot_data)
+    
+    plot_name = f"{plot_base}.png"
+    ax = plt.subplot(111)
+    schemes = []
+    marker_index = 0
+    for scheme, cur_values in fcts.items():
+        values, base = np.histogram(cur_values, bins=len(cur_values))
+        cumulative   = np.cumsum(values)
+        cumulative   = [float(i) / len(values) * 100 for i in cumulative]
+        ax.plot(
+            base[:-1], 
+            cumulative, 
+            linewidth=2, 
+        )
+        schemes.append(scheme)
+
+    ax.get_xaxis().set_visible(True)
+    ax.legend(schemes, loc=4)
+    plt.ylabel('CDF')
+    plt.xlabel('Flow completion time(s)')
+    
+    plt.savefig(plot_name, dpi=DPI)
+    ax.cla()
+
+
+
+def plot_cdf(
+    plot_base: str,
+    experiments: List[Experiment],
+    tag_maps: List[TagMapping],
+) -> None:
+    plot_data = get_plot_data(plot_base, experiments, tag_maps)
+    metrics   = get_metrics(plot_data)  
 
     markers = [',', 'o', 'v', '^', '>', '<', 's', 'x', 'D', 'd', '*', '_', '']
     for metric, instance_value in metrics.items():
@@ -101,17 +163,8 @@ def plot_bar(
     experiments: List[Experiment],
     tag_maps: List[TagMapping],
 ) -> None:
-    plot_data = defaultdict(list)
-    for tags, instance_name in tag_maps:
-        for experiment in experiments: 
-            if all((tag in experiment.extra) for tag in tags):
-                env = (
-                    experiment.latency,
-                    experiment.bandwidth,
-                    experiment.trace,
-                )
-                plot_data[env].append((experiment, instance_name))
-
+    plot_data = get_plot_data(plot_base, experiments, tag_maps)
+    
     idx = 0
     instances = []
     named_data_matrix = defaultdict(

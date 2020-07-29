@@ -21,6 +21,11 @@ class ExperimentMetric:
         return self.__str__()
 
 
+class FlowCompletionTime(ExperimentMetric):
+    def __init__(self, instance: str, value: float) -> None:
+        super().__init__('fct', instance, value)
+
+
 class RawQoe(ExperimentMetric):
     def __init__(self, instance: str, value: float) -> None:
         super().__init__('raw_qoe', instance, value)
@@ -49,6 +54,17 @@ class Experiment:
         self.run_id = run_id
         self.metrics = []
         self.video = video
+    
+    def get_flow_completion_times(self) -> List[float]: 
+        base_path  = str(Path(self.path).parents[0])
+        all_values = []
+        for file_ in Path(base_path).iterdir():
+            file_path = str(file_)
+            if "fct_" in file_path:
+                with open(file_path, 'r') as f:
+                    values = [float(l) for l in f.read().split('\n') if l != ""]
+                    all_values += values  
+        return all_values
 
     def get_metrics(self) -> List[ExperimentMetric]:
         try:

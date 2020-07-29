@@ -1,11 +1,11 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 from abr.video import get_video_chunks
 from exp_util.env import experiments, experiment, run_subexp, run_trace, run_traffic
 from exp_util.data import Experiment, save_experiments, generate_summary, load_experiments
-from exp_util.plot import plot_bar, plot_cdf
+from exp_util.plot import plot_bar, plot_cdf, plot_fct_cdf
 
 import os
 import time
@@ -95,19 +95,18 @@ def traffic(args: Namespace) -> None:
                 video = random.choice(videos)
 
                 server = f"{where} {algo} --name abr --cc {cc} --video {video}" 
-                path = str(Path(subpath) / f"{algo}_{cc}_{bw}_run{run_id}")
+                path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
                 
                 runner_log.write(f'> {path}\n')
                 run_traffic(path, f"{server} -l {latency} -b {bandwidth} --light", headless=args.headless)
-                
-                if cc == "gap":
-                    cc = "gap2"
+               
+                cc_name = cc if cc != "gap" else "gap2"
                 experiments.append(Experiment(
                     video = video,
                     path = str(Path(path) / "abr_plots.log"),
                     latency = latency,
                     bandwidth = bandwidth,
-                    extra = ["fct", algo, cc],
+                    extra = ["fct", algo, cc_name, f"bw{bandwidth}"],
                     run_id = run_id,
                 ))
     if args.dry:
@@ -677,8 +676,28 @@ def generate_plots(args: Namespace) -> None:
             (["traffic", "gap"], (cap, "Gap", 1) ),
         ])
 
+    def plot_fct_traffic(path: str, experiments: List[Experiment], bw :Optional[int] = None) -> None:
+        extra = [f"bw{bw}"] if bw else []
+        plot_fct_cdf(path, experiments, [
+            (["fct", "robustMpc", "bbr2"] + extra, ('abr', "RobustMpc-BBR", 1) ),
+            (["fct", "robustMpc", "cubic"] + extra, ('abr', "RobustMpc-Cubic", 1) ),
+            (["fct", "dynamic", "bbr2"] + extra, ('abr', "Dynamic-BBR", 1) ),
+            (["fct", "dynamic", "cubic"] + extra, ('abr', "Dynamic-Cubic", 1) ),
+            (["fct", "gap"] + extra, ('abr', "Gap", 1) ),
+        ])
+
     experiment_path = str(Path("experiments") / "plots")
     os.system(f"mkdir -p {experiment_path}")
+
+    # traffic fct
+    traffic_path = str(Path(experiment_path) / "traffic")
+    os.system(f"mkdir -p {traffic_path}")
+    experiments = sum([load_experiments(experiment) for experiment in [
+        str(Path("experiments") / "traffic" / "fct"),
+    ]], [])
+    for bw in [5, 4, 3]:
+        plot_fct_traffic(str(Path(traffic_path) / f"fct{bw}"), experiments, bw=bw)
+    plot_fct_traffic(str(Path(traffic_path) / "fct"), experiments)
     
     # per-video plots
     videos = ['got', 'bojack', 'guard', 'cook']
