@@ -26,7 +26,6 @@ namespace MinervaConstants {
 
   const double rebufPenalty = 4.3;
   const double smoothPenalty = 1;
-  const double minBwMbps = .1;
   const int horizon = 5;
 }
 
@@ -228,55 +227,10 @@ static double get_best_rate(
   std::vector<int> bitrates,
   std::vector<std::vector<VideoInfo> > segments, 
   int index,
+  int last_quality, 
   double buffer,
-  double rebuffer, 
-  double &last_quality, 
-  double &last_rebuffer_time,
-  double bit_rate,
-  double &last_bit_rate,
-  int remaining_video_chunks,
-  std::vector<double> &bandwidths,
-  std::vector<double> &past_bw_estimates,
-  std::vector<double> &past_errors
+  double download_rate
 ) {
-  // update state
-  last_bit_rate = bit_rate;
-  last_rebuffer_time = rebuffer;
-
-  // compute bandwidth measurements
-  double bandwidth = std::max(bandwidths.back(), MinervaConstants::minBwMbps);
-  
-  // compute current error 
-  if (past_bw_estimates.size() == 0) {
-    past_errors.push_back(0);
-  } else {
-    double current_error = std::abs(past_bw_estimates.back() - bandwidth) / bandwidth;
-    past_errors.push_back(current_error);
-  }
-  
-  // past bandwidth
-  double harmonic_bandwidth = 0;
-  int counter = 0;
-  for (int i = int(bandwidths.size() - 1), 
-           j = MinervaConstants::horizon; j > 0 && i >= 0; --i, --j) {
-    harmonic_bandwidth += 1. / bandwidths[i];
-    counter++;
-  }
-  harmonic_bandwidth = counter / harmonic_bandwidth;
-  
-  double max_error = 0;
-  for (int i = int(past_errors.size() - 1), 
-           j = MinervaConstants::horizon; j > 0 && i >= 0; --i, --j) {
-    max_error = std::max(max_error, past_errors[i]);
-  }
-  
-  // compute future bandwidth
-  double future_bandwidth = std::max(
-    harmonic_bandwidth / (1 + max_error), 
-    MinervaConstants::minBwMbps
-  );
-  past_bw_estimates.push_back(harmonic_bandwidth);
-
   // max reward
   double start_buffer = buffer;
   double max_reward = 0, best_rate = 0; 
@@ -292,7 +246,7 @@ static double get_best_rate(
       int current_index = index + position;
     
       double size = 8 * segments[chunk_quality][current_index].size / 1000. / 1000.; // in mb
-      double download_time = size / future_bandwidth;
+      double download_time = size / download_rate;
 
       // simulate future buffer
       if (current_buffer < download_time) {
