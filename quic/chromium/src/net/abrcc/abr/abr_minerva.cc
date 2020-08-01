@@ -27,6 +27,9 @@ namespace MinervaConstants {
   const double rebufPenalty = 4.3;
   const double smoothPenalty = 1;
   const int horizon = 5;
+
+  const double beta = 2.5; 
+  const double gamma = 100.; 
 }
 
 MinervaAbr::MinervaAbr(const std::shared_ptr<DashBackendConfig>& config) 
@@ -37,7 +40,9 @@ MinervaAbr::MinervaAbr(const std::shared_ptr<DashBackendConfig>& config)
   , past_rates()
   , moving_average_rate(MinervaConstants::initMovingAverageRate) 
   , last_index(-1)
-  , last_timestamp(0) {
+  , last_timestamp(0)
+  , last_quality(-1) 
+  , last_buffer(0, 0) {
 
   // compute segments
   segments = std::vector< std::vector<VideoInfo> >();
@@ -70,6 +75,14 @@ MinervaAbr::~MinervaAbr() {}
 
 void MinervaAbr::registerAbort(const int index) {}
 void MinervaAbr::registerMetrics(const abr_schema::Metrics &metrics) {
+  // Update last buffer
+  for (const auto& buffer : metrics.bufferLevel) {
+    if (buffer->timestamp > last_buffer.timestamp) {
+      last_buffer.value = buffer->value;
+      last_buffer.timestamp = buffer->timestamp;
+    }
+  }
+  
   // Register loading segments
   for (const auto& segment : metrics.segments) {
     last_timestamp = std::max(last_timestamp, segment->timestamp);
@@ -77,6 +90,7 @@ void MinervaAbr::registerMetrics(const abr_schema::Metrics &metrics) {
       last_segment[segment->index] = *segment;
       if (segment->index > last_index) {
         last_index = segment->index;
+        last_quality = segment->quality;
       }
     }
   }
@@ -223,7 +237,23 @@ static std::vector<std::vector<int>> cartesian(int depth, int max) {
   return out;
 }
 
-static double get_best_rate(
+static double get_qoe(
+  std::vector<std::vector<VideoInfo> > &segments,
+  int index,
+  int quality, 
+  int last_quality,
+  int rebuffer
+) {
+  double qoe = 0;
+  qoe += segments[quality][index].vmaf;
+  if (index > 0) {
+    qoe -= MinervaConstants::beta * std::abs(segments[quality][index].vmaf - segments[last_quality][index - 1].vmaf);
+  }
+  qoe -= MinervaConstants::gamma * rebuffer;
+  return qoe;
+}
+
+static const std::tuple<int, double, double> get_best_rate(
   std::vector<int> bitrates,
   std::vector<std::vector<VideoInfo> > segments, 
   int index,
@@ -233,12 +263,13 @@ static double get_best_rate(
 ) {
   // max reward
   double start_buffer = buffer;
-  double max_reward = 0, best_rate = 0; 
+  double max_reward = 0, best_rate = 0, rebuffer = 0, expected_qoe = 0; 
   for (auto &combo : cartesian(MinervaConstants::horizon, segments.size())) {
     double current_rebuffer = 0;
     double current_buffer = start_buffer;
     double bitrate_sum = 0;
     double smooth_diff = 0;
+    double current_expected_qoe = 0;
     int last_quality_ = last_quality;
 
     for (int position = 0; position < int(combo.size()); ++position) {
@@ -246,7 +277,7 @@ static double get_best_rate(
       int current_index = index + position;
     
       double size = 8 * segments[chunk_quality][current_index].size / 1000. / 1000.; // in mb
-      double download_time = size / download_rate;
+      double download_time = size / download_rate; // in s
 
       // simulate future buffer
       if (current_buffer < download_time) {
@@ -265,55 +296,60 @@ static double get_best_rate(
       bitrate_sum += bitrates[chunk_quality];
       smooth_diff += std::abs(bitrates[chunk_quality] - bitrates[last_quality_]);
       last_quality_ = chunk_quality;
+    
+      current_expected_qoe += get_qoe(
+        segments, current_index + position, chunk_quality, last_quality_, current_rebuffer
+      );  
     }
+    current_expected_qoe /= combo.size();
     
     // total reward for the combo
     double reward = bitrate_sum / 1000.
       - MinervaConstants::rebufPenalty * current_rebuffer
       - MinervaConstants::smoothPenalty * smooth_diff / 1000.;
     if (reward > max_reward) {
-      max_reward = reward;
-      best_rate  = combo[0];
+      max_reward   = reward;
+      rebuffer     = current_rebuffer;
+      best_rate    = combo[0];
+      expected_qoe = current_expected_qoe;
     }
   }
 
-  return best_rate;
+  return std::make_tuple(best_rate, rebuffer, expected_qoe);
 }
 
 double MinervaAbr::computeUtility() {
   if (last_index == -1) {
     return MinervaConstants::initUtility;
   }
-  
+ 
+  // setting local variables
   int index = last_index;
   int rate = (int)moving_average_rate;
 
-  std::vector<double> rates; // in kbps
-  for (int quality = 0; quality < int(bitrate_array.size()); ++quality) {
-    double segment_length = get_segment_length_sec(segments, index, quality);
-    int segment_size_bits = 8 * segments[quality][index].size;
+  // setting phi1 and phi2 constants from Minerva paper
+  const double phi1 = 1 / (index + 1);
+  const double phi2 = 1.;
+ 
+  // computing past qoe
+  int last_segment_quality = last_segment[index - 1].quality;
+  int prev_segment_quality = index - 2 >= 0 ? last_segment[index - 2].quality : -1;
+  double past_qoe = get_qoe(segments, index - 1, last_segment_quality, prev_segment_quality, 0);
 
-    rates.push_back(1. * segment_size_bits / segment_length / ::SECOND);
-  }
+  // computing current qoe and vh
+  auto &[cur_segment_quality, rebuffer, vh] = get_best_rate(bitrate_array, segments, index, last_quality, last_buffer.value, rate);
+  double current_qoe = get_qoe(segments, index, cur_segment_quality, last_segment_quality, rebuffer);
 
-  for (int quality = 0; quality < int(bitrate_array.size()); ++quality) {
-    if (rates[quality] <= rate && (int(rates.size()) == quality + 1 || rate <= rates[quality + 1])) {
-      if (int(rates.size()) == quality + 1) {
-        return segments[quality][index].vmaf;
-      }
 
-      // interpolate the vmaf
-      double x1 = rates[quality];
-      double x2 = rates[quality + 1];
-      double x = rate; 
-      double y1 = segments[quality][index].vmaf;
-      double y2 = segments[quality + 1][index].vmaf;
-    
-      return y1 + (x - x1) / (x2 - x1) * (y2 - y1);
-    }
-  }
+  // compute utility
+  double utility = (phi1 * past_qoe + phi2 * current_qoe + vh) / (1. + phi1 + phi2);
 
-  return segments[0][index].vmaf;
+  QUIC_LOG(WARNING) << "Past qoe: " << past_qoe;
+  QUIC_LOG(WARNING) << "Curr qoe: " << current_qoe;
+  QUIC_LOG(WARNING) << "Vh: " << vh;
+  QUIC_LOG(WARNING) << "Utility: " << utility;
+
+  return utility;
 }
 
 }

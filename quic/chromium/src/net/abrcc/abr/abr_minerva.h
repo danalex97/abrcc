@@ -62,6 +62,8 @@ class MinervaAbr : public AbrInterface {
   std::unordered_map<int, abr_schema::Segment> last_segment;  
   int last_index;
   int last_timestamp;
+  int last_quality;
+  abr_schema::Value last_buffer; 
 };
 
 }
