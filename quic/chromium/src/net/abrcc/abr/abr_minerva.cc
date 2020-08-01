@@ -1,5 +1,9 @@
 #include "net/abrcc/abr/abr_minerva.h"
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+
+
 #include <chrono>
 #include <cmath>
 using namespace std::chrono;
@@ -19,6 +23,11 @@ namespace MinervaConstants {
   const int initMovingAverageRate = -1;
   const int initUtility = 0;
   const double movingAverageRateProportion = .9;
+
+  const double rebufPenalty = 4.3;
+  const double smoothPenalty = 1;
+  const double minBwMbps = .1;
+  const int horizon = 5;
 }
 
 MinervaAbr::MinervaAbr(const std::shared_ptr<DashBackendConfig>& config) 
@@ -196,6 +205,126 @@ static double get_segment_length_sec(
   return segment_length_ms / ::SECOND;
 }
 
+static std::vector<std::vector<int>> cartesian(int depth, int max) {
+  std::vector<std::vector<int> > out; 
+  if (depth <= 0) {
+    out.push_back(std::vector<int>());
+    return out;
+  }
+  std::vector<std::vector<int> > rest = cartesian(depth - 1, max);
+  for (int i = 0; i < max; ++i) {
+    for (auto &vec : rest) {
+      std::vector<int> now = {i};
+      for (auto &x : vec) {
+        now.push_back(x);
+      }
+      out.push_back(now);
+    }
+  }
+  return out;
+}
+
+static double get_best_rate(
+  std::vector<int> bitrates,
+  std::vector<std::vector<VideoInfo> > segments, 
+  int index,
+  double buffer,
+  double rebuffer, 
+  double &last_quality, 
+  double &last_rebuffer_time,
+  double bit_rate,
+  double &last_bit_rate,
+  int remaining_video_chunks,
+  std::vector<double> &bandwidths,
+  std::vector<double> &past_bw_estimates,
+  std::vector<double> &past_errors
+) {
+  // update state
+  last_bit_rate = bit_rate;
+  last_rebuffer_time = rebuffer;
+
+  // compute bandwidth measurements
+  double bandwidth = std::max(bandwidths.back(), MinervaConstants::minBwMbps);
+  
+  // compute current error 
+  if (past_bw_estimates.size() == 0) {
+    past_errors.push_back(0);
+  } else {
+    double current_error = std::abs(past_bw_estimates.back() - bandwidth) / bandwidth;
+    past_errors.push_back(current_error);
+  }
+  
+  // past bandwidth
+  double harmonic_bandwidth = 0;
+  int counter = 0;
+  for (int i = int(bandwidths.size() - 1), 
+           j = MinervaConstants::horizon; j > 0 && i >= 0; --i, --j) {
+    harmonic_bandwidth += 1. / bandwidths[i];
+    counter++;
+  }
+  harmonic_bandwidth = counter / harmonic_bandwidth;
+  
+  double max_error = 0;
+  for (int i = int(past_errors.size() - 1), 
+           j = MinervaConstants::horizon; j > 0 && i >= 0; --i, --j) {
+    max_error = std::max(max_error, past_errors[i]);
+  }
+  
+  // compute future bandwidth
+  double future_bandwidth = std::max(
+    harmonic_bandwidth / (1 + max_error), 
+    MinervaConstants::minBwMbps
+  );
+  past_bw_estimates.push_back(harmonic_bandwidth);
+
+  // max reward
+  double start_buffer = buffer;
+  double max_reward = 0, best_rate = 0; 
+  for (auto &combo : cartesian(MinervaConstants::horizon, segments.size())) {
+    double current_rebuffer = 0;
+    double current_buffer = start_buffer;
+    double bitrate_sum = 0;
+    double smooth_diff = 0;
+    int last_quality_ = last_quality;
+
+    for (int position = 0; position < int(combo.size()); ++position) {
+      int chunk_quality = combo[position];
+      int current_index = index + position;
+    
+      double size = 8 * segments[chunk_quality][current_index].size / 1000. / 1000.; // in mb
+      double download_time = size / future_bandwidth;
+
+      // simulate future buffer
+      if (current_buffer < download_time) {
+        current_rebuffer += download_time - current_buffer;
+        current_buffer = 0;
+      } else {
+        current_buffer -= download_time;
+      }
+      current_buffer += current_index + position + 1 >= int(segments.size()) 
+        ?   segments[chunk_quality][current_index + position + 1].start_time 
+          - segments[chunk_quality][current_index + position].start_time
+        :   segments[chunk_quality][current_index + position].start_time
+          - segments[chunk_quality][current_index + position - 1].start_time;
+      
+      // liner reward for the buffer
+      bitrate_sum += bitrates[chunk_quality];
+      smooth_diff += std::abs(bitrates[chunk_quality] - bitrates[last_quality_]);
+      last_quality_ = chunk_quality;
+    }
+    
+    // total reward for the combo
+    double reward = bitrate_sum / 1000.
+      - MinervaConstants::rebufPenalty * current_rebuffer
+      - MinervaConstants::smoothPenalty * smooth_diff / 1000.;
+    if (reward > max_reward) {
+      max_reward = reward;
+      best_rate  = combo[0];
+    }
+  }
+
+  return best_rate;
+}
 
 double MinervaAbr::computeUtility() {
   if (last_index == -1) {
@@ -235,3 +364,4 @@ double MinervaAbr::computeUtility() {
 
 }
 
+#pragma GCC diagnostic pop
