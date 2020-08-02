@@ -246,7 +246,7 @@ static double get_qoe(
 ) {
   double qoe = 0;
   qoe += segments[quality][index].vmaf;
-  if (index > 0) {
+  if (last_quality != -1) {
     qoe -= MinervaConstants::beta * std::abs(segments[quality][index].vmaf - segments[last_quality][index - 1].vmaf);
   }
   qoe -= MinervaConstants::gamma * rebuffer;
@@ -271,11 +271,16 @@ static const std::tuple<int, double, double> get_best_rate(
     double smooth_diff = 0;
     double current_expected_qoe = 0;
     int last_quality_ = last_quality;
-
+    int combo_size = 0;
+  
     for (int position = 0; position < int(combo.size()); ++position) {
       int chunk_quality = combo[position];
       int current_index = index + position;
     
+      if (current_index >= int(segments[0].size())) {
+        break;
+      }
+
       double size = 8 * segments[chunk_quality][current_index].size / 1000. / 1000.; // in mb
       double download_time = size / download_rate; // in s
 
@@ -286,22 +291,26 @@ static const std::tuple<int, double, double> get_best_rate(
       } else {
         current_buffer -= download_time;
       }
-      current_buffer += current_index + position + 1 >= int(segments.size()) 
-        ?   segments[chunk_quality][current_index + position + 1].start_time 
-          - segments[chunk_quality][current_index + position].start_time
-        :   segments[chunk_quality][current_index + position].start_time
-          - segments[chunk_quality][current_index + position - 1].start_time;
+      current_buffer += current_index + 1 < int(segments.size()) 
+        ?   segments[chunk_quality][current_index + 1].start_time 
+          - segments[chunk_quality][current_index].start_time
+        :   segments[chunk_quality][current_index].start_time
+          - segments[chunk_quality][current_index - 1].start_time;
       
       // liner reward for the buffer
       bitrate_sum += bitrates[chunk_quality];
       smooth_diff += std::abs(bitrates[chunk_quality] - bitrates[last_quality_]);
-      last_quality_ = chunk_quality;
-    
+      
+      // update current expected qoe
       current_expected_qoe += get_qoe(
-        segments, current_index + position, chunk_quality, last_quality_, current_rebuffer
-      );  
+        segments, current_index, chunk_quality, last_quality_, current_rebuffer
+      ); 
+      
+      // update last quality after the expected qoe was updated
+      last_quality_ = chunk_quality;
+      combo_size++;
     }
-    current_expected_qoe /= combo.size();
+    current_expected_qoe /= std::max(combo_size, 1);
     
     // total reward for the combo
     double reward = bitrate_sum / 1000.
@@ -319,7 +328,7 @@ static const std::tuple<int, double, double> get_best_rate(
 }
 
 double MinervaAbr::computeUtility() {
-  if (last_index == -1) {
+  if (last_index <= 1) {
     return MinervaConstants::initUtility;
   }
  
@@ -332,21 +341,22 @@ double MinervaAbr::computeUtility() {
   const double phi2 = 1.;
  
   // computing past qoe
-  int last_segment_quality = last_segment[index - 1].quality;
-  int prev_segment_quality = index - 2 >= 0 ? last_segment[index - 2].quality : -1;
-  double past_qoe = get_qoe(segments, index - 1, last_segment_quality, prev_segment_quality, 0);
+  int last_segment_quality = last_segment[index].quality;
+  int prev_segment_quality = last_segment.find(index - 1) == last_segment.end() 
+    ? -1 : last_segment[index - 1].quality;
+  double past_qoe = get_qoe(segments, index, last_segment_quality, prev_segment_quality, 0);
+  QUIC_LOG(WARNING) << "Past qoe: " << past_qoe;
 
   // computing current qoe and vh
-  auto &[cur_segment_quality, rebuffer, vh] = get_best_rate(bitrate_array, segments, index, last_quality, last_buffer.value, rate);
-  double current_qoe = get_qoe(segments, index, cur_segment_quality, last_segment_quality, rebuffer);
-
+  auto &[cur_segment_quality, rebuffer, vh] = get_best_rate(
+    bitrate_array, segments, index + 1, last_quality, last_buffer.value, rate
+  );
+  QUIC_LOG(WARNING) << "Vh: " << vh;
+  double current_qoe = get_qoe(segments, index + 1, cur_segment_quality, last_segment_quality, rebuffer);
+  QUIC_LOG(WARNING) << "Curr qoe: " << current_qoe;
 
   // compute utility
   double utility = (phi1 * past_qoe + phi2 * current_qoe + vh) / (1. + phi1 + phi2);
-
-  QUIC_LOG(WARNING) << "Past qoe: " << past_qoe;
-  QUIC_LOG(WARNING) << "Curr qoe: " << current_qoe;
-  QUIC_LOG(WARNING) << "Vh: " << vh;
   QUIC_LOG(WARNING) << "Utility: " << utility;
 
   return utility;
