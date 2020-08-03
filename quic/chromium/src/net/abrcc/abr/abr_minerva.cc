@@ -5,6 +5,21 @@
 
 #include <chrono>
 #include <cmath>
+
+#include <string>
+#include <fstream>
+#include <streambuf>
+
+#include "base/json/json_value_converter.h"
+#include "base/json/json_reader.h"
+#include "base/values.h"
+
+#include "net/abrcc/dash_config.h"
+
+
+#include <sys/types.h> 
+#include <dirent.h>
+
 using namespace std::chrono;
 
 namespace {
@@ -29,6 +44,12 @@ namespace MinervaConstants {
 
   const double beta = 2.5; 
   const double gamma = 100.; 
+
+  const int kbitstep = 10;
+  const int kbitmin = 100;
+  const int kbitmax = 3000;
+
+  const double downScale = .7;
 }
 
 MinervaAbr::MinervaAbr(
@@ -38,12 +59,16 @@ MinervaAbr::MinervaAbr(
   , timestamp_(high_resolution_clock::now()) 
   , update_interval_(base::nullopt) 
   , started_rate_update(false)
+  , norm()
   , past_rates()
   , moving_average_rate(MinervaConstants::initMovingAverageRate) 
   , last_index(-1)
   , last_timestamp(0)
   , last_quality(-1) 
   , last_buffer(0, 0) {
+
+  // compute normalization map
+  computeNormalizationMap(minerva_config_path_);
 
   // compute segments
   segments = std::vector< std::vector<VideoInfo> >();
@@ -71,8 +96,125 @@ MinervaAbr::MinervaAbr(
   }
   sort(bitrate_array.begin(), bitrate_array.end());
 }
-
 MinervaAbr::~MinervaAbr() {}
+
+static double get_segment_length_sec(
+  const std::vector< std::vector<VideoInfo> >& segments,
+  const int current_index,
+  const int chunk_quality
+) {
+  int ref_index = current_index;
+  while (ref_index + 1 >= int(segments[chunk_quality].size())) {
+    ref_index--;
+  }
+  int segment_length_ms = int(double(::SECOND) * 
+    (segments[chunk_quality][ref_index + 1].start_time 
+    - segments[chunk_quality][ref_index].start_time)
+  );
+  return segment_length_ms / ::SECOND;
+}
+
+static std::vector<double> get_scale(const std::vector< std::vector<VideoInfo> >& segments) {
+  std::vector<double> pqs;
+  for (int rate = MinervaConstants::kbitmin; 
+           rate <= MinervaConstants::kbitmax; 
+           rate += MinervaConstants::kbitstep) {
+    std::vector<double> segment_pqs;
+    for (int index = 0; index < int(segments[0].size()); ++index) {
+      std::vector<double> rates;
+      for (int quality = 0; quality < int(segments.size()); ++quality) {
+        double time_s = get_segment_length_sec(segments, index, quality);
+        double size_kb = 8. * segments[quality][index].size / 1000.;
+        
+        rates.push_back(size_kb / time_s);
+      }
+
+      double pq = 0;
+      double downscaled_rate = MinervaConstants::downScale * rate;
+      for (int quality = 0; quality < int(segments.size()); ++quality) {
+        if (rates[quality] <= downscaled_rate && (int(rates.size()) == quality + 1 || 
+                                                  downscaled_rate <= rates[quality + 1])) {
+          pq = segments[quality][index].vmaf;
+          break;
+        }
+      }
+
+      segment_pqs.push_back(pq);
+    }
+
+    double video_pq = 0;
+    for (auto &pq: segment_pqs) {
+      video_pq += pq;  
+    }
+    video_pq /= int(segment_pqs.size());
+  
+    pqs.push_back(video_pq);    
+  }
+
+  return pqs;
+}
+
+void MinervaAbr::computeNormalizationMap(const std::string& conf_path_) {
+  DIR *dr;
+  struct dirent *en;
+  dr = opendir(conf_path_.c_str()); 
+  std::vector< std::vector<double> > scales;
+  while ((en = readdir(dr)) != NULL) {
+    std::string file_name(en->d_name);
+    if (file_name.find("json") != std::string::npos) {
+      // paths list all configurations
+      std::string config_path = conf_path_ + "/" + en->d_name;
+      QUIC_LOG(WARNING) << config_path;
+    
+      // load the configuration json
+      std::ifstream stream(config_path);
+      std::string data((std::istreambuf_iterator<char>(stream)),
+                       std::istreambuf_iterator<char>());
+ 
+      base::Optional<base::Value> value = base::JSONReader::Read(data);
+      std::unique_ptr<DashBackendConfig> config = std::unique_ptr<DashBackendConfig>(
+        new DashBackendConfig()
+      );
+      base::JSONValueConverter<DashBackendConfig> converter;
+      converter.Convert(*value, config.get()); 
+      
+      // compute segments
+      std::vector<std::vector<VideoInfo> > segments = std::vector< std::vector<VideoInfo> >();
+      for (int i = 0; i < int(config->video_configs.size()); ++i) {
+        for (auto &video_config : config->video_configs) {
+          std::string resource = "/video" + std::to_string(i);
+          if (resource == video_config->resource) {
+            std::vector<VideoInfo> info;
+            for (auto &x : video_config->video_info) {
+              info.push_back(VideoInfo(
+                x->start_time,
+                x->vmaf,
+                x->size
+              ));  
+            }
+            segments.push_back(info);
+          }
+        }
+      }
+      
+      // compute bitmap scale      
+      std::vector<double> scale = get_scale(segments); 
+      scales.push_back(scale);
+    }
+  }
+
+  // compute norm scale
+  for (int i = 0; i < int(scales[0].size()); ++i) {
+    double cur = 0;
+    for (int j = 0; j < int(scales.size()); ++j) {
+      cur += scales[j][i];
+    }
+    cur /= int(scales.size());
+    norm.push_back(cur);
+  }
+
+  closedir(dr); 
+}
 
 void MinervaAbr::registerAbort(const int index) {}
 void MinervaAbr::registerMetrics(const abr_schema::Metrics &metrics) {
@@ -202,23 +344,6 @@ int MinervaAbr::conservativeRate() const {
 
   return std::max(int(.8 * past_rates.back()), int(past_rates.back() - .5 * std));
 }
-
-static double get_segment_length_sec(
-  const std::vector< std::vector<VideoInfo> >& segments,
-  const int current_index,
-  const int chunk_quality
-) {
-  int ref_index = current_index;
-  while (ref_index + 1 >= int(segments[chunk_quality].size())) {
-    ref_index--;
-  }
-  int segment_length_ms = int(double(::SECOND) * 
-    (segments[chunk_quality][ref_index + 1].start_time 
-    - segments[chunk_quality][ref_index].start_time)
-  );
-  return segment_length_ms / ::SECOND;
-}
-
 static std::vector<std::vector<int>> cartesian(int depth, int max) {
   std::vector<std::vector<int> > out; 
   if (depth <= 0) {

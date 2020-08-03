@@ -38,6 +38,9 @@ class MinervaAbr : public AbrInterface {
   std::vector< std::vector<VideoInfo> > segments;
   std::vector<int> bitrate_array;
  private:
+  // compute normalization map when Minerva is initialized
+  void computeNormalizationMap(const std::string& conf_path_);
+
   // computes a conservative rate measurement
   int conservativeRate() const;
   
@@ -58,7 +61,7 @@ class MinervaAbr : public AbrInterface {
   bool started_rate_update;
 
   // normalization function
-  // std::vector<double> norm; 
+  std::vector<double> norm; 
   
   // rate computation variables
   std::deque<int> past_rates;
