@@ -91,6 +91,7 @@ function quic_server {
 
     run_cmd $OUT_DIR/dash_server \
         $VERBOSE \
+        --minerva_config_path=$DIR/minerva_pq_configs \
         --quic_config_path=$DIR/sites/$VIDEO/config.json \
         --cc_type=$CC \
         --abr_type=$ABR \

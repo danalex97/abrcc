@@ -25,6 +25,13 @@ DEFINE_QUIC_COMMAND_LINE_FLAG(int32_t,
 
 DEFINE_QUIC_COMMAND_LINE_FLAG(
     std::string,
+    minerva_config_path,
+    "",
+    "Specifies the path to the directory of Minerva configuration"
+    "paths. The video structures provided in the directory are used"
+    "to compute the PQ normalization curve.");
+DEFINE_QUIC_COMMAND_LINE_FLAG(
+    std::string,
     quic_config_path,
     "",
     "Specifies the path to the JSON configuration path of the"
@@ -51,7 +58,7 @@ namespace quic {
 std::unique_ptr<quic::QuicSimpleServerBackend>
 QuicDashServer::MemoryCacheBackendFactory::CreateBackend() {
   auto dash_backend = std::make_unique<DashBackend>(
-    FLAGS_abr_type, FLAGS_quic_config_path, FLAGS_site
+    FLAGS_abr_type, FLAGS_quic_config_path, FLAGS_site, FLAGS_minerva_config_path
   );
   if (!GetQuicFlag(FLAGS_quic_config_path).empty()) {
     dash_backend->InitializeBackend(

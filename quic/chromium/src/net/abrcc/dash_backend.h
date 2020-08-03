@@ -19,7 +19,8 @@ class DashBackend : public QuicSimpleServerBackend {
   DashBackend(
     const std::string& abr_type, 
     const std::string& config_path,
-    const std::string& site
+    const std::string& site,
+    const std::string& minerva_config_path_ // only used by Minerva
   );
   DashBackend(const DashBackend&) = delete;
   DashBackend& operator=(const DashBackend&) = delete;

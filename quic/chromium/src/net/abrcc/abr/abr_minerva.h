@@ -25,7 +25,10 @@ namespace quic {
 
 class MinervaAbr : public AbrInterface {
  public:
-  MinervaAbr(const std::shared_ptr<DashBackendConfig>& config);
+  MinervaAbr(
+    const std::shared_ptr<DashBackendConfig>& config,
+    const std::string& minerva_config_path_
+  );
   ~MinervaAbr() override;
 
   void registerMetrics(const abr_schema::Metrics &) override;
@@ -54,6 +57,9 @@ class MinervaAbr : public AbrInterface {
   base::Optional<int> update_interval_;
   bool started_rate_update;
 
+  // normalization function
+  // std::vector<double> norm; 
+  
   // rate computation variables
   std::deque<int> past_rates;
   double moving_average_rate;

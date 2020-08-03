@@ -3,7 +3,6 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-function"
 
-
 #include <chrono>
 #include <cmath>
 using namespace std::chrono;
@@ -32,7 +31,9 @@ namespace MinervaConstants {
   const double gamma = 100.; 
 }
 
-MinervaAbr::MinervaAbr(const std::shared_ptr<DashBackendConfig>& config) 
+MinervaAbr::MinervaAbr(
+    const std::shared_ptr<DashBackendConfig>& config,
+    const std::string& minerva_config_path_)
   : interface(MinervaInterface::GetInstance())
   , timestamp_(high_resolution_clock::now()) 
   , update_interval_(base::nullopt) 

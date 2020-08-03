@@ -31,7 +31,8 @@ namespace quic {
 DashBackend::DashBackend(
   const std::string& abr_type, 
   const std::string& config_path,
-  const std::string& site
+  const std::string& site,
+  const std::string& minerva_config_path // only used by Minerva
 ) : config_path(config_path)
   , site(site)
   , store(new StoreService())
@@ -53,10 +54,10 @@ DashBackend::DashBackend(
   // override shared config values using site
   config->domain = this->site;
   config->base_path = config->base_path + this->site;
-
+  
   // initialize rest of DashBackend
   std::unique_ptr<AbrInterface> interface(
-    getAbr(abr_type, config)
+    getAbr(abr_type, config, minerva_config_path)
   );
   std::unique_ptr<AbrLoop> loop(
     new AbrLoop(std::move(interface), metrics, polling, store)

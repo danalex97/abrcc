@@ -12,7 +12,8 @@ namespace quic {
 
 AbrInterface* getAbr(
   const std::string& abr_type, 
-  const std::shared_ptr<DashBackendConfig>& config
+  const std::shared_ptr<DashBackendConfig>& config,
+  const std::string& minerva_config_path_ // only used by Minerva
 ) {
   if (abr_type == "bb") {
     QUIC_LOG(WARNING) << "BB abr selected";
@@ -40,7 +41,7 @@ AbrInterface* getAbr(
     return new RemoteAbr(config);
   } else if (abr_type == "minerva") {
     QUIC_LOG(WARNING) << "Minerva abr selected";
-    return new MinervaAbr(config);
+    return new MinervaAbr(config, minerva_config_path_);
   }
   QUIC_LOG(WARNING) << "Defaulting to BB abr";
   return new BBAbr(config);

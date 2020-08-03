@@ -7,7 +7,8 @@ namespace quic {
 
 AbrInterface* getAbr(
   const std::string& abr_type, 
-  const std::shared_ptr<DashBackendConfig>& config
+  const std::shared_ptr<DashBackendConfig>& config,
+  const std::string& minerva_config_path_ // only used by Minerva
 );
 
 }
