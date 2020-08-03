@@ -40,6 +40,7 @@ class MinervaAbr : public AbrInterface {
  private:
   // compute normalization map when Minerva is initialized
   void computeNormalizationMap(const std::string& conf_path_);
+  double normalize(const double pq) const;
 
   // computes a conservative rate measurement
   int conservativeRate() const;

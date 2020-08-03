@@ -46,8 +46,8 @@ namespace MinervaConstants {
   const double gamma = 100.; 
 
   const int kbitstep = 10;
-  const int kbitmin = 100;
-  const int kbitmax = 3000;
+  const int kbitmin = 300;
+  const int kbitmax = 5000;
 
   const double downScale = .7;
 }
@@ -215,6 +215,27 @@ void MinervaAbr::computeNormalizationMap(const std::string& conf_path_) {
 
   closedir(dr); 
 }
+
+double MinervaAbr::normalize(const double pq) const {
+  if (pq < norm[0]) {
+    return MinervaConstants::kbitmin;
+  }
+  for (int index = 0, rate = MinervaConstants::kbitmin; 
+           rate < MinervaConstants::kbitmax; 
+           index++, rate += MinervaConstants::kbitstep) {
+    if (norm[index] <= pq && pq <= norm[index + 1]) {
+      double x1 = norm[index];
+      double x2 = norm[index + 1];
+      double y1 = rate;
+      double y2 = rate + MinervaConstants::kbitstep;
+      double x = pq; 
+
+      return y1 + (x - x1) / (x2 - x1) * (y2 - y1);
+    }
+  }
+  return MinervaConstants::kbitmax;
+}
+
 
 void MinervaAbr::registerAbort(const int index) {}
 void MinervaAbr::registerMetrics(const abr_schema::Metrics &metrics) {
@@ -484,6 +505,9 @@ double MinervaAbr::computeUtility() {
   // compute utility
   double utility = (phi1 * past_qoe + phi2 * current_qoe + vh) / (1. + phi1 + phi2);
   QUIC_LOG(WARNING) << "Utility: " << utility;
+
+  utility = normalize(utility);
+  QUIC_LOG(WARNING) << "Normalized utility: " << utility;
 
   return utility;
 }
