@@ -5,7 +5,7 @@ from typing import List, Optional
 from abr.video import get_video_chunks
 from exp_util.env import experiments, experiment, run_subexp, run_trace, run_traffic
 from exp_util.data import Experiment, save_experiments, generate_summary, load_experiments
-from exp_util.plot import plot_bar, plot_cdf, plot_fct_cdf
+from exp_util.plot import plot_bar, plot_cdf, plot_fct_cdf, plot_tag
 
 import os
 import time
@@ -175,12 +175,12 @@ def stream_count(args: Namespace) -> None:
     experiments = []
     experiment_path = str(Path(root_path))
     
-    runs      = 5
+    runs      = 7
     latency   = 500
     bandwidth = 4
     min_streams, max_streams = 2, 8
 
-    for stream_number in range(min_streams, max_streams + 1): 
+    for stream_number in range(max_streams, min_streams - 1, -1): 
         for run_id in range(runs):
             for (arg, algo, cc) in algorithms:
                 run_servers = []
@@ -194,15 +194,14 @@ def stream_count(args: Namespace) -> None:
                     run_servers.append(server)
                 
                 video_length  = list(zip(map(get_video_chunks, run_videos), run_videos))
-                longest_video = max(video_length)[1]
+                shortest_video = min(video_length)[1]
 
                 path = str(Path(experiment_path) / f"{algo}_{cc}_streams{stream_number}_run{run_id}")
                 runner_log.write(f'> {path}\n')
                 
                 run_subexp(
-                   bandwidth, latency, path, run_servers, burst=2000, video=longest_video,
+                   bandwidth, latency, path, run_servers, burst=2000, video=shortest_video,
                    headless=args.headless, 
-                   force_run = True,
                 )
                 experiments.append(Experiment(
                     video = video,
@@ -541,7 +540,7 @@ def hetero(args: Namespace) -> None:
     for i, video1 in enumerate(videos):
         for j, video2 in enumerate(videos):
             if i != j:
-                longer_video = video1 if get_video_chunks(video1) > get_video_chunks(video2) else video2
+                shorter_video = video1 if get_video_chunks(video1) < get_video_chunks(video2) else video2
                 experiments = []
                 experiment_path = str(Path(root_path) / f"{video1}_{video2}")
                 for run_id in range(4):
@@ -560,13 +559,13 @@ def hetero(args: Namespace) -> None:
                                 runner_log.write(f'> {path}\n')
                        
                                 run_subexp(
-                                    bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video,
+                                    bandwidth, latency, path, [server1, server2], burst=2000, video=shorter_video,
                                     headless=args.headless
                                 )
                                 if cc2 == "gap":
                                     cc2 = "gap2"
                                 experiments.append(Experiment(
-                                    video = longer_video,
+                                    video = shorter_video,
                                     path = str(Path(path) / "leader_plots.log"),
                                     latency = latency,
                                     bandwidth = bandwidth,
@@ -586,14 +585,14 @@ def hetero(args: Namespace) -> None:
                             path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
                             runner_log.write(f'> {path}\n')
                             run_subexp(
-                                bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video, 
+                                bandwidth, latency, path, [server1, server2], burst=2000, video=shorter_video, 
                                 headless=args.headless
                             )
                         
                             if cc == "gap":
                                 cc = "gap2"
                             experiments.append(Experiment(
-                                video = longer_video,
+                                video = shorter_video,
                                 path = str(Path(path) / "leader_plots.log"),
                                 latency = latency,
                                 bandwidth = bandwidth,
@@ -614,7 +613,7 @@ def hetero(args: Namespace) -> None:
 
                                 runner_log.write(f'> {path}\n')
                                 run_subexp(
-                                    bandwidth, latency, path, [server1, server2], burst=2000, video=longer_video,
+                                    bandwidth, latency, path, [server1, server2], burst=2000, video=shorter_video,
                                     headless=args.headless
                                 )
                                 extra = 'rmpc'
@@ -622,7 +621,7 @@ def hetero(args: Namespace) -> None:
                                     extra = 'dynamic'
      
                                 experiments.append(Experiment(
-                                    video = longer_video,
+                                    video = shorter_video,
                                     path = str(Path(path) / "leader_plots.log"),
                                     latency = latency,
                                     bandwidth = bandwidth,
@@ -642,22 +641,19 @@ def generate_plots(args: Namespace) -> None:
     avg = lambda xs: sum(xs) / len(xs)
     cap = lambda xs: max(xs + [-50])
 
-    def plot_multiple(path: str, experiments: List[Experiment], cc: str, func) -> None:
+    def plot_multiple(path: str, experiments: List[Experiment], cc: str) -> None:
         plot_bar(path, experiments, [
+            # performance
+            (["versus", "robustMpc", f"{cc}", "gap2"], (avg, "Gap-RobustMpc", 1) ),
+            (["versus", "dynamic", f"{cc}", "gap2"], (avg, "Gap-Dynamic", 1) ),
+            (["rmpc", f"{cc}1", f"{cc}2", f"{cc}3"], (avg, "RobustMpc", 1) ),
+            (["dynamic", f"{cc}1", f"{cc}2", f"{cc}3"], (avg, "Dynamic", 1) ),
+    
             # fairness
-            (["versus", "robustMpc", f"{cc}", "gap2"], (func, "Gap-RobustMpc", 1) ),
-            (["versus", "dynamic", f"{cc}", "gap2"], (func, "Gap-Dynamic", 1) ),
-            (["rmpc", f"{cc}1", f"{cc}2", f"{cc}3"], (func, "RobustMpc", 1) ),
-            (["dynamic", f"{cc}1", f"{cc}2", f"{cc}3"], (func, "Dynamic", 1) ),
-        ])
-
-    def plot_multiple2(path: str, experiments: List[Experiment], cc: str) -> None:
-        plot_bar(path, experiments, [
-            # fairness
-            (["versus", "robustMpc", f"{cc}", "gap2"], ('abrcc', "Gap-RobustMpc", 1) ),
-            (["versus", "dynamic", f"{cc}", "gap2"], ('abrcc', "Gap-Dynamic", 1) ),
-            (["rmpc", f"{cc}1", f"{cc}2", f"{cc}3"], (min, "RobustMpc", 1) ),
-            (["dynamic", f"{cc}1", f"{cc}2", f"{cc}3"], (min, "Dynamic", 1) ),
+            (["versus", "robustMpc", f"{cc}", "gap2"], ('abrcc', "Gap-RobustMpc", 2) ),
+            (["versus", "dynamic", f"{cc}", "gap2"], ('abrcc', "Gap-Dynamic", 2) ),
+            (["rmpc", f"{cc}1", f"{cc}2", f"{cc}3"], (min, "RobustMpc", 2) ),
+            (["dynamic", f"{cc}1", f"{cc}2", f"{cc}3"], (min, "Dynamic", 2) ),
         ])
     
     def plot_versus(path: str, experiments: List[Experiment], cc: str) -> None:
@@ -682,6 +678,7 @@ def generate_plots(args: Namespace) -> None:
             (["dynamic", "bbr21", "bbr22"], (min, "Dynamic-BBR", 1) ),
             (["rmpc", "cubic1", "cubic2"], (min, "RobustMpc-Cubic", 1) ),
             (["rmpc", "bbr21", "bbr22"], (min, "RobustMpc-BBR", 1) ),
+            (["minerva"], (min, "Minerva", 1) ),
         ])
     
     def plot_self_avg(path: str, experiments: List[Experiment]) -> None:
@@ -691,6 +688,7 @@ def generate_plots(args: Namespace) -> None:
             (["dynamic", "bbr21", "bbr22"], (avg, "Dynamic-BBR", 1) ),
             (["rmpc", "cubic1", "cubic2"], (avg, "RobustMpc-Cubic", 1) ),
             (["rmpc", "bbr21", "bbr22"], (avg, "RobustMpc-BBR", 1) ),
+            (["minerva"], (avg, "Minerva", 1) ),
         ])
     
     def plot_traces(path: str, experiments: List[Experiment]) -> None:
@@ -710,7 +708,7 @@ def generate_plots(args: Namespace) -> None:
             (["traffic", "gap"], (cap, "Gap", 1) ),
         ])
 
-    def plot_fct_traffic(path: str, experiments: List[Experiment], bw :Optional[int] = None) -> None:
+    def plot_fct_traffic(path: str, experiments: List[Experiment], bw: Optional[int] = None) -> None:
         extra = [f"bw{bw}"] if bw else []
         plot_fct_cdf(path, experiments, [
             (["fct", "robustMpc", "bbr2"] + extra, ('abr', "RobustMpc-BBR", 1) ),
@@ -720,8 +718,26 @@ def generate_plots(args: Namespace) -> None:
             (["fct", "gap"] + extra, ('abr', "Gap", 1) ),
         ])
 
+    def plot_stream_count(path: str, experiments: List[Experiment], partial_tag: str) -> None:
+        plot_tag(path, experiments, [
+            (["robustMpc", "bbr2"], (sum, "RobustMpc-BBR", 1) ),
+            (["robustMpc", "cubic"], (sum, "RobustMpc-Cubic", 1) ),
+            (["dynamic", "bbr2"], (sum, "Dynamic-BBR", 1) ),
+            (["dynamic", "cubic"], (sum, "Dynamic-Cubic", 1) ),
+            (["gap"], (sum, "Gap", 1) ),
+            (["minerva"], (sum, "Minerva", 1) ),
+        ], partial_tag)
+
     experiment_path = str(Path("experiments") / "plots")
     os.system(f"mkdir -p {experiment_path}")
+
+    # stream count    
+    stream_count_path = str(Path(experiment_path) / "stream_count")
+    os.system(f"mkdir -p {stream_count_path}")
+    experiments = sum([load_experiments(experiment) for experiment in [
+        str(Path("experiments") / "stream_count"),
+    ]], [])
+    plot_stream_count(str(Path(stream_count_path) / "stream_count"), experiments, "streams")
 
     # traffic fct
     traffic_path = str(Path(experiment_path) / "traffic")
@@ -754,8 +770,7 @@ def generate_plots(args: Namespace) -> None:
     
         os.system(f"mkdir -p {experiment_path}/{video}")
         for cc in ['cubic', 'bbr2']:
-            plot_multiple(str(Path(experiment_path) / video / f"multiple_avg_{cc}"), experiments, cc, avg)
-            plot_multiple2(str(Path(experiment_path) / "summary" / f"multiple_fair_{cc}"), experiments, cc)
+            plot_multiple(str(Path(experiment_path) / video / f"multiple_{cc}"), experiments, cc)
 
     # hetero experiments
     videos = ['got', 'bojack', 'guard']
@@ -804,8 +819,7 @@ def generate_plots(args: Namespace) -> None:
         for video in videos
     ]], [])
     for cc in ['cubic', 'bbr2']:
-        plot_multiple(str(Path(experiment_path) / "summary" / f"multiple_avg_{cc}"), experiments, cc, avg)
-        plot_multiple2(str(Path(experiment_path) / "summary" / f"multiple_fair_{cc}"), experiments, cc)
+        plot_multiple(str(Path(experiment_path) / "summary" / f"multiple_{cc}"), experiments, cc)
 
     # summary hetero
     experiments = []

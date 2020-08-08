@@ -158,6 +158,105 @@ def plot_cdf(
         ax.cla()
 
 
+def plot_tag(
+    plot_base: str,
+    experiments: List[Experiment],
+    tag_maps: List[TagMapping],
+    partial_tag: str,
+) -> None: 
+    extra_tags = sorted([el 
+        for el in set(sum([e.extra for e in experiments], [])) 
+        if partial_tag in el])
+   
+    plot_data = defaultdict(list)
+    for tags, instance_name in tag_maps:
+        for tag in extra_tags:
+            for experiment in experiments: 
+                if all((tag in experiment.extra) for tag in tags + [tag]):
+                    plot_data[tag].append((experiment, instance_name))
+ 
+    idx = 0
+    instances = []
+    named_data_matrix = defaultdict(
+        lambda: defaultdict(list)
+    )
+    for tag, exp_inst in plot_data.items():
+        tag_value = int(tag.split(partial_tag)[1])
+
+        # get all metrics
+        metrics = defaultdict(list)
+        for exp, instance_name in exp_inst: 
+            instance: Instance = instance_name[0]
+            name: str = instance_name[1]
+            plane: int = instance_name[2]
+
+            if type(instance) == str:
+                for metric in exp.get_metrics():
+                    if metric.instance == instance:
+                        metrics[(metric.metric, plane)].append((name, metric.value))
+            else:
+                func = instance
+                groups = defaultdict(list)
+                for metric in exp.get_metrics():
+                    groups[metric.metric].append(metric.value)
+                for metric, group in groups.items():
+                    if metric != "raw_qoe":
+                        print(name, group)
+                    metrics[(metric, plane)].append((name, func(group)))
+
+        for metric_name_plane, values in sorted(metrics.items()):
+            # planes have no effect
+            metric_name, plane = metric_name_plane
+            
+            # group values for multiple runs
+            grouped_values = defaultdict(list)
+            for name, value in values:
+                grouped_values[name].append(value)
+    
+            avg_values = []
+            for name, vals in grouped_values.items():
+                avg = sum(vals) / len(vals)
+                avg_values.append((name, avg))
+       
+            if len(avg_values) > 0:
+                named_data_matrix[metric_name][tag_value] += sorted(avg_values)
+            if len(avg_values) > len(instances):
+                instances = [n for n, _ in sorted(avg_values)]
+ 
+    curves = defaultdict(
+        lambda: defaultdict(list)
+    )
+    for metric, tag_values in named_data_matrix.items():
+        for tag_val, values in tag_values.items():
+            for algo, value in values:
+                curves[metric][algo].append((tag_val, value))
+
+    for metric, metric_curves in curves.items():
+        if metric == 'raw_qoe':
+            continue
+        
+        plot_name = f"{plot_base}_{metric}.png"
+        ax = plt.subplot(111)
+        
+        schemes = []
+        for scheme, curve in metric_curves.items():
+            xs = [x for x, _ in curve]
+            ys = [y for _, y in curve]
+            ax.plot(
+                xs,
+                ys,
+                linewidth=2,
+            )
+            schemes.append(scheme)
+
+        ax.legend(schemes, loc=2)
+        plt.ylabel(metric)
+        plt.xlabel(partial_tag)
+        
+        plt.savefig(plot_name, dpi=DPI)
+        ax.cla()
+
+
 def plot_bar(
     plot_base: str,
     experiments: List[Experiment],
