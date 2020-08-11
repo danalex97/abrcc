@@ -68,6 +68,8 @@ class RandomPageProcessor(Component):
             if total_size > cache_size:
                 break
         #sns.distplot(sizes, kde=False, rug=False)
+        #plt.ylabel('flows')
+        #plt.xlabel('flow size(kb)')
         #plt.show()
         self.log(f'Loaded {files} files of size {total_size} MB')
         

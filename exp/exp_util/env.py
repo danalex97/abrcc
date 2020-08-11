@@ -81,7 +81,7 @@ def cleanup_files():
     os.system("rm -f /tmp/tmp_*")
 
 
-@retry(tries=2, timeout=800)
+@retry(tries=2, timeout=1500)
 def run_subexp(
     bandwidth: int, 
     latency: int, 

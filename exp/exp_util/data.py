@@ -36,6 +36,11 @@ class VmafQoe(ExperimentMetric):
         super().__init__('vmaf_qoe', instance, value)
 
 
+class Vmaf(ExperimentMetric):
+    def __init__(self, instance: str, value: float) -> None:
+        super().__init__('vmaf', instance, value)
+
+
 class Experiment:
     def __init__(self,
         video: str, 
@@ -134,8 +139,12 @@ class Experiment:
                     vmaf_vals = list(vmaf_qoe[name].values())
                     total_vmaf = sum(vmaf_vals) / len(qoe_vals)
 
+                    vmaf_vals = list(vmafd[name].values())
+                    total_rebuf = sum(vmaf_vals) / len(vmaf_vals)
+
                     out.append(RawQoe(name, total_qoe))
                     out.append(VmafQoe(name, total_vmaf))
+                    out.append(Vmaf(name, total_rebuf))
                 return out
         except FileNotFoundError as e:
             return []

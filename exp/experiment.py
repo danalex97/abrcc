@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from typing import List, Optional
+from statistics import stdev
 
 from abr.video import get_video_chunks
 from exp_util.env import experiments, experiment, run_subexp, run_trace, run_traffic
@@ -175,7 +176,7 @@ def stream_count(args: Namespace) -> None:
     experiments = []
     experiment_path = str(Path(root_path))
     
-    runs      = 7
+    runs      = 15
     latency   = 500
     bandwidth = 4
     min_streams, max_streams = 2, 8
@@ -640,6 +641,7 @@ def hetero(args: Namespace) -> None:
 def generate_plots(args: Namespace) -> None:
     avg = lambda xs: sum(xs) / len(xs)
     cap = lambda xs: max(xs + [-50])
+    cv = lambda xs: stdev(xs) / avg(xs)
 
     def plot_multiple(path: str, experiments: List[Experiment], cc: str) -> None:
         plot_bar(path, experiments, [
@@ -654,9 +656,11 @@ def generate_plots(args: Namespace) -> None:
             (["versus", "dynamic", f"{cc}", "gap2"], ('abrcc', "Gap-Dynamic", 2) ),
             (["rmpc", f"{cc}1", f"{cc}2", f"{cc}3"], (min, "RobustMpc", 2) ),
             (["dynamic", f"{cc}1", f"{cc}2", f"{cc}3"], (min, "Dynamic", 2) ),
-        ])
+        ], x_range = ["4Mbps", "3Mbps", "2Mbps"], 
+           metrics=["vmaf_qoe"], y_labels={'vmaf_qoe' : 'QoE'}, legend_location=4,
+        )
     
-    def plot_versus(path: str, experiments: List[Experiment], cc: str) -> None:
+    def plot_versus(path: str, experiments: List[Experiment], cc: str, **kwargs) -> None:
         plot_bar(path, experiments, [
             # performance
             (["versus", "robustMpc", f"{cc}", "gap2"], ("abrcc", "Gap-RobustMpc", 1) ),
@@ -669,9 +673,24 @@ def generate_plots(args: Namespace) -> None:
             (["versus", "dynamic", f"{cc}", "gap2"], ("robustMpc", "Gap-Dynamic", 2) ),
             (["rmpc", f"{cc}1", f"{cc}2"], (min, "RobustMpc", 2) ),
             (["dynamic", f"{cc}1", f"{cc}2"], (min, "Dynamic", 2) ),
-        ])
+        ], metrics=["vmaf_qoe"], y_labels={'vmaf_qoe' : 'QoE'}, **kwargs)
    
-    def plot_self(path: str, experiments: List[Experiment]) -> None:
+    def plot_hetero_versus(path: str, experiments: List[Experiment], cc: str, **kwargs) -> None:
+        plot_bar(path, experiments, [
+            # performance
+            (["versus", "robustMpc", f"{cc}", "gap2"], ("abrcc", "Gap-RobustMpc", 1) ),
+            (["versus", "dynamic", f"{cc}", "gap2"], ("abrcc", "Gap-Dynamic", 1) ),
+            (["rmpc", f"{cc}1", f"{cc}2"], (min, "RobustMpc", 1) ),
+            (["dynamic", f"{cc}1", f"{cc}2"], (min, "Dynamic", 1) ),
+        
+            # fairness
+            (["versus", "robustMpc", f"{cc}", "gap2"], ("robustMpc", "Gap-RobustMpc", 2) ),
+            (["versus", "dynamic", f"{cc}", "gap2"], ("robustMpc", "Gap-Dynamic", 2) ),
+            (["rmpc", f"{cc}1", f"{cc}2"], (max, "RobustMpc", 2) ),
+            (["dynamic", f"{cc}1", f"{cc}2"], (max, "Dynamic", 2) ),
+        ], metrics=["vmaf_qoe"], y_labels={'vmaf_qoe' : 'QoE'}, **kwargs)
+
+    def plot_self(path: str, experiments: List[Experiment], **kwargs) -> None:
         plot_bar(path, experiments, [
             (["self", "gap", "gap2"], (min, " Gap", 1) ),
             (["dynamic", "cubic1", "cubic2"], (min, "Dynamic-Cubic", 1) ),
@@ -679,34 +698,23 @@ def generate_plots(args: Namespace) -> None:
             (["rmpc", "cubic1", "cubic2"], (min, "RobustMpc-Cubic", 1) ),
             (["rmpc", "bbr21", "bbr22"], (min, "RobustMpc-BBR", 1) ),
             (["minerva"], (min, "Minerva", 1) ),
-        ])
-    
-    def plot_self_avg(path: str, experiments: List[Experiment]) -> None:
-        plot_bar(path, experiments, [
-            (["self", "gap", "gap2"], (avg, " Gap", 1) ),
-            (["dynamic", "cubic1", "cubic2"], (avg, "Dynamic-Cubic", 1) ),
-            (["dynamic", "bbr21", "bbr22"], (avg, "Dynamic-BBR", 1) ),
-            (["rmpc", "cubic1", "cubic2"], (avg, "RobustMpc-Cubic", 1) ),
-            (["rmpc", "bbr21", "bbr22"], (avg, "RobustMpc-BBR", 1) ),
-            (["minerva"], (avg, "Minerva", 1) ),
-        ])
+            
+            (["self", "gap", "gap2"], (avg, " Gap", 2) ),
+            (["dynamic", "cubic1", "cubic2"], (avg, "Dynamic-Cubic", 2) ),
+            (["dynamic", "bbr21", "bbr22"], (avg, "Dynamic-BBR", 2) ),
+            (["rmpc", "cubic1", "cubic2"], (avg, "RobustMpc-Cubic", 2) ),
+            (["rmpc", "bbr21", "bbr22"], (avg, "RobustMpc-BBR", 2) ),
+            (["minerva"], (avg, "Minerva", 2) ),
+        ], metrics=["vmaf_qoe"], y_labels={'vmaf_qoe' : 'QoE'}, **kwargs)
     
     def plot_traces(path: str, experiments: List[Experiment]) -> None:
         plot_cdf(path, experiments, [
             (["traces", "rmpc_bbr"], ("robustMpc", "RobustMpc-BBR", 1) ),
             (["traces", "dynamic_bbr"], ("dynamic", "Dynamic-BBR", 1) ),
+            (["traces", "dynamic_cubic"], ("dynamic", "Dynamic-Cubic", 1) ),
             (["traces", "rmpc_cubic"], ("robustMpc", "RobustMpc-Cubic", 1) ),
             (["traces", "gap_pid"], ("abrcc", "Gap", 1) ),
-        ])
-
-    def plot_traffic(path: str, experiments: List[Experiment]) -> None:
-        plot_bar(path, experiments, [
-            (["traffic", "robustMpc", "bbr2"], (cap, "RobustMpc-BBR", 1) ),
-            (["traffic", "robustMpc", "cubic"], (cap, "RobustMpc-Cubic", 1) ),
-            (["traffic", "dynamic", "bbr2"], (cap, "Dynamic-BBR", 1) ),
-            (["traffic", "dynamic", "cubic"], (cap, "Dynamic-Cubic", 1) ),
-            (["traffic", "gap"], (cap, "Gap", 1) ),
-        ])
+        ], metrics=["vmaf", "vmaf_qoe"], x_labels={'vmaf_qoe': 'QoE', 'vmaf': 'VMAF'})
 
     def plot_fct_traffic(path: str, experiments: List[Experiment], bw: Optional[int] = None) -> None:
         extra = [f"bw{bw}"] if bw else []
@@ -718,26 +726,18 @@ def generate_plots(args: Namespace) -> None:
             (["fct", "gap"] + extra, ('abr', "Gap", 1) ),
         ])
 
-    def plot_stream_count(path: str, experiments: List[Experiment], partial_tag: str) -> None:
+    def plot_stream_count(path: str, experiments: List[Experiment], partial_tag: str, func_name: str, func, **kwargs) -> None:
         plot_tag(path, experiments, [
-            (["robustMpc", "bbr2"], (sum, "RobustMpc-BBR", 1) ),
-            (["robustMpc", "cubic"], (sum, "RobustMpc-Cubic", 1) ),
-            (["dynamic", "bbr2"], (sum, "Dynamic-BBR", 1) ),
-            (["dynamic", "cubic"], (sum, "Dynamic-Cubic", 1) ),
-            (["gap"], (sum, "Gap", 1) ),
-            (["minerva"], (sum, "Minerva", 1) ),
-        ], partial_tag)
+            (["robustMpc", "bbr2"], (func, "RobustMpc-BBR", 1) ),
+            (["robustMpc", "cubic"], (func, "RobustMpc-Cubic", 1) ),
+            (["dynamic", "bbr2"], (func, "Dynamic-BBR", 1) ),
+            (["dynamic", "cubic"], (func, "Dynamic-Cubic", 1) ),
+            (["gap"], (func, "Gap", 1) ),
+            (["minerva"], (func, "Minerva", 1) ),
+        ], partial_tag, metrics=['vmaf_qoe'], y_labels={'vmaf_qoe': func_name}, **kwargs)
 
     experiment_path = str(Path("experiments") / "plots")
     os.system(f"mkdir -p {experiment_path}")
-
-    # stream count    
-    stream_count_path = str(Path(experiment_path) / "stream_count")
-    os.system(f"mkdir -p {stream_count_path}")
-    experiments = sum([load_experiments(experiment) for experiment in [
-        str(Path("experiments") / "stream_count"),
-    ]], [])
-    plot_stream_count(str(Path(stream_count_path) / "stream_count"), experiments, "streams")
 
     # traffic fct
     traffic_path = str(Path(experiment_path) / "traffic")
@@ -783,20 +783,25 @@ def generate_plots(args: Namespace) -> None:
         
                 os.system(f"mkdir -p {experiment_path}/{video1}_{video2}")
                 for cc in ['cubic', 'bbr2']:
-                    plot_versus(str(Path(experiment_path) / f"{video1}_{video2}" / f"{cc}"), experiments, cc)
+                    plot_hetero_versus(str(Path(experiment_path) / f"{video1}_{video2}" / f"{cc}"), experiments, cc)
                 plot_self(str(Path(experiment_path) / f"{video1}_{video2}" / "self"), experiments)
-                plot_self_avg(str(Path(experiment_path) / f"{video1}_{video2}" / "self_avg"), experiments)
 
-    # traffic
-    videos = ['got', 'bojack', 'guard', 'cook']
-    for video in videos:
-        experiments = sum([load_experiments(experiment) for experiment in [
-            str(Path("experiments") / "traffic" / video),
-        ]], [])
-    
-        os.system(f"mkdir -p {experiment_path}/{video}")
-        plot_traffic(str(Path(experiment_path) / video / f"traffic"), experiments)
-    
+    # stream count    
+    stream_count_path = str(Path(experiment_path) / "stream_count")
+    os.system(f"mkdir -p {stream_count_path}")
+    experiments = sum([load_experiments(experiment) for experiment in [
+        str(Path("experiments") / "stream_count"),
+    ]], [])
+    plot_stream_count(
+        str(Path(stream_count_path) / "stream_count"), experiments, "streams", 'Total QoE', sum, legend_location=2,
+    )
+    plot_stream_count(
+        str(Path(stream_count_path) / "stream_count_fair"), experiments, "streams", 'Minimum QoE', min, legend_location=1,
+    )
+    plot_stream_count(
+        str(Path(stream_count_path) / "stream_count_cv"), experiments, "streams", 'QoE CV', cv, legend_location=3,
+    )
+
     # summaries
     videos = ['got', 'bojack', 'guard', 'cook']
     experiments = sum([load_experiments(experiment) for experiment in [
@@ -831,9 +836,8 @@ def generate_plots(args: Namespace) -> None:
                     str(Path("experiments") / "hetero" / f"{video1}_{video2}"),
                 ]], [])
     for cc in ['cubic', 'bbr2']:
-        plot_versus(str(Path(experiment_path) / f"summary" / f"hetero_{cc}"), experiments, cc)
-    plot_self(str(Path(experiment_path) / f"summary" / "hetero_self"), experiments)
-    plot_self_avg(str(Path(experiment_path) / f"summary" / "hetero_self_avg"), experiments)
+        plot_hetero_versus(str(Path(experiment_path) / f"summary" / f"hetero_{cc}"), experiments, cc)
+    plot_self(str(Path(experiment_path) / f"summary" / "hetero_self"), experiments, exclude=['Minerva'])
 
 
 @experiment

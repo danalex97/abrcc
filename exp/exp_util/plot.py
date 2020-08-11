@@ -1,4 +1,4 @@
-from typing import Dict, List, Union, Tuple, Callable
+from typing import Dict, List, Union, Tuple, Callable, Optional
 from collections import defaultdict
 
 from exp_util.data import Experiment
@@ -116,14 +116,27 @@ def plot_cdf(
     plot_base: str,
     experiments: List[Experiment],
     tag_maps: List[TagMapping],
+    metrics: Optional[List[str]] = None,
+    x_labels: Dict[str, str] = {},
 ) -> None:
+    '''
+    Generates a CDF plot file at location f'{plot_base}{metric_name}.png'
+    from the given {experiments} grouped by {tag_maps}.
+
+    Optinal arguments:
+        - metrics: list of metrics to be plotted(all by default)
+        - x_labels: mapping for plotted metrics
+    '''    
+    metrics_to_plot = metrics
+    
     plot_data = get_plot_data(plot_base, experiments, tag_maps)
     metrics   = get_metrics(plot_data)  
 
     markers = [',', 'o', 'v', '^', '>', '<', 's', 'x', 'D', 'd', '*', '_', '']
     for metric, instance_value in metrics.items():
-        if metric == 'raw_qoe':
-            continue
+        if metrics is not None:
+            if metric not in metrics_to_plot:
+                continue
         plot_name = f"{plot_base}_{metric}.png"
         
         all_values = defaultdict(list)
@@ -152,7 +165,7 @@ def plot_cdf(
         ax.get_xaxis().set_visible(True)
         ax.legend(schemes, loc=2)
         plt.ylabel('CDF')
-        plt.xlabel(metric)
+        plt.xlabel(x_labels.get(metric, metric))
         
         plt.savefig(plot_name, dpi=DPI)
         ax.cla()
@@ -163,7 +176,23 @@ def plot_tag(
     experiments: List[Experiment],
     tag_maps: List[TagMapping],
     partial_tag: str,
+    metrics: Optional[List[str]] = None,
+    y_labels: Dict[str, str] = {},
+    legend_location: int = 2, 
 ) -> None: 
+    '''
+    Generates a line plot file at location f'{plot_base}{metric_name}.png'
+    from the given {experiments} grouped by {tag_maps}. The X axis represent the
+    different values taken by the {pratial_tag}, while the Y axis represents 
+    each indivitual metric.
+
+    Optinal arguments:
+        - metrics: list of metrics to be plotted(all by default)
+        - y_labels: mapping for plotted metrics
+        - legend_location: locationd of the lengend as specified in pyplot.legend
+    '''
+    metrics_to_plot = metrics
+
     extra_tags = sorted([el 
         for el in set(sum([e.extra for e in experiments], [])) 
         if partial_tag in el])
@@ -200,8 +229,6 @@ def plot_tag(
                 for metric in exp.get_metrics():
                     groups[metric.metric].append(metric.value)
                 for metric, group in groups.items():
-                    if metric != "raw_qoe":
-                        print(name, group)
                     metrics[(metric, plane)].append((name, func(group)))
 
         for metric_name_plane, values in sorted(metrics.items()):
@@ -232,8 +259,9 @@ def plot_tag(
                 curves[metric][algo].append((tag_val, value))
 
     for metric, metric_curves in curves.items():
-        if metric == 'raw_qoe':
-            continue
+        if metrics is not None:
+            if metric not in metrics_to_plot:
+                continue
         
         plot_name = f"{plot_base}_{metric}.png"
         ax = plt.subplot(111)
@@ -242,6 +270,7 @@ def plot_tag(
         for scheme, curve in metric_curves.items():
             xs = [x for x, _ in curve]
             ys = [y for _, y in curve]
+                
             ax.plot(
                 xs,
                 ys,
@@ -249,8 +278,8 @@ def plot_tag(
             )
             schemes.append(scheme)
 
-        ax.legend(schemes, loc=2)
-        plt.ylabel(metric)
+        ax.legend(schemes, loc=legend_location)
+        plt.ylabel(y_labels.get(metric, metric))
         plt.xlabel(partial_tag)
         
         plt.savefig(plot_name, dpi=DPI)
@@ -261,9 +290,26 @@ def plot_bar(
     plot_base: str,
     experiments: List[Experiment],
     tag_maps: List[TagMapping],
+    x_range: Optional[List[str]] = None,
+    metrics: Optional[List[str]] = None,
+    y_labels: Dict[str, str] = {},
+    legend_location: int = 1, 
+    exclude: List[str] = [],
 ) -> None:
+    '''
+    Generates a bar plot file at location f'{plot_base}{metric_name}.png'
+    from the given {experiments} grouped by {tag_maps}.
+
+    Optinal arguments:
+        - x_range: list of string ticks to add to x axis under the bar plots
+        - metrics: list of metrics to be plotted(all by default)
+        - y_labels: mapping for plotted metrics
+        - legend_location: locationd of the lengend as specified in pyplot.legend
+        - exclude: list of algorithms to exclude from plotting
+    '''
     plot_data = get_plot_data(plot_base, experiments, tag_maps)
-    
+    metrics_to_plot = metrics
+
     idx = 0
     instances = []
     named_data_matrix = defaultdict(
@@ -281,6 +327,9 @@ def plot_bar(
             instance: Instance = instance_name[0]
             name: str = instance_name[1]
             plane: int = instance_name[2]
+
+            if name in exclude:
+                continue
 
             if type(instance) == str:
                 for metric in exp.get_metrics():
@@ -335,8 +384,9 @@ def plot_bar(
     # plot stuff
     colors = ['b', 'g', 'r', 'y', 'c', 'm', 'orange', 'mediumspringgreen', 'peru']
     for metric, plane_matrix in data_matrix.items(): 
-        if metric == 'raw_qoe':
-            continue
+        if metrics is not None:
+            if metric not in metrics_to_plot:
+                continue
 
         hatches = ['x', None]
         bar_colors = ['lightgray', 'black']
@@ -361,20 +411,24 @@ def plot_bar(
                     x + width * i, 
                     data_transp[i], 
                     color = colors[i], 
-                    #yerr = std_transp[i],
-                    #error_kw=dict(
-                    #    ecolor=bar_colors[max_plane - plane], 
-                    #    lw=(max_plane - plane + 1) * 2.5, 
-                    #    capsize=0, 
-                    #    capthick=2,
-                    #),
                     width = width * 0.8 ** (max_plane - plane),
                     alpha = 0.7 ** (max_plane - plane + 1),
                     hatch = hatches[plane - 1],
                 )
-        ax.get_xaxis().set_visible(False)
-        plt.ylabel(metric)
+        if x_range is None:
+            plt.xticks(
+                [i + .5 - 1 / (len(data_transp) + 1) for i in range(len(data_transp[0]))],
+                [f'{i+1}Mbps' for i in range(len(data_transp[0]) - 1, -1, -1)], rotation=30
+            )
+        else:
+            plt.xticks(
+                [i + .5 - 1 / (len(data_transp) + 1) for i in range(len(data_transp[0]))],
+                x_range , rotation = 30
+            )
+        plt.ylabel(y_labels.get(metric, metric))
        
-        ax.legend(instances, loc=1)
+        ax.legend(instances, loc=legend_location)
         plt.savefig(plot_name, dpi=DPI)
         plt.cla()
+
+
