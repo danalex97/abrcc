@@ -1,52 +1,13 @@
 import argparse
-import socketserver
-import threading
-import random
-import string
-import time
-
-
-socketserver.TCPServer.allow_reuse_address = True
-DATA_LENGTH = 100000
-UPDATE_LOG_SECS = 2
-
-
-def random_string(size: int) -> str:
-    return ''.join(random.choice(
-        string.ascii_uppercase + 
-        string.ascii_lowercase +
-        string.digits
-    ) for _ in range(size))
-
+import os
 
 def main(args: argparse.Namespace) -> None:
-    class SingleFlowHandler(socketserver.BaseRequestHandler):
-        def handle(self):
-            log_file = None
-            if args.log_file:
-                log_file = open(args.log_file, 'w')
-            start, sent_data, calls = time.time(), 0, 0
-            while True:
-                calls += 1
-                data = random_string(DATA_LENGTH) 
-                self.request.send(bytes(data, 'utf-8'))
-                sent_data += len(data)
-
-                update_time = time.time() - start
-                if update_time > UPDATE_LOG_SECS:
-                    print(sent_data, update_time, calls)
-                    speed = 8 * sent_data / 1000 / 1000 / update_time
-                    print(f'Link speed {speed} mbps')
-                    start, sent_data, calls = time.time(), 0, 0
-
-                    if log_file:
-                        log_file.write(f'{speed:.6}\n')
-                        log_file.flush()
-
-    host, port = "localhost", args.port
-    server = socketserver.TCPServer((host, port), SingleFlowHandler)
-    server.serve_forever()
-
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    os.system(f'g++ -o {dir_path}/socket_server {dir_path}/socket_server.cpp')
+    if args.log_file != None:
+        os.system(f'{dir_path}/socket_server {args.port} {args.log_file}')
+    else:
+        os.system(f'{dir_path}/socket_server {args.port}')
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

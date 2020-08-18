@@ -42,7 +42,7 @@ def generate_traffic(
         if not single_flow:
             client_extra += ['--time-log', str(Path(exec_dir) / time_log_path)]
         else:
-            server_extra += ['--log-file', str(Path(exec_dir) / time_log_path)] 
+            client_extra += ['--log-file', str(Path(exec_dir) / time_log_path)] 
     if light and not single_flow:
         server_extra += ['--light']
 
