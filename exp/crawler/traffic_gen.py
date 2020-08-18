@@ -24,27 +24,37 @@ def generate_traffic(
     connections: int, 
     time_log_path: Optional[str] = None,
     light: bool = True,
+    single_flow: bool = False,
 ) -> Tuple[Popen, Popen]:
     dir_path = os.path.dirname(os.path.realpath(__file__))
     exec_dir = str(Path(dir_path) / '..')
 
-    server_script = 'traffic_server.py'
-    client_script = 'traffic_client.py'
+    if not single_flow:
+        server_script = 'traffic_server.py'
+        client_script = 'traffic_client.py'
+    else:
+        server_script = 'single_flow_server.py'
+        client_script = 'single_flow_client.py'
 
     client_extra = []
     server_extra = []
     if time_log_path:
-        client_extra += ['--time-log', str(Path(exec_dir) / time_log_path)]
-    if light:
+        if not single_flow:
+            client_extra += ['--time-log', str(Path(exec_dir) / time_log_path)]
+        else:
+            server_extra += ['--log-file', str(Path(exec_dir) / time_log_path)] 
+    if light and not single_flow:
         server_extra += ['--light']
+
+    if not single_flow:
+        server_extra += ['--cache', str(cache)]
+        client_extra += ['--connections', str(connections)]
 
     server = Popen([
         'python3', str(Path(dir_path) / server_script), '--port', f"{port}", 
-        '--cache', f"{cache}"
     ] + server_extra, cwd=exec_dir)
     client = Popen([
         'python3', str(Path(dir_path) / client_script), '--port', f"{port}",
-        '--connections', f"{connections}"
     ] + client_extra , cwd=exec_dir)
     
     return server, client
@@ -55,19 +65,26 @@ class TrafficGenerator:
     instances: int
     running: List[Popen]
     time_log_path: Optional[str]
+    single_flow: bool 
 
     def __init__(self, 
         start_port: int = START_PORT, 
-        instances: int = DEFAULT_INSTANCES,
+        instances: Optional[int] = None,
         time_log_path: Optional[str] = None,
         light: bool = True,
+        single_flow: bool = False,
     ) -> None:
         self.start_port = start_port
         self.instances = instances
         self.running = []
         self.time_log_path = time_log_path
         self.light = light
-        
+        self.single_flow = single_flow
+        if self.single_flow and not self.instances:
+            self.instances = 1
+        elif not self.instances:
+            self.instances = DEFAULT_INSTANCES
+
     @property
     def ports(self) -> List[int]:
         return [self.start_port + i for i in range(self.instances)] 
@@ -76,13 +93,17 @@ class TrafficGenerator:
     async def on_start(self, json: JSONType) -> JSONType:
         for i in range(self.instances):
             log_id = str(uuid.uuid1())[:8]
-            log_file = str(Path(self.time_log_path) / f'fct_{log_id}.log')
+            if not self.single_flow:
+                log_file = str(Path(self.time_log_path) / f'fct_{log_id}.log')
+            else:
+                log_file = str(Path(self.time_log_path) / f'mbps_{log_id}.log')
             server, client = generate_traffic(
                 self.start_port + i, 
                 DEFAULT_CACHE_SIZE, 
                 DEFAULT_CONNECTIONS,
                 log_file,
                 self.light,
+                self.single_flow,
             ) 
             self.running.append(client)
             self.running.append(server)
@@ -110,7 +131,12 @@ class EmptyTrafficGenerator(TrafficGenerator):
 
 
 def main(args: argparse.Namespace) -> None:
-    server, client = generate_traffic(args.port, args.cache, args.connections)
+    server, client = generate_traffic(
+        args.port, 
+        args.cache, 
+        args.connections, 
+        single_flow=args.single_flow,
+    )
     
     server.wait()
     client.wait()
@@ -123,4 +149,5 @@ if __name__ == "__main__":
         default=DEFAULT_CACHE_SIZE)
     parser.add_argument('--connections', metavar='-c', type=int, help='Number of connections.', 
         default=DEFAULT_CONNECTIONS)
+    parser.add_argument('--single-flow', action='store_true', help='Use single flow.')
     main(parser.parse_args()) 

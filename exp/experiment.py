@@ -65,6 +65,57 @@ def autotarget_training(args: Namespace) -> None:
                             bandwidth, latency, path, [server1, server2], burst=2000, video=video, force_run=True,
                         )
 
+@experiment
+def single_flow_traffic(args: Namespace) -> None:
+    global run_traffic
+    if args.dry:
+        run_traffic = lambda *args, **kwargs: None 
+
+    videos = ['got', 'bojack', 'cook', 'guard']
+
+    root_path = str(Path("experiments") / "traffic")
+    os.system(f"mkdir -p {root_path}")
+    runner_log = open(str(Path(root_path) / 'exp.log'), 'w')
+   
+    instances = [
+        ('--algo', 'dynamic', 'bbr2'),
+        ('--server-algo', 'gap', 'gap'),
+        ('--algo', 'robustMpc', 'cubic'),
+        ('--algo', 'robustMpc', 'bbr2'),
+        ('--algo', 'dynamic', 'cubic'),
+    ]
+
+    experiments = []
+    experiment_path = str(Path(root_path) / 'sft')
+    subpath = experiment_path
+    latency = 100
+    for bandwidth in [2, 3, 4]:
+        for (where, algo, cc) in instances:
+            for run_id in range(10):
+                video = random.choice(videos)
+
+                server = f"{where} {algo} --name abr --cc {cc} --video {video}" 
+                path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
+                
+                runner_log.write(f'> {path}\n')
+                run_traffic(path, f"{server} -l {latency} -b {bandwidth} --single-flow", headless=args.headless)
+               
+                cc_name = cc if cc != "gap" else "gap2"
+                experiments.append(Experiment(
+                    video = video,
+                    path = str(Path(path) / "abr_plots.log"),
+                    latency = latency,
+                    bandwidth = bandwidth,
+                    extra = ["sf", algo, cc_name, f"bw{bandwidth}"],
+                    run_id = run_id,
+                ))
+    if args.dry:
+        print(experiments)
+        print(len(experiments))
+    else:
+        save_experiments(experiment_path, experiments)
+        generate_summary(experiment_path, experiments)
+  
 
 @experiment
 def traffic(args: Namespace) -> None:

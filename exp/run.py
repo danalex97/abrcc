@@ -53,6 +53,7 @@ def run(args: Namespace) -> None:
         traffic_generator = TrafficGenerator(
             time_log_path = path,
             light = getattr(args, 'light', False),
+            single_flow = getattr(args, 'single_flow', False),
         )
 
     # Add controller for launching the QUIC server and browser 
@@ -136,6 +137,7 @@ if __name__ == "__main__":
     parser.add_argument('--headless', action='store_true', help='Allow Chrome and plot components to run headless.')
     parser.add_argument('--traffic', action='store_true', help='Enable TCP generated traffic.')
     parser.add_argument('--light', action='store_true', help='Light TCP generated traffic.')
+    parser.add_argument('--single-flow', action='store_true', help='Enable single flow TCP generated traffic.')
     parser.add_argument('--plot', action='store_true', help='Enable plotting.')
     parser.add_argument('-lp', '--leader-port', dest='leader_port', type=int, required=False, help='Port of the leader.')
     run(parser.parse_args())   
