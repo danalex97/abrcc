@@ -27,7 +27,8 @@ class MinervaAbr : public AbrInterface {
  public:
   MinervaAbr(
     const std::shared_ptr<DashBackendConfig>& config,
-    const std::string& minerva_config_path_
+    const std::string& minerva_config_path_,
+    const bool normalize_
   );
   ~MinervaAbr() override;
 
@@ -60,6 +61,9 @@ class MinervaAbr : public AbrInterface {
   std::chrono::high_resolution_clock::time_point timestamp_;
   base::Optional<int> update_interval_;
   bool started_rate_update;
+
+  // flags
+  bool should_normalize;
 
   // normalization function
   std::vector<double> norm; 

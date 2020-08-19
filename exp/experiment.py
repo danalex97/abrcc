@@ -78,9 +78,9 @@ def single_flow_traffic(args: Namespace) -> None:
     runner_log = open(str(Path(root_path) / 'exp.log'), 'w')
    
     instances = [
-        ('--algo', 'dynamic', 'bbr2'),
-        ('--server-algo', 'gap', 'gap'),
         ('--algo', 'robustMpc', 'cubic'),
+        ('--server-algo', 'gap', 'gap'),
+        ('--algo', 'dynamic', 'bbr2'),
         ('--algo', 'robustMpc', 'bbr2'),
         ('--algo', 'dynamic', 'cubic'),
     ]
@@ -217,6 +217,7 @@ def stream_count(args: Namespace) -> None:
    
     algorithms = [
         ('--server-algo', 'minerva', 'minerva'),
+        ('--server-algo', 'minervann', 'minerva'),
         ('--server-algo', 'gap', 'gap'),
         ('--algo', 'robustMpc', 'cubic'),
         ('--algo', 'robustMpc', 'bbr2'),
@@ -240,7 +241,7 @@ def stream_count(args: Namespace) -> None:
                 for i in range(stream_number):
                     video  = random.choice(videos)
                     server = f"{arg} {algo} --name abr{i + 1} --cc {cc} --video {video}"
-                    if algo == "minerva":
+                    if algo == "minerva" or algo == "minervann":
                         server += f" --algo {algo}"
                     run_videos.append(video)
                     run_servers.append(server)
@@ -295,6 +296,7 @@ def multiple(args: Namespace) -> None:
         ('gap', 'gap'),
     ]
     minerva = [
+        ('minervann', 'minerva'),
         ('minerva', 'minerva'),
     ]
 
@@ -337,7 +339,7 @@ def multiple(args: Namespace) -> None:
                 for (algo, cc) in compete2 + minerva:
                     server1 = f"--server-algo {algo} --name abrcc1 --cc {cc} --video {video}"
                     server2 = f"--server-algo {algo} --name abrcc2 --cc {cc} --video {video}"
-                    if algo == "minerva":
+                    if algo == "minerva" or algo == "minervann":
                         server1 += f" --algo {algo}"
                         server2 += f" --algo {algo}"
 
@@ -535,24 +537,27 @@ def multiple2(args: Namespace) -> None:
                         ))
 
                 # minerva
-                cc, algo = "minerva", "minerva"
-                server1 = f"--algo {algo} --server-algo {algo} --name rmpc1 --cc {cc} --video {video}"
-                server2 = f"--algo {algo} --server-algo {algo} --name rmpc2 --cc {cc} --video {video}"
-                server3 = f"--algo {algo} --server-algo {algo} --name rmpc3 --cc {cc} --video {video}"
-                path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
-                runner_log.write(f'> {path}\n')
-                run_subexp(
-                    bandwidth, latency, path, [server1, server2, server3], burst=2000, video=video,
-                    headless=args.headless
-                )
-                experiments.append(Experiment(
-                    video = video,
-                    path = str(Path(path) / "leader_plots.log"),
-                    latency = latency,
-                    bandwidth = bandwidth,
-                    extra = ['minerva', cc + '1', cc + '2', cc + '3', video],
-                    run_id = run_id,
-                ))
+                for cc, algo in [
+                    ("minerva", "minerva"),
+                    ("minerva", "minervann"),
+                ]:
+                    server1 = f"--algo {algo} --server-algo {algo} --name rmpc1 --cc {cc} --video {video}"
+                    server2 = f"--algo {algo} --server-algo {algo} --name rmpc2 --cc {cc} --video {video}"
+                    server3 = f"--algo {algo} --server-algo {algo} --name rmpc3 --cc {cc} --video {video}"
+                    path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
+                    runner_log.write(f'> {path}\n')
+                    run_subexp(
+                        bandwidth, latency, path, [server1, server2, server3], burst=2000, video=video,
+                        headless=args.headless
+                    )
+                    experiments.append(Experiment(
+                        video = video,
+                        path = str(Path(path) / "leader_plots.log"),
+                        latency = latency,
+                        bandwidth = bandwidth,
+                        extra = [algo, cc + '1', cc + '2', cc + '3', video],
+                        run_id = run_id,
+                    ))
         
         if args.dry:
             print(experiments)
@@ -587,6 +592,7 @@ def hetero(args: Namespace) -> None:
     ]
     minerva = [
         ('minerva', 'minerva'),
+        ('minervann', 'minerva'),
     ]
 
     for i, video1 in enumerate(videos):
@@ -630,7 +636,7 @@ def hetero(args: Namespace) -> None:
                         for (algo, cc) in compete2 + minerva:
                             server1 = f"--server-algo {algo} --name abrcc1 --cc {cc} --video {video1}"
                             server2 = f"--server-algo {algo} --name abrcc2 --cc {cc} --video {video2}"
-                            if algo == "minerva":
+                            if algo == "minerva" or algo == "minervann":
                                 server1 += f" --algo {algo}"
                                 server2 += f" --algo {algo}"
                         
@@ -898,6 +904,7 @@ def run_all(args: Namespace) -> None:
     multiple2(args)
     hetero(args) 
     stream_count(args) 
+    single_flow_traffic(args)
 
 
 if __name__ == "__main__":

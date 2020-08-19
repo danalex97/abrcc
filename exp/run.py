@@ -13,10 +13,10 @@ from server.server import Server, multiple_sync
 from scripts.network import Network
 
 
-ABR_ALGORITHMS = ['bola', 'dynamic', 'bb', 'festive', 'rb', 'robustMpc', 'pensieve', 'minerva']
-SERVER_ABR_ALGORITHMS = ['bb', 'random', 'worthed', 'target', 'target2', 'target3', 'gap', 'remote', 'minerva']
+ABR_ALGORITHMS = ['bola', 'dynamic', 'bb', 'festive', 'rb', 'robustMpc', 'pensieve', 'minerva', 'minervann']
+SERVER_ABR_ALGORITHMS = ['bb', 'random', 'worthed', 'target', 'target2', 'target3', 'gap', 'remote', 'minerva', 'minervann']
 CC_ALGORITHMS = ['bbr', 'bbr2', 'pcc', 'reno', 'cubic', 'abbr', 'xbbr', 'target', 'gap', 'minerva']
-PYTHON_ABR_ALGORITHMS = ['robustMpc', 'pensieve', 'minerva']
+PYTHON_ABR_ALGORITHMS = ['robustMpc', 'pensieve', 'minerva', 'minervann']
 
 
 def run(args: Namespace) -> None:
@@ -41,7 +41,7 @@ def run(args: Namespace) -> None:
  
     # Handle Abr requests
     if args.algo in PYTHON_ABR_ALGORITHMS:
-        if args.algo == 'robustMpc' or args.algo == 'minerva':
+        if args.algo in ['robustMpc', 'minerva', 'minervann']:
             from abr.robust_mpc import RobustMpc
             server.add_post('/decision', RobustMpc(args.video))
         elif args.algo == 'pensieve':

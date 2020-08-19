@@ -54,11 +54,13 @@ namespace MinervaConstants {
 
 MinervaAbr::MinervaAbr(
     const std::shared_ptr<DashBackendConfig>& config,
-    const std::string& minerva_config_path_)
+    const std::string& minerva_config_path_,
+    const bool normalize_)
   : interface(MinervaInterface::GetInstance())
   , timestamp_(high_resolution_clock::now()) 
   , update_interval_(base::nullopt) 
   , started_rate_update(false)
+  , should_normalize(normalize_)
   , norm()
   , past_rates()
   , moving_average_rate(MinervaConstants::initMovingAverageRate) 
@@ -506,8 +508,10 @@ double MinervaAbr::computeUtility() {
   double utility = (phi1 * past_qoe + phi2 * current_qoe + vh) / (1. + phi1 + phi2);
   QUIC_LOG(WARNING) << "Utility: " << utility;
 
-  utility = normalize(utility);
-  QUIC_LOG(WARNING) << "Normalized utility: " << utility;
+  if (should_normalize) {
+    utility = normalize(utility);
+    QUIC_LOG(WARNING) << "Normalized utility: " << utility;
+  }
 
   return utility;
 }

@@ -41,7 +41,9 @@ AbrInterface* getAbr(
     return new RemoteAbr(config);
   } else if (abr_type == "minerva") {
     QUIC_LOG(WARNING) << "Minerva abr selected";
-    return new MinervaAbr(config, minerva_config_path_);
+    return new MinervaAbr(config, minerva_config_path_, true);
+  } else if (abr_type == "minervann") {
+    return new MinervaAbr(config, minerva_config_path_, false);
   }
   QUIC_LOG(WARNING) << "Defaulting to BB abr";
   return new BBAbr(config);
