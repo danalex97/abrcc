@@ -289,7 +289,10 @@ def plot_tag(
                 for metric in exp.get_metrics():
                     groups[metric.metric].append(metric.value)
                 for metric, group in groups.items():
-                    metrics[(metric, plane)].append((name, func(group)))
+                    try: 
+                        metrics[(metric, plane)].append((name, func(group)))
+                    except:
+                        pass
 
         for metric_name_plane, values in sorted(metrics.items()):
             # planes have no effect
@@ -325,12 +328,15 @@ def plot_tag(
         
         plot_name = f"{plot_base}_{metric}.png"
         ax = plt.subplot(111)
-        
+        print(f'Summary {plot_name}')
+
         schemes = []
         for scheme, curve in metric_curves.items():
             xs = [x for x, _ in curve]
             ys = [y for _, y in curve]
-                
+            
+            int_ys = [int(y) for y in ys]
+            print(f"{scheme} avg: {sum(int_ys) / len(int_ys)}, curve: {int_ys}")
             ax.plot(
                 xs,
                 ys,

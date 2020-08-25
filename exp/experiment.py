@@ -793,17 +793,14 @@ def generate_plots(args: Namespace) -> None:
         ])
     
     def plot_stream_count(path: str, experiments: List[Experiment], partial_tag: str, func_name: str, func, **kwargs) -> None:
-        try:
-            plot_tag(path, experiments, [
-                (["robustMpc", "bbr2"], (func, "RobustMpc-BBR", 1) ),
-                (["robustMpc", "cubic"], (func, "RobustMpc-Cubic", 1) ),
-                (["dynamic", "bbr2"], (func, "Dynamic-BBR", 1) ),
-                (["dynamic", "cubic"], (func, "Dynamic-Cubic", 1) ),
-                (["gap"], (func, "Gap", 1) ),
-                (["minervann"], (func, "Minerva", 1) ),
-            ], partial_tag, metrics=['vmaf_qoe'], y_labels={'vmaf_qoe': func_name}, **kwargs)
-        except:
-            pass
+        plot_tag(path, experiments, [
+            (["robustMpc", "bbr2"], (func, "RobustMpc-BBR", 1) ),
+            (["robustMpc", "cubic"], (func, "RobustMpc-Cubic", 1) ),
+            (["dynamic", "bbr2"], (func, "Dynamic-BBR", 1) ),
+            (["dynamic", "cubic"], (func, "Dynamic-Cubic", 1) ),
+            (["gap"], (func, "Gap", 1) ),
+            (["minervann"], (func, "Minerva", 1) ),
+        ], partial_tag, metrics=['vmaf_qoe'], y_labels={'vmaf_qoe': func_name}, **kwargs)
 
     experiment_path = str(Path("experiments") / "plots")
     os.system(f"mkdir -p {experiment_path}")
@@ -874,7 +871,7 @@ def generate_plots(args: Namespace) -> None:
         str(Path(stream_count_path) / "stream_count_fair"), experiments, "streams", 'Minimum QoE', min, legend_location=1,
     )
     plot_stream_count(
-        str(Path(stream_count_path) / "stream_count_cv"), experiments, "streams", 'QoE CV', cv, legend_location=3,
+        str(Path(stream_count_path) / "stream_count_cv"), experiments, "streams", 'QoE CV', cv, legend_location=2,
     )
 
     # summaries
@@ -912,7 +909,7 @@ def generate_plots(args: Namespace) -> None:
                 ]], [])
     for cc in ['cubic', 'bbr2']:
         plot_hetero_versus(str(Path(experiment_path) / f"summary" / f"hetero_{cc}"), experiments, cc)
-    plot_self(str(Path(experiment_path) / f"summary" / "hetero_self"), experiments, exclude=['Minerva'])
+    plot_self(str(Path(experiment_path) / f"summary" / "hetero_self"), experiments, exclude=[], legend_location=3)
 
 
 @experiment
