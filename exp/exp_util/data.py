@@ -59,7 +59,20 @@ class Experiment:
         self.run_id = run_id
         self.metrics = []
         self.video = video
-    
+
+    def get_flow_capacity(self) -> List[float]: 
+        base_path  = str(Path(self.path).parents[0])
+        all_values = []
+        for file_ in Path(base_path).iterdir():
+            file_path = str(file_)
+            if "mbps_" in file_path:
+                with open(file_path, 'r') as f:
+                    values = [float(l) for l in f.read().split('\n') if l != ""]
+                    if max(values + [0]) > 10:
+                        print(file_path)
+                    all_values += values  
+        return all_values
+
     def get_flow_completion_times(self) -> List[float]: 
         base_path  = str(Path(self.path).parents[0])
         all_values = []

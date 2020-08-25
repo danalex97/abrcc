@@ -79,6 +79,56 @@ def get_fcts(
     return out
 
 
+def get_flow_capacity(
+    plot_data: Dict[Tuple[int, int, str], List[Tuple[Experiment, str]]]
+) -> Dict[str, List[float]]:
+    out = defaultdict(list)
+    for env, exp_inst in plot_data.items():
+        latency, bandwidth, trace = env
+        for exp, instance_name in exp_inst:
+            instance: Instance = instance_name[0]
+            name: str = instance_name[1]
+            plane: int = instance_name[2]
+
+            if type(instance) == str:
+                out[name] += [v * 1000 for v in exp.get_flow_capacity()]
+            else:
+                raise NotImplementedError()
+    return out
+
+
+def plot_flow_capacity_cdf( 
+    plot_base: str,
+    experiments: List[Experiment],
+    tag_maps: List[TagMapping],
+) -> None:
+    plot_data  = get_plot_data(plot_base, experiments, tag_maps)
+    capacities = get_flow_capacity(plot_data)
+    
+    plot_name = f"{plot_base}.png"
+    ax = plt.subplot(111)
+    schemes = []
+    marker_index = 0
+    for scheme, cur_values in capacities.items():
+        values, base = np.histogram(cur_values, bins=len(cur_values))
+        cumulative   = np.cumsum(values)
+        cumulative   = [float(i) / len(values) * 100 for i in cumulative]
+        ax.plot(
+            base[:-1], 
+            cumulative, 
+            linewidth=2, 
+        )
+        schemes.append(scheme)
+
+    ax.get_xaxis().set_visible(True)
+    ax.legend(schemes, loc=4)
+    plt.ylabel('CDF')
+    plt.xlabel('Flow capacity(kbps)')
+    
+    plt.savefig(plot_name, dpi=DPI)
+    ax.cla()
+
+
 def plot_fct_cdf(
     plot_base: str,
     experiments: List[Experiment],
@@ -138,7 +188,8 @@ def plot_cdf(
             if metric not in metrics_to_plot:
                 continue
         plot_name = f"{plot_base}_{metric}.png"
-        
+        print(f'Summary {plot_name}')
+
         all_values = defaultdict(list)
         for instance, value in instance_value:
             all_values[instance].append(value)
@@ -148,10 +199,19 @@ def plot_cdf(
         schemes = []
         marker_index = 0
         for scheme, cur_values in all_values.items():
+            avg = sum(cur_values) / len(cur_values)
+            median = cur_values[len(cur_values) // 2]
+            p5 = cur_values[int(len(cur_values) * .05)]
+            p10 = cur_values[int(len(cur_values) * .10)]
+            p80 = cur_values[int(len(cur_values) * .80)]
+            p95 = cur_values[int(len(cur_values) * .95)]
+
+            print(f'{scheme} avg: {avg}, median: {median}, p5: {p5}, p10: {p10}, p80: {p80}, p95: {p95}') 
+
             values, base = np.histogram(cur_values, bins=len(cur_values))
             cumulative   = np.cumsum(values)
             cumulative   = [float(i) / len(values) * 100 for i in cumulative]
-            
+    
             marker_index = (marker_index + 1) % len(markers)
             ax.plot(
                 base[:-1], 
@@ -405,8 +465,10 @@ def plot_bar(
             data_transp = np.transpose(data)
             std_transp = np.transpose(std)
 
+            print(f"Summary {plot_name}")
             width = 1. / (len(instances) + 1)
             for i in range(len(data_transp)):
+                print(data_transp[i])
                 ax.bar(
                     x + width * i, 
                     data_transp[i], 

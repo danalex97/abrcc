@@ -79,7 +79,7 @@ int main(int argc, char const *argv[]) {
       std::cout << "Measured speed of " << speed << "mbps\n";
 
       if (to_log) {
-        log_stream << std::fixed << std::setprecision(5) << speed << std::endl;
+        log_stream << std::fixed << std::setprecision(5) << speed << std::endl << std::flush;
       }
 
       start = std::chrono::system_clock::now();

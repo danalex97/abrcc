@@ -6,7 +6,7 @@ from statistics import stdev
 from abr.video import get_video_chunks
 from exp_util.env import experiments, experiment, run_subexp, run_trace, run_traffic
 from exp_util.data import Experiment, save_experiments, generate_summary, load_experiments
-from exp_util.plot import plot_bar, plot_cdf, plot_fct_cdf, plot_tag
+from exp_util.plot import plot_bar, plot_cdf, plot_fct_cdf, plot_tag, plot_flow_capacity_cdf
 
 import os
 import time
@@ -91,7 +91,7 @@ def single_flow_traffic(args: Namespace) -> None:
     latency = 100
     for bandwidth in [2, 3, 4]:
         for (where, algo, cc) in instances:
-            for run_id in range(10):
+            for run_id in range(5):
                 video = random.choice(videos)
 
                 server = f"{where} {algo} --name abr --cc {cc} --video {video}" 
@@ -228,7 +228,7 @@ def stream_count(args: Namespace) -> None:
     experiments = []
     experiment_path = str(Path(root_path))
     
-    runs      = 15
+    runs      = 20
     latency   = 500
     bandwidth = 4
     min_streams, max_streams = 2, 8
@@ -754,14 +754,14 @@ def generate_plots(args: Namespace) -> None:
             (["dynamic", "bbr21", "bbr22"], (min, "Dynamic-BBR", 1) ),
             (["rmpc", "cubic1", "cubic2"], (min, "RobustMpc-Cubic", 1) ),
             (["rmpc", "bbr21", "bbr22"], (min, "RobustMpc-BBR", 1) ),
-            (["minerva"], (min, "Minerva", 1) ),
+            (["minervann"], (min, "Minerva", 1) ),
             
             (["self", "gap", "gap2"], (avg, " Gap", 2) ),
             (["dynamic", "cubic1", "cubic2"], (avg, "Dynamic-Cubic", 2) ),
             (["dynamic", "bbr21", "bbr22"], (avg, "Dynamic-BBR", 2) ),
             (["rmpc", "cubic1", "cubic2"], (avg, "RobustMpc-Cubic", 2) ),
             (["rmpc", "bbr21", "bbr22"], (avg, "RobustMpc-BBR", 2) ),
-            (["minerva"], (avg, "Minerva", 2) ),
+            (["minervann"], (avg, "Minerva", 2) ),
         ], metrics=["vmaf_qoe"], y_labels={'vmaf_qoe' : 'QoE'}, **kwargs)
     
     def plot_traces(path: str, experiments: List[Experiment]) -> None:
@@ -783,15 +783,27 @@ def generate_plots(args: Namespace) -> None:
             (["fct", "gap"] + extra, ('abr', "Gap", 1) ),
         ])
 
+    def plot_flow_capacity(path: str, experiments: List[Experiment]) -> None:
+        plot_flow_capacity_cdf(path, experiments, [
+            (["sf", "robustMpc", "bbr2"], ('abr', "RobustMpc-BBR", 1) ),
+            (["sf", "robustMpc", "cubic"], ('abr', "RobustMpc-Cubic", 1) ),
+            (["sf", "dynamic", "bbr2"], ('abr', "Dynamic-BBR", 1) ),
+            (["sf", "dynamic", "cubic"], ('abr', "Dynamic-Cubic", 1) ),
+            (["sf", "gap"], ('abr', "Gap", 1) ),
+        ])
+    
     def plot_stream_count(path: str, experiments: List[Experiment], partial_tag: str, func_name: str, func, **kwargs) -> None:
-        plot_tag(path, experiments, [
-            (["robustMpc", "bbr2"], (func, "RobustMpc-BBR", 1) ),
-            (["robustMpc", "cubic"], (func, "RobustMpc-Cubic", 1) ),
-            (["dynamic", "bbr2"], (func, "Dynamic-BBR", 1) ),
-            (["dynamic", "cubic"], (func, "Dynamic-Cubic", 1) ),
-            (["gap"], (func, "Gap", 1) ),
-            (["minerva"], (func, "Minerva", 1) ),
-        ], partial_tag, metrics=['vmaf_qoe'], y_labels={'vmaf_qoe': func_name}, **kwargs)
+        try:
+            plot_tag(path, experiments, [
+                (["robustMpc", "bbr2"], (func, "RobustMpc-BBR", 1) ),
+                (["robustMpc", "cubic"], (func, "RobustMpc-Cubic", 1) ),
+                (["dynamic", "bbr2"], (func, "Dynamic-BBR", 1) ),
+                (["dynamic", "cubic"], (func, "Dynamic-Cubic", 1) ),
+                (["gap"], (func, "Gap", 1) ),
+                (["minervann"], (func, "Minerva", 1) ),
+            ], partial_tag, metrics=['vmaf_qoe'], y_labels={'vmaf_qoe': func_name}, **kwargs)
+        except:
+            pass
 
     experiment_path = str(Path("experiments") / "plots")
     os.system(f"mkdir -p {experiment_path}")
@@ -805,6 +817,12 @@ def generate_plots(args: Namespace) -> None:
     for bw in [5, 4, 3]:
         plot_fct_traffic(str(Path(traffic_path) / f"fct{bw}"), experiments, bw=bw)
     plot_fct_traffic(str(Path(traffic_path) / "fct"), experiments)
+    
+    # single flow traffic
+    experiments = sum([load_experiments(experiment) for experiment in [
+        str(Path("experiments") / "traffic" / "sft"),
+    ]], [])
+    plot_flow_capacity(str(Path(traffic_path) / "sft"), experiments)
     
     # per-video plots
     videos = ['got', 'bojack', 'guard', 'cook']
@@ -903,8 +921,8 @@ def run_all(args: Namespace) -> None:
     multiple(args)
     multiple2(args)
     hetero(args) 
-    stream_count(args) 
     single_flow_traffic(args)
+    stream_count(args) 
 
 
 if __name__ == "__main__":
