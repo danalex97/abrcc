@@ -88,10 +88,10 @@ def single_flow_traffic(args: Namespace) -> None:
     experiments = []
     experiment_path = str(Path(root_path) / 'sft')
     subpath = experiment_path
-    latency = 100
+    latency = 500
     for bandwidth in [2, 3, 4]:
         for (where, algo, cc) in instances:
-            for run_id in range(5):
+            for run_id in range(6):
                 video = random.choice(videos)
 
                 server = f"{where} {algo} --name abr --cc {cc} --video {video}" 
@@ -150,7 +150,7 @@ def traffic(args: Namespace) -> None:
                 path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
                 
                 runner_log.write(f'> {path}\n')
-                run_traffic(path, f"{server} -l {latency} -b {bandwidth} --light", headless=args.headless)
+                run_traffic(path, f"{server} -l {latency} -b {bandwidth} --light", headless=args.headless, burst=20000)
                
                 cc_name = cc if cc != "gap" else "gap2"
                 experiments.append(Experiment(
@@ -168,7 +168,7 @@ def traffic(args: Namespace) -> None:
         save_experiments(experiment_path, experiments)
         generate_summary(experiment_path, experiments)
    
-    latency = 500
+    latency = 100
     for video in videos:
         experiments = []
         experiment_path = str(Path(root_path) / video)
@@ -791,6 +791,14 @@ def generate_plots(args: Namespace) -> None:
             (["sf", "dynamic", "cubic"], ('abr', "Dynamic-Cubic", 1) ),
             (["sf", "gap"], ('abr', "Gap", 1) ),
         ])
+        
+        plot_cdf(path, experiments, [
+            (["sf", "robustMpc", "bbr2"], ('abr', "RobustMpc-BBR", 1) ),
+            (["sf", "robustMpc", "cubic"], ('abr', "RobustMpc-Cubic", 1) ),
+            (["sf", "dynamic", "bbr2"], ('abr', "Dynamic-BBR", 1) ),
+            (["sf", "dynamic", "cubic"], ('abr', "Dynamic-Cubic", 1) ),
+            (["sf", "gap"], ('abr', "Gap", 1) ),
+        ], metrics=["vmaf_qoe"], x_labels={'vmaf_qoe': 'QoE'})
     
     def plot_stream_count(path: str, experiments: List[Experiment], partial_tag: str, func_name: str, func, **kwargs) -> None:
         plot_tag(path, experiments, [

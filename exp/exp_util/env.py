@@ -125,12 +125,13 @@ def run_traffic(
     server: str,
     force_run: bool = False,
     headless: bool = False,
+    burst: int = 2000,
 ):
     cleanup_files()
     if os.path.isdir(path) and not force_run:
         return   
     ports = "--port 8001 --quic-port 4001"
-    extra = "--burst 20000 --plot --traffic"
+    extra = f"--burst {burst} --plot --traffic"
     cmd = (
         f"python3 run.py {ports} {server} {extra} --path {path}"
     )

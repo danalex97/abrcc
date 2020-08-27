@@ -112,6 +112,8 @@ class LeaderController:
 
         # kill all remaining chrome instances and myself
         os.system("kill $(pgrep chrome)")
+        os.system("pkill -9 socket_client") 
+        os.system("pkill -9 socket_server") 
         kill_subprocess(os.getpid())
 
 def run(args: Namespace) -> None:

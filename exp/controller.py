@@ -150,6 +150,8 @@ class Controller(LogAccessMixin):
         # Kill all chrome instances if I'm alone
         if not self.only_server and not self.leader_port:
             os.system("pkill -9 chrome")
+            os.system("pkill -9 socket_client") 
+            os.system("pkill -9 socket_server")
         
         # Kill myself
         kill_subprocess(os.getpid())
