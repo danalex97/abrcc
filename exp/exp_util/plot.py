@@ -97,6 +97,20 @@ def get_flow_capacity(
     return out
 
 
+def print_summary_cdf(scheme: str, cur_values: List[float]) -> None:
+    avg = sum(cur_values) / len(cur_values)
+
+    median = cur_values[len(cur_values) // 2]
+    p5 = cur_values[int(len(cur_values) * .05)]
+    p10 = cur_values[int(len(cur_values) * .10)]
+    p80 = cur_values[int(len(cur_values) * .80)]
+    p95 = cur_values[int(len(cur_values) * .95)]
+
+    print(f'{scheme}'
+          f' avg: {avg}, median: {median}, '
+          f' p5: {p5}, p10: {p10}, p80: {p80}, p95: {p95}') 
+
+
 def plot_flow_capacity_cdf( 
     plot_base: str,
     experiments: List[Experiment],
@@ -106,13 +120,18 @@ def plot_flow_capacity_cdf(
     capacities = get_flow_capacity(plot_data)
     
     plot_name = f"{plot_base}.png"
+    print(f'Summary {plot_name}')
+   
     ax = plt.subplot(111)
     schemes = []
     marker_index = 0
     for scheme, cur_values in capacities.items():
+        cur_values = sorted(cur_values)
+        
         values, base = np.histogram(cur_values, bins=len(cur_values))
         cumulative   = np.cumsum(values)
         cumulative   = [float(i) / len(values) * 100 for i in cumulative]
+        print_summary_cdf(scheme, cur_values)
         ax.plot(
             base[:-1], 
             cumulative, 
@@ -138,6 +157,8 @@ def plot_fct_cdf(
     fcts      = get_fcts(plot_data)
     
     plot_name = f"{plot_base}.png"
+    print(f'Summary {plot_name}')
+    
     ax = plt.subplot(111)
     schemes = []
     marker_index = 0
@@ -145,6 +166,7 @@ def plot_fct_cdf(
         values, base = np.histogram(cur_values, bins=len(cur_values))
         cumulative   = np.cumsum(values)
         cumulative   = [float(i) / len(values) * 100 for i in cumulative]
+        print_summary_cdf(scheme, cur_values)
         ax.plot(
             base[:-1], 
             cumulative, 
@@ -199,18 +221,10 @@ def plot_cdf(
         schemes = []
         marker_index = 0
         for scheme, cur_values in all_values.items():
-            avg = sum(cur_values) / len(cur_values)
-            median = cur_values[len(cur_values) // 2]
-            p5 = cur_values[int(len(cur_values) * .05)]
-            p10 = cur_values[int(len(cur_values) * .10)]
-            p80 = cur_values[int(len(cur_values) * .80)]
-            p95 = cur_values[int(len(cur_values) * .95)]
-
-            print(f'{scheme} avg: {avg}, median: {median}, p5: {p5}, p10: {p10}, p80: {p80}, p95: {p95}') 
-
             values, base = np.histogram(cur_values, bins=len(cur_values))
             cumulative   = np.cumsum(values)
             cumulative   = [float(i) / len(values) * 100 for i in cumulative]
+            print_summary_cdf(scheme, cur_values)
     
             marker_index = (marker_index + 1) % len(markers)
             ax.plot(

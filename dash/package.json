@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "src/index.js",
   "scripts": {
-    "compile" : "tsc",
+    "compile": "tsc",
     "lint": "eslint --ignore-pattern 'src/ts-out' src",
     "build": "node build.js",
     "build:run": "browserify -p tsify -t [ babelify --extensions .ts ] dist/config.json src/index.js src/types.ts src/apps/* src/algo/* src/common/* src/component/* src/controller/* > dist/bundle.js",
@@ -36,6 +36,7 @@
     "json-stable-stringify": "^1.0.1",
     "reading-time": "^1.1.3",
     "request": "^2.88.0",
+    "requestretry": "^4.1.1",
     "tsify": "^2.0.2",
     "typescript": "^2.0.3",
     "uglify-js": "^3.7.3",

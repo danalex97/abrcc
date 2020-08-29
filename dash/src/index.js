@@ -48,12 +48,13 @@ function updateAbrSettings(player, parser, shim, interceptor) {
                     'useDefaultABRRules': true,
                     'ABRStrategy': algo,
                     'enableBufferOccupancyABR' : true,
-                }
+                },
+                'stableBufferTime': LARGE_BUFFER_TIME, // we use this to request continuously
+                'bufferTimeAtTopQuality': LARGE_BUFFER_TIME, // we use this to request continously
             },
             'debug': { 
                 'logLevel': Debug.LOG_LEVEL_INFO,
             },
-
         });
     }
     logger.log(player.getSettings());

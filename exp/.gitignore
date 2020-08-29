@@ -6,3 +6,5 @@ old/
 test/
 crawler/cache
 crawler/logs
+crawler/socket_client
+crawler/socket_server

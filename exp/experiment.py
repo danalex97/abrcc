@@ -91,24 +91,23 @@ def single_flow_traffic(args: Namespace) -> None:
     latency = 500
     for bandwidth in [2, 3, 4]:
         for (where, algo, cc) in instances:
-            for run_id in range(6):
-                video = random.choice(videos)
-
-                server = f"{where} {algo} --name abr --cc {cc} --video {video}" 
-                path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_run{run_id}")
-                
-                runner_log.write(f'> {path}\n')
-                run_traffic(path, f"{server} -l {latency} -b {bandwidth} --single-flow", headless=args.headless)
-               
-                cc_name = cc if cc != "gap" else "gap2"
-                experiments.append(Experiment(
-                    video = video,
-                    path = str(Path(path) / "abr_plots.log"),
-                    latency = latency,
-                    bandwidth = bandwidth,
-                    extra = ["sf", algo, cc_name, f"bw{bandwidth}"],
-                    run_id = run_id,
-                ))
+            for run_id in range(4):
+                for video in videos:
+                    server = f"{where} {algo} --name abr --cc {cc} --video {video}" 
+                    path = str(Path(subpath) / f"{algo}_{cc}_{bandwidth}_{video}_run{run_id}")
+                    
+                    runner_log.write(f'> {path}\n')
+                    run_traffic(path, f"{server} -l {latency} -b {bandwidth} --single-flow", headless=args.headless)
+                   
+                    cc_name = cc if cc != "gap" else "gap2"
+                    experiments.append(Experiment(
+                        video = video,
+                        path = str(Path(path) / "abr_plots.log"),
+                        latency = latency,
+                        bandwidth = bandwidth,
+                        extra = ["sf", algo, cc_name, f"bw{bandwidth}"],
+                        run_id = run_id,
+                    ))
     if args.dry:
         print(experiments)
         print(len(experiments))
@@ -828,7 +827,7 @@ def generate_plots(args: Namespace) -> None:
         str(Path("experiments") / "traffic" / "sft"),
     ]], [])
     plot_flow_capacity(str(Path(traffic_path) / "sft"), experiments)
-    
+
     # per-video plots
     videos = ['got', 'bojack', 'guard', 'cook']
     for video in videos:
