@@ -8,7 +8,7 @@ import json
 
 def process_info(
     info: Dict[str, float],
-    quality: int, 
+    quality: int,
     segment: int,
     tracks_path: str,
 ) -> Dict[str, float]:
@@ -28,7 +28,7 @@ def main(args: Namespace) -> None:
 
     vmaf_json = json.loads(open(vmaf_path, 'r').read())
     qualities = [int(q) for q in vmaf_json.keys()]
-    
+
     config = {
         "domain" : "www.example.org",
         "base_path" : "/../", # [TODO] make absolute path
@@ -62,6 +62,6 @@ def main(args: Namespace) -> None:
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description='Prepare JSON compatible with QUIC programme.') 
+    parser = ArgumentParser(description='Prepare and export JSON compatible with QUIC backend. Exports the DASH video segments to the backend.') 
     parser.add_argument('video', type=str, help='Name of the video.')
-    main(parser.parse_args())   
+    main(parser.parse_args())

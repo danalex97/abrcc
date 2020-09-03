@@ -10,7 +10,7 @@ import json
 
 def process_info(
     info: Dict[str, float],
-    quality: int, 
+    quality: int,
     segment: int,
     tracks_path: str,
 ) -> Dict[str, float]:
@@ -22,6 +22,12 @@ def process_info(
 
 
 def main(args: Namespace) -> None:
+    text = {
+        'got' : "Game of Thrones",
+        'guard' : "Guardians of the Galaxy",
+        'bojack' : "Bojack Horseman",
+        'cook' : "Cooking Tutorial",
+    }
     f = plt.figure(figsize=(50,5))
     for i, video in enumerate(args.video):
         cur_dir = os.path.dirname(os.path.abspath(__file__))
@@ -32,20 +38,27 @@ def main(args: Namespace) -> None:
 
         vmaf_json = json.loads(open(vmaf_path, 'r').read())
         qualities = [int(q) for q in vmaf_json.keys()]
-        
+
         info = {q : [
             process_info(vmaf_json[str(q)][str(i + 1)], q, i + 1, tracks_path)
             for i in range(len(vmaf_json[str(q)]))
         ] for (i, q) in list(enumerate(qualities))}
-       
+
         ax = f.add_subplot(int(f'1{len(args.video)}{i + 1}'))
+        ks = sorted(list(info.keys()))
+
+        ax.set_xlabel("segment")
+        if i == 0:
+            ax.set_ylabel("VMAF")
+
         for q, i in info.items():
             ax.plot([x['vmaf'] for x in i], label=q)
-        ax.legend()
-        ax.title.set_text(video)
-    plt.show() 
+        ax.legend(loc=3)
+        ax.title.set_text(text[video])
+
+    plt.show()
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description='Prepare JSON compatible with QUIC programme.') 
+    parser = ArgumentParser(description='Plot VMAF structure for a list of videos.') 
     parser.add_argument('video', nargs="*", type=str, help='Name of the video.')
-    main(parser.parse_args())   
+    main(parser.parse_args())

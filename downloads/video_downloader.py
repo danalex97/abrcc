@@ -13,13 +13,13 @@ from vmaf.config import VmafConfig
 def run_cmd(command: str, verbose: bool = False) -> str:
     if verbose:
         print(f'> {command}')
-    return check_output(command, shell=True).decode('utf-8')  
-    
+    return check_output(command, shell=True).decode('utf-8')
+
 
 def get_tracks(url: str) -> Dict[int, int]:
     raw_info = run_cmd(f'youtube-dl -F {url}')
     print(raw_info)
-    
+
     out = {}
     for line in raw_info.split('\n')[3:-1]:
         info = [s for s in line.split('  ') if s != '']
@@ -27,18 +27,18 @@ def get_tracks(url: str) -> Dict[int, int]:
 
         track_id = int(info[0])
         track_format = info[1]
-        
+
         rest = (' '.join(info[2:])).split(' ')
         rest = [r for r in rest if r != '']
         is_video = 'video' in ''.join(rest)
         is_avc = 'avc' in ''.join(rest)
         if not is_video or not is_avc:
             continue
-        
+
         rate = int(rest[2][:-1])
         if track_format == 'mp4':
             out[rate] = track_id
-   
+
     max_rate = 2500
 
     to_delete = []
@@ -54,14 +54,13 @@ def get_tracks(url: str) -> Dict[int, int]:
 def convert_to_yuv(raw_video: str, width: int, height: int, rate: int) -> None:
     where = f"videos/{raw_video}/yuv/video_{rate}.yuv"
     run_cmd(f"rm *.yuv || true")
-    run_cmd(f"fm {where} || true") 
-    
+    run_cmd(f"fm {where} || true")
+
     video = f"videos/{raw_video}/tmp/video_{rate}.mp4"
     scale = f"-vf scale={width}:{height}"
-    fmt = f"-pix_fmt yuv420p"
-    # run_cmd(f"ffmpeg -y -i {video} {fmt} -framerate 10 -vsync 0 {scale} output_{rate}.yuv")
+    fmt   = f"-pix_fmt yuv420p"
     run_cmd(f"ffmpeg -y -i {video} {fmt} -vsync 0 {scale} output_{rate}.yuv")
-    
+
     run_cmd(f"mv output_{rate}.yuv {where}")
 
 
@@ -89,18 +88,18 @@ def run(args: Namespace) -> None:
     for rate, track_id in tracks.items():
         run_cmd(f'mkdir -p videos/{args.video}/tracks')
         mp4_video = f'videos/{args.video}/tmp/video_{rate}.mp4'
-        
+
         segment_dir = f'videos/{args.video}/tracks/video_{rate}'
         run_cmd(f'rm -rf {segment_dir}')
         run_cmd(f'mkdir -p {segment_dir}')
-        
+
         # Intermediate video -- H264 format
         inter1 = f'videos/{args.video}/tmp/intermediate.264'
-        run_cmd(f'x264 --output {inter1} --fps 24 --preset slow' + 
+        run_cmd(f'x264 --output {inter1} --fps 24 --preset slow' +
                 f' --bitrate {rate} --vbv-maxrate {2*rate} --vbv-bufsize {4*rate}' +
                 f' --min-keyint {args.segment*24} --keyint {args.segment*24}' +
                 f' --scenecut 0 --no-scenecut --pass 1 {mp4_video}')
-        
+
         # Intermediate video -- mp4 format
         inter2 = f'videos/{args.video}/tmp/intermediate.mp4'
         run_cmd(f'rm -f {inter2}')
@@ -113,19 +112,19 @@ def run(args: Namespace) -> None:
         run_cmd(f'mv intermediate_dash.mpd {segment_dir}')
         run_cmd(f'mv *.m4s {segment_dir}')
         run_cmd(f'mv init.mp4 {segment_dir}')
-    
+
         segments = int(run_cmd(f'ls {segment_dir} | grep "m4s" | wc -l'))
         segment_info[rate] = {}
         for segment in range(1, segments + 1):
             segment_info_raw = run_cmd(f'MP4Box -std -diso {segment_dir}/{segment}.m4s 2>&1 | grep "SegmentIndexBox"')
             timescale = int(get_attr(segment_info_raw, 'timescale'))
             earliest_time = int(get_attr(segment_info_raw, 'earliest_presentation_time'))
-            
+
             # compute segment start times
             segment_info[rate][segment] = {
                 'start_time' : earliest_time / timescale,
             }
-    
+
     # Create common manifest
     base = None
     info = {}
@@ -137,7 +136,7 @@ def run(args: Namespace) -> None:
         content = None
         with open(manifest, 'r') as f:
             content = f.read()
-            content = '\n'.join([l for l in content.split('\n') 
+            content = '\n'.join([l for l in content.split('\n')
                 if "Initialization" not in l])
         os.system(f'rm {manifest}')
         with open(manifest, 'w') as f:
@@ -145,17 +144,17 @@ def run(args: Namespace) -> None:
 
         tree = et.parse(manifest)
         tree = tree.getroot()
-       
+
         root = tree[1][0]
         representation = None
         for child in root:
             if 'Representation' in child.tag:
                 representation = child
-            
+
         print(representation)
         pl = sorted(list(tracks.keys())).index(rate)
         representation.set('id', f"video{pl}")
-        
+
         # Save video representation information
         info[rate] = {
             'width' : int(representation.get('width')),
@@ -168,17 +167,17 @@ def run(args: Namespace) -> None:
             segment_template.set('media', '$RepresentationID$/$Number$.m4s')
         else:
             base[1][0].append(representation)
-     
+
     # Generate manifest
     manifest = f'videos/{args.video}/tracks/manifest.mpd'
     print(f'> Creating manifest {manifest}')
-   
+
     run_cmd(f'rm {manifest} || true')
     with open(manifest, 'w') as f:
         manifest_content = tostring(base).decode('UTF-8')
         print(manifest_content)
         f.write(manifest_content)
-    
+
     if not args.vmaf:
         return
 
@@ -188,14 +187,14 @@ def run(args: Namespace) -> None:
         biggest_rate = max(tracks.keys())
         width = info[biggest_rate]['width']
         height = info[biggest_rate]['height']
-        run_cmd(f'mkdir -p videos/{args.video}/yuv') 
+        run_cmd(f'mkdir -p videos/{args.video}/yuv')
         convert_to_yuv(args.video, width, height, biggest_rate)
-     
-        run_cmd(f'mkdir -p videos/{args.video}/vmaf') 
+
+        run_cmd(f'mkdir -p videos/{args.video}/vmaf')
         for rate, track_id in tracks.items():
             if os.path.isfile(f"videos/{args.video}/vmaf/video_{rate}.json"):
                 continue
-           
+
             # convert video
             if rate != biggest_rate:
                 convert_to_yuv(args.video, width, height, rate)
@@ -210,16 +209,16 @@ def run(args: Namespace) -> None:
                 if segment < segments:
                     t = segment_info[rate][segment + 1]['start_time'] - ss
                 else:
-                    t = (segment_info[rate][segment]['start_time'] - 
+                    t = (segment_info[rate][segment]['start_time'] -
                         segment_info[rate][segment - 1]['start_time'])
 
-                cmd_ss = f"-ss {ss}" 
+                cmd_ss = f"-ss {ss}"
                 cmd_t = f"-t {t}"
                 sizes = f"-s:v {width}x{height}"
-                fmt = "-pix_fmt yuv420p" 
+                fmt = "-pix_fmt yuv420p"
                 run_cmd(f"ffmpeg {sizes} -r 10 -i {video} {cmd_ss} {cmd_t} {fmt} cut1.yuv", verbose=True)
                 run_cmd(f"ffmpeg {sizes} -r 10 -i {video_ref} {cmd_ss} {cmd_t} {fmt} cut2.yuv", verbose=True)
-                
+
                 command = f"vmaf/run_vmaf yuv420p {width} {height} cut2.yuv cut1.yuv --out-fmt json"
                 raw_vmaf_data = run_cmd(command)
 
@@ -249,9 +248,9 @@ def run(args: Namespace) -> None:
             print(vmafs)
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description='Download and make a DASH.js complient video.') 
+    parser = ArgumentParser(description='Download and make a DASH.js compliant video.')
     parser.add_argument('url', type=str, help='Video url.')
     parser.add_argument('video', type=str, help='Name of the video.')
     parser.add_argument('-s', '--segment-size', dest='segment', type=int, default=5000, help='Segment size in ms.')
-    parser.add_argument('-vmaf', action='store_true', dest='vmaf', help='Segment size in ms.')
-    run(parser.parse_args())   
+    parser.add_argument('-vmaf', action='store_true', dest='vmaf', help='Generate VMAF configuration.')
+    run(parser.parse_args())
