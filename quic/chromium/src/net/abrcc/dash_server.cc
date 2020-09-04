@@ -83,10 +83,12 @@ QuicDashServer::QuicDashServer(BackendFactory* backend_factory,
 int QuicDashServer::Start() {
   // Add signal handler for exceptions
   signal(SIGSEGV, sigsegv_handler); 
-  
+
+  // Set the CCSelector singleton's congestion control type
   auto *selector = CCSelector::GetInstance();
   selector->setCongestionControlType(GetQuicFlag(FLAGS_cc_type));
 
+  // Create a server with the DASH backend handler from the factory 
   auto supported_versions = AllSupportedVersions();
   for (const auto& version : supported_versions) {
     QuicEnableVersion(version);
@@ -102,6 +104,7 @@ int QuicDashServer::Start() {
     return 1;
   }
 
+  // start the handler
   server->HandleEventsForever();
   return 0;
 }

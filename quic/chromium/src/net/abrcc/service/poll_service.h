@@ -12,7 +12,13 @@
 
 namespace quic {
 
-// !THREAD_SAFE
+// Long-polling service. Contains a cache of hanging QUIC requests with an attached 
+// handler. Allow the following operations:
+//  -- adding an entry to cache
+//  -- sending the response(asynchronous, yet guaranteed, operation)
+//  -- accessing a cache entry: returns a unique pointer that allows modifications 
+//       to the request
+// All methods are protected by a read-write lock.
 class PollingService {
  public:
   class CacheEntry {
@@ -36,15 +42,20 @@ class PollingService {
   PollingService& operator=(const PollingService&) = delete;
   ~PollingService();
 
+  // Add a handing request, together with a request handler(to be called on sending
+  // response) to the polling service cache.
   void AddRequest(
     const spdy::SpdyHeaderBlock& request_headers,
     const std::string& request_body,
     QuicSimpleServerBackend::RequestHandler* quic_server_stream);
 
+  // Send the response to the `request_path` cache entry by overriding the 
+  // `response_body` with a new one and calling the associated request handler.
   bool SendResponse(
     const std::string request_path,
     const QuicStringPiece response_body);
   
+  // Recover a mutable cache entry.
   std::unique_ptr<PollingService::CacheEntry> GetEntry(
     const std::string request_path);
 

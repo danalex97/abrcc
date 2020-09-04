@@ -13,6 +13,9 @@
 
 namespace quic {
 
+// QUIC backend handler that reacts on each individual request sent to 
+// the server port. Used as a dispacher to the backend services: storage
+// service, metrics service ad polling service.
 class DashBackend : public QuicSimpleServerBackend {
  public:
   // Note we need the config path for abr

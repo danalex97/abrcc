@@ -4,10 +4,12 @@
 #include "base/json/json_value_converter.h"
 #include <optional>
 
+// JSON communication schema with the DASH front-end metrics components.
 namespace abr_schema {
 
 const int NOT_PRESENT = -1;
 
+// Timestamped integer value.
 struct Value {
   int value;
   int timestamp;
@@ -24,6 +26,10 @@ struct Value {
   }
 };
 
+// Segment loading state: it tells that the `index`-th segment of quality `quality`
+// had `loaded` loaded bytes out of a total of `total` bytes at the `timestamp` moment.
+// A segment changes it's state to LOADING as soon as the front-end decides to go for a 
+// particular segment quality.
 struct Segment {
   enum State {
     LOADING, DOWNLOADED, PROGRESS,
@@ -68,6 +74,11 @@ struct Segment {
   }
 };
 
+// Front-end generated metrics:
+//   - number of dropped frames at each timestamp since last metrics update
+//   - the player time(in seconds) at each timestamp since last metrics update
+//   - the buffer level(in milliseconds) at each timestamp since last metrics update
+//   - the list of new segments(including their download state) since last metrics update 
 struct Metrics {
   std::vector<std::unique_ptr<Value>> droppedFrames;
   std::vector<std::unique_ptr<Value>> playerTime;

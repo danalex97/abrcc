@@ -18,6 +18,25 @@
 
 namespace quic {
 
+// SegmentProgressAbr is a class that downloads the segments one after the other 
+// and makes the decision for the next segment when the download of a segments is at 80\%,
+// allowing for continous streaming.
+//
+// To use the SegmentProcessAbr class, only the `decideQuality` function needs to be 
+// implemented: it asks for the quality for segment `decision_index`.
+// 
+// The protected members can be used by class that inherit from SegmentProgressAbr:
+//   - last_segment: map that contains the lastest timestamped segment information for each 
+//                   downloaded(or started download) segment
+//   - decisions: map of previous Decisions
+//   - aborted: mpa of previous aborted segments 
+//   
+//   - decision_index: current segment that needs a Decision
+//   - last_timestamp: the highest timestamp for any received Segment 
+//   - last_segment_time_length: the previous segment's time length in milliseconds
+// 
+//   - segments: metadata structure for the whole video(a vector of VideoInfo per track)
+//   - bitrate_array: the list of qualities(in kbps) in increasing order
 class SegmentProgressAbr : public AbrInterface {
  public:
   SegmentProgressAbr(const std::shared_ptr<DashBackendConfig>& config);
@@ -45,6 +64,7 @@ class SegmentProgressAbr : public AbrInterface {
   bool should_send(int index);
 };
 
+// Example class that inherits from RandomAbr and selects random segments.
 class RandomAbr : public SegmentProgressAbr {
  public: 
   RandomAbr(const std::shared_ptr<DashBackendConfig>& config);
@@ -53,6 +73,9 @@ class RandomAbr : public SegmentProgressAbr {
  int decideQuality(int index) override;
 };
 
+// Example class that inherits from RandomAbr and implements a simple sever-side 
+// buffer-based policy. It should do identical decisions with the Typescript equivalent
+// class from the DASH wrapper project.
 class BBAbr : public SegmentProgressAbr {
  public:
   BBAbr(const std::shared_ptr<DashBackendConfig>& config);

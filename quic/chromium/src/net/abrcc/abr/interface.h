@@ -5,6 +5,9 @@
 
 namespace abr_schema {
 
+// Decision for the `quality` of segment with `index`, `timestamp`-ed by the latest 
+// front-end metric's timestamp. The front-end will take into account the decision with
+// the largest `timestamp` for a particular segment `index`.
 struct Decision {
   int index;
   int quality;
@@ -28,6 +31,12 @@ struct Decision {
 }
 
 namespace quic {
+
+// AbrInterface. Implement the methods:
+//  - registerMetrics: react to new front-end metrics
+//  - registerAbort: update internal state after an abort request at a given segment index
+//  - decide: return a decision for quality of the next(according to the metrics) segment 
+
 class AbrInterface {
  public:
   virtual void registerMetrics(const abr_schema::Metrics &) = 0;

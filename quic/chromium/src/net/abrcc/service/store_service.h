@@ -12,6 +12,7 @@
 
 namespace quic {
 
+// Store service for all video fragment and video metadata. 
 class StoreService {
  public:
   StoreService();
@@ -19,9 +20,13 @@ class StoreService {
   StoreService& operator=(const StoreService&) = delete;
   ~StoreService();
 
+  // Load into memory all video segments from `dir_path` based on the configuration `config`. 
   void VideoFromConfig(const std::string& dir_path, std::shared_ptr<DashBackendConfig> config);
+  // Load into memory all video metadata from `base_path` based on the configuration `config`. 
   void MetaFromConfig(const std::string& base_path, std::shared_ptr<DashBackendConfig> config);
-  
+
+  // Request handler that can handle usual DASH requests(that include both the quality band
+  // and segment number in the request path).
   void FetchResponseFromBackend(
     const spdy::SpdyHeaderBlock& request_headers,
     const std::string& string, 

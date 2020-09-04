@@ -325,7 +325,7 @@ double WorthedAbr::partial_bw_safe(double bw) {
     bw_mbit = bw_max;
   }
 
-  // The base fuunction related to the bandwidth should be strictly
+  // The base function related to the bandwidth should be strictly
   // decreasing as we want to be less aggresive as we have more bandwidth
   return log(bw_max + 1 - bw_mbit) / 2 / log(bw_max + 1);  
 }

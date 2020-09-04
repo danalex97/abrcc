@@ -11,6 +11,9 @@
 
 namespace quic {
 
+// AbrLoop class wrapper. Allows starting and periodically calling the AbrInterface
+// implementation into a separate thread. It will provide the AbrInterface with access
+// to all the relevant services.
 class AbrLoop {
  public:
   AbrLoop(

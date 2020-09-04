@@ -11,7 +11,11 @@
 
 namespace quic {
 
-// !THREAD_SAFE
+// Metrics registration service. It provides thread safe access to front-end 
+// provided JSON metrics that follow the schema from `service/schema`. It also 
+// allows thread-safe metric modification when the ABR decides to abort requests.
+//
+// All methods are protected by a read-write lock.
 class MetricsService {
  public:
   MetricsService();
@@ -27,7 +31,6 @@ class MetricsService {
   // Get all registered metrics so far
   std::vector<std::unique_ptr<abr_schema::Metrics>> GetMetrics();
  
-
   // Add aborting a request
   void AddAbort(int index);
   // Get all registered aborts so far

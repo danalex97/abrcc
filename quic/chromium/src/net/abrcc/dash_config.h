@@ -59,7 +59,12 @@ struct VideoConfig {
   }
 };
 
+  
+// Dash backend config with metainformation such as the video metadata(video path,
+// segment information), number of segments, domain, etc. The information is mostly 
+// used for initialization and video metadata access.
 struct DashBackendConfig {
+ 
   std::string domain;
   std::string base_path;
   PlayerConfig player_config;
