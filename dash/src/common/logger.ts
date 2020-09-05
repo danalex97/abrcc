@@ -48,6 +48,9 @@ function intToRGB(i: number): string {
     return "00000".substring(0, 6 - c.length) + c;
 }
 
+/**
+ * Class that allows logging a variable number of `any` arguments.
+ */
 export class Logger {
     logName: string;
     color: string;
@@ -71,6 +74,15 @@ export class Logger {
     }
 }
 
+/**
+ * Given a project-wide `logName`, create a logger associated with the `logName` to be 
+ * used in the file in which the logging functionality is invoked.
+ *
+ * Usage:
+ *   const logger = logging('example');
+ *      [...]
+ *   logger.log('a', 123, {'an' : 'object'});
+ */
 export function logging(logName: string): Logger {   
     if (loggers[logName] === undefined) {
         loggers[logName] = new Logger(logName);

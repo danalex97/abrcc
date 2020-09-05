@@ -22,6 +22,9 @@ export abstract class Piece {
 }
 
 
+/**
+ * Timestamped real number.
+ */
 export class Value {
     _value: number;
     _timestamp: number;
@@ -52,7 +55,10 @@ export class Value {
     }
 }
 
-
+/**
+ * Data-representation for a decision taken based on metrics received until timestamp `timestamp`
+ * for piece number `index` for downloading at quality `quality`. 
+ */
 export class Decision extends Piece {
     _index: number;
     _quality: number;
@@ -78,6 +84,13 @@ export class Decision extends Piece {
     }
 }
 
+/**
+ * Segment representation used for serialization in communication with the back-end and experiment 
+ * coordinator. Contains both metadata(quality, index, state) related to the segment together with the 
+ * state of the download process(`loaded` bytes out of `total`).
+ *
+ * Can be serialized via the `serialize` function.
+ **/
 export class Segment extends Piece {
     _timestamp: number;
     
@@ -153,6 +166,10 @@ export class Segment extends Piece {
         return this._state;
     }
 
+    /**
+     * Serialize the segment. If the `full` value is set, the `quality` of the segment will be 
+     * included in the JSON serialization.
+     */
     serialize(full: boolean): object {
         let ret = {};
         if (this.state == SEGMENT_STATE.LOADING || this.state == SEGMENT_STATE.DOWNLOADED) {

@@ -11,6 +11,11 @@ function getReferenceTime(): number {
     return window.referenceTimestamp;
 }
 
+/**
+ * Create a timestamp from a `number` or `date`. The timestamp will be a float amount of 
+ * seconds in reference to the reference time attached on the window at the invocation of the
+ * Javascript code present in this file.
+ */
 export function timestamp(value: number | Date): number {
     let ref = getReferenceTime();
     if (value instanceof Date) {

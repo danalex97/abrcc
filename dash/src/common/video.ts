@@ -1,6 +1,12 @@
 import { Dict } from '../types';
 
 
+/**
+ * Metadata assciated with a Segment: 
+ *  - start_time: start time of the segment in the video in seconds
+ *  - VMAF: value between 0 and 100 representing the perceptual quality
+ *  - size: size of the segment in bytes
+ */
 export class SegmentInfo {
     start_time: number;
     vmaf: number;
@@ -22,6 +28,11 @@ export class SegmentInfo {
 }
 
 
+/**
+ * Collection of video-level metadata:
+ *  - the available segment bands
+ *  - the segment info for each segment from each band
+ */
 export class VideoInfo {
     bitrates: Array<number>;  
     info: Dict<string, Array<SegmentInfo>>; 
