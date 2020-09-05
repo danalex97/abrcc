@@ -19,6 +19,11 @@ import { ExternalDependency } from '../types';
 const logger = logging('App');
 
 
+/**
+ * Front-End based ABR implementations. 
+ *
+ * Uses an algorithm from the `src/algo` folder.
+ */
 export class FrontEndApp implements App {
     tracker: StatsTracker;
     interceptor: Interceptor;
@@ -54,6 +59,11 @@ export class FrontEndApp implements App {
 
     start(): void {
         logger.log("Starting App.")
+        
+        // When the QualityController is queried by the ABR module, send the metrics to the 
+        // experimental setup for centralization. If the underlying algorithm is Minerva, send the 
+        // metrics to the backend as well so that the backend modifies the congestion control 
+        // accordingly.
         this.qualityController
             .onGetQuality((index: number) => {
                 this.tracker.getMetrics();
@@ -84,6 +94,7 @@ export class FrontEndApp implements App {
                 controller.addPiece(decision);
             });
 
+        // When the stream finishes, send the full logs to the experimental setup.
         let eos = (_unused: ExternalDependency) => {
             logger.log('End of stream');
             if (this.recordMetrics) {
@@ -104,7 +115,10 @@ export class FrontEndApp implements App {
             let controller = context.scheduleController;
             controller.start();
         });
-        
+       
+        // Setup the interceptor with full bypasses. Once each request is made, send it to 
+        // the algorithm so that it can process the download times. Also update the tracker with the 
+        // new metrics and signal the QualityController to advance.
         this.interceptor
             .onRequest((ctx: ExternalDependency, index: number) => {
                 if (index == this.max_index) {
