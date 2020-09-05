@@ -63,7 +63,6 @@ static int get_segment_length_ms(
   const int current_index,
   const int chunk_quality
 ) {
-  // [TODO] should we use current_index or current_index + 1?
   int ref_index = current_index + 1;
   while (ref_index + 1 >= int(segments[chunk_quality].size())) {
     ref_index--;
@@ -78,8 +77,7 @@ static int get_segment_length_ms(
 void GapAbr::registerMetrics(const abr_schema::Metrics &metrics) {
   SegmentProgressAbr::registerMetrics(metrics);
 
-  /// Register front-end metrics
-  ///
+  // Register front-end metrics
   for (const auto& segment : metrics.segments) {
     last_timestamp = std::max(last_timestamp, segment->timestamp);
   }
