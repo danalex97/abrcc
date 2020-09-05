@@ -17,6 +17,11 @@ const horizon = 5;
 const switchUpThreshold = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
 
 
+/**
+ * Festive(https://dl.acm.org/doi/10.1145/2413176.2413189) is a rate-based approach that uses a 
+ * windowed harmonic mean for bandwidth estimation. The code has mostly been ported from the Pensive
+ * repository: https://github.com/hongzimao/pensieve.
+ */
 export class Festive extends AbrAlgorithm {
     bitrateArray: Array<number>; 
     n: number;
@@ -42,6 +47,10 @@ export class Festive extends AbrAlgorithm {
         this.switchUpCount = 0;
     }
 
+    /**
+     * Selects a `quality` for a `bitrate`. Select the first quality for which the associated 
+     * bitrateArray value stays below the `bitrate`.
+     */
     selectQuality(bitrate: number): number {
         let quality = this.n;
         for (let i = this.n - 1; i >= 0; i--) {
@@ -53,11 +62,20 @@ export class Festive extends AbrAlgorithm {
         return quality;
     }
 
+    /**
+     * Given the current quality `b` and a reference quality `b_ref` and a bandwidth prediction 
+     * `w` compute the efficiency score as presented in the paper.
+     */
     getEfficiencyScore(b: number, b_ref: number, w: number): number {
         return Math.abs(this.bitrateArray[b] 
             / Math.min(w, this.bitrateArray[b_ref]) - 1);
     }
 
+
+    /**
+     * Given the current candate quality `b`, a reference quality `b_ref`, a candidate quality `b_cur`
+     * compute the stability score as presented in the paper.
+     */
     getStabilityScore(b: number, b_ref: number, b_cur: number): number {
         var score = 0,
             changes = 0;
@@ -83,6 +101,13 @@ export class Festive extends AbrAlgorithm {
         return stabilityScore + alpha * efficiencyScore;
     }
 
+    /**
+     * The decision is taken as follows:
+     *   - compute a target quality: b_target based on the future bandwidth prediction
+     *   - compute the new reference target quality: b_ref which is limited by number of upward quality
+     *     changes
+     *   - keep or modify the quality based on the computed combined scores for the qualities 
+     */
     getDecision(metrics: Metrics, index: number, timestamp: number): Decision {
         this.bandwidth.update(metrics, this.requests);
         let bwPrediction = this.bandwidth.value;

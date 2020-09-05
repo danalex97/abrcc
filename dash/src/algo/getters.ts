@@ -11,6 +11,9 @@ const logger = logging('Getters');
 const defaultThrp = 0;
 
 
+/**
+ * Getter that computes the latest timestamped rebuffer time in ms.
+ */
 export class RebufferTimeGetter extends MetricGetter {
     smallestPlayerTime: null | Value;
     biggestPlayerTime: Value;
@@ -52,6 +55,9 @@ export class RebufferTimeGetter extends MetricGetter {
 }
 
 
+/**
+ * Getter that computes the latest timestamped buffer level.
+ */ 
 export class BufferLevelGetter extends MetricGetter {
     lastBufferLevel: Value;
     
@@ -73,6 +79,13 @@ export class BufferLevelGetter extends MetricGetter {
 }
 
 
+/**
+ * Abstract getter that computes:
+ *  - requests: a list of all the XMLHttpRequests made so far
+ *  - segments: a list containing the download state of all the Segments encoutered so far
+ *  - lastSegment: the index of the latest segments for which a download was started
+ *  - horizon: a horizon constant used by throuput-based estimators to be derived from this class
+ */
 export abstract class ThrpGetter extends MetricGetter {
     segments: Dict<number, Segment>;
     requests: Array<XMLHttpRequest>;
@@ -103,6 +116,12 @@ export abstract class ThrpGetter extends MetricGetter {
 }
 
 
+/**
+ * Throughput predictor that computes the throughput based on the harmonic mean of the observed 
+ * throughput of the last segments in the horizon. The implementation coincides with the take on 
+ * RobustMpc(https://users.ece.cmu.edu/~vsekar/papers/sigcomm15_mpcdash.pdf) as a baseline the 
+ * repository: https://github.com/hongzimao/pensieve.
+ */
 export class ThrpPredictorGetter extends ThrpGetter {
     get value(): number {
         if (this.lastSegment < 2) {
@@ -132,7 +151,9 @@ export class ThrpPredictorGetter extends ThrpGetter {
     }
 }
 
-
+/**
+ * Computes the throughput of the last segment.
+ */
 export class LastThrpGetter extends ThrpGetter {
     get value(): number {
         if (this.lastSegment < 2) {
@@ -155,6 +176,9 @@ export class LastThrpGetter extends ThrpGetter {
     }
 }
 
+/**
+ * Computes the diffrence between timestmaps for the start of download for the last 2 segments.
+ */
 export class LastFetchTimeGetter extends ThrpGetter {
     get value(): number {
         if (this.lastSegment < 2) {

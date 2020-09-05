@@ -11,6 +11,10 @@ import { Metrics } from '../component/stats';
 const logger = logging('RB');
 
 
+/**
+ * Simple rate-based algorithm; chooses quality proportional with last segment's download 
+ * time bandwidth estimation.
+ */
 export class RB extends AbrAlgorithm {
     bandwidth: MetricGetter;
     bitrateArray: Array<number>; 

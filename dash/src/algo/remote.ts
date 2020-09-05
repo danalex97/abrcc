@@ -13,7 +13,11 @@ import { Metrics } from '../component/stats';
 
 const logger = logging('RemoteAbr');
 
-
+/**
+ * RemoteAbr interface. Uses a set of derived metrics that are transmitted to a third party service,
+ * which takes the Decision. The communication mecanism to the back-end of this ABR is exposed through 
+ * a BackendShim.
+ */
 export class RemoteAbr extends AbrAlgorithm {
     shim: BackendShim;
     bandwidth: MetricGetter;

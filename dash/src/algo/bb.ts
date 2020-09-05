@@ -16,6 +16,15 @@ const reservoir = 5 * SECOND;
 const cushion = 10 * SECOND;
 
 
+/**
+ * Buffer-based ABR algorithm
+ *
+ * If the buffer is below the `reservoir`, we use the smallest available quality level.
+ * If the buffer is above `cushion + reservoir`, we use the highest available quality level.
+ *
+ * If the buffer is in the `cushion` interval, we use the first bitrate proportial with the 
+ * occupied buffer out of the cushion space, i.e. `(bufferLevel - reservoir) / cushion`.
+ */
 export class BB extends AbrAlgorithm {
     bufferLevel: MetricGetter;
     bitrateArray: Array<number>; 
