@@ -1,5 +1,8 @@
 import { logging } from '../common/logger'; 
 
+/**
+ * WARNING: Here be dragons
+ */
 
 const logger = logging('abr');
 const abandon_logger = logging('abandon');
@@ -75,6 +78,17 @@ function initScheduleController(context) {
     });
 }
 
+/**
+ * ServerSideRuleClass factory.
+ *
+ * Exposes:
+ *  - getMaxIndex: returns a SwitchRequest by which the DASH player will change the requested quality
+ *  - shouldAbandon: return a SwitchRequest to the lowest quality if the backend decides to 
+ *      drop the current segment transfer; to be able to do so, we use the internal state of the 
+ *      interceptor
+ *
+ * The *getMaxIndex* does quality changes in accordance to the state of the QualityController. 
+ */
 function ServerSideRuleClass() {
     let factory = getFactory();
     let context = window._onEventContext;
@@ -207,6 +221,17 @@ function ServerSideRuleClass() {
     return instance;
 }
 
+/**
+ * Crate a ServerSideRule, given:
+ *   - player: the DASH player
+ *   - shim: a backend shim used for allowing backend requests
+ *   - intercetor: interceptor class exposed for XMLHttp request interception
+ *
+ * The *shim* and *interceptor* are exposed so that in case of abandoned segments, we can interact 
+ * with the actual backend requests, rather than the XMLHttp objects modified by the intercetor.
+ *
+ * The *player* is exposed to allow the player to stall in case a backend-decision is yet to arrive.
+ */ 
 export function GetServerSideRule(player, shim, interceptor) {
     setPlayer(player);
     setShim(shim);

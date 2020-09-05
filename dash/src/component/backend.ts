@@ -4,7 +4,7 @@ import * as request from 'request';
 import * as retryrequest from 'requestretry';
 import { logging } from '../common/logger'; 
 
-const logger = logging('BackendBackendShim');
+const logger = logging('BackendShim');
 
 type RequestFunction = (
     url: string | Json, 
@@ -12,6 +12,18 @@ type RequestFunction = (
     callback: (error: Error, res: request, body: Body) => void,
 ) => XMLHttpRequest;
 
+/**
+ * Request wrapper class.
+ *
+ * Exposes callbacks for each part of the lifecycle of a request:
+ *  - for all request types: onSend, onFail, onSuccess(& onSuccessResponse)
+ *  - for native requests: onProgress
+ *  - for native GETS: afterSend, onAbort
+ *
+ * Exposes the underlying request's send function.
+ *
+ * For debugging, the log() function will enable automatic logging in the `BackendShim` log.
+ */
 export abstract class Request {
     request: XMLHttpRequest | undefined;
 
@@ -214,6 +226,9 @@ export abstract class Request {
 }
 
 
+/**
+ * Metrics POST via the node `request` library.
+ */
 export class MetricsRequest extends Request {
     _json: JsonDict; 
     
@@ -235,7 +250,10 @@ export class MetricsRequest extends Request {
     }
 }
 
-
+/**
+ * Experimental setup repeated POST via the node `request` library that marks that the DASH player
+ * started running.
+ */
 export class StartLoggingRequest extends Request {
     constructor(shim) {
         super(shim);
@@ -248,7 +266,11 @@ export class StartLoggingRequest extends Request {
     }
 }
 
-
+/**
+ * Experimental setup native synchronous POST that requests a decision.
+ *
+ * To be used by `algo/remote`. 
+ */
 export class FrontEndDecisionRequest extends Request {
     _object: JsonDict;
     
@@ -289,6 +311,10 @@ export class FrontEndDecisionRequest extends Request {
 }
 
 
+/**
+ * Experimental setup repeated POST via the node `request` library that marks that can be used 
+ * to send periodic statistic to the experimental pipeline for metrics computation.
+ */
 export class MetricsLoggingRequest extends MetricsRequest {
     constructor(shim: BackendShim) {
         super(shim);
@@ -311,7 +337,9 @@ export class MetricsLoggingRequest extends MetricsRequest {
     }
 }
 
-
+/**
+ * *Backend* GET via the node `request` library asking for a `Decision` for a particular `index`. 
+ */
 export class PieceRequest extends Request {
     index: number | undefined;
 
@@ -333,6 +361,9 @@ export class PieceRequest extends Request {
 }
 
 
+/**
+ * *Backend* GET via the node `request` library asking to abort the request for an `index`. 
+ */
 export class AbortRequest extends PieceRequest {
     send(): Request {
         if (this.index === undefined) {
@@ -342,7 +373,11 @@ export class AbortRequest extends PieceRequest {
     }
 }
 
-
+/**
+ * *Backend* native GET asking for the header of a quality track. 
+ *
+ * The backend will return a response in the form of an `arraybuffer`.
+ */
 export class HeaderRequest extends Request {
     quality: number | undefined;
 
@@ -365,6 +400,11 @@ export class HeaderRequest extends Request {
 }
 
 
+/**
+ * *Backend* native GET asking for a segment. 
+ *
+ * The backend will return a response in the form of an `arraybuffer`.
+ */
 export class ResourceRequest extends Request {
     index: number | undefined;
     
@@ -385,6 +425,19 @@ export class ResourceRequest extends Request {
     }
 }
 
+
+/**
+ * BackendShim that builds all possible request types enumerated above, that is:
+ *  - HeaderRequest
+ *  - MetricsRequest
+ *  - FrontEndDecisionRequest
+ *  - StartLoggingRequest
+ *  - MetricsLoggingRequest
+ *  - PieceRequest
+ *  - ResourceRequest
+ *  - AbortRequest
+ *  
+ */
 export class BackendShim {
     _base_path: string;
     _path: string;

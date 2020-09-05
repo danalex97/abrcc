@@ -8,6 +8,9 @@ const logger = logging('PieceConsistencyChecker');
 const STATS_INTERVAL = 20000;
 
 
+/** 
+ * Stream that allows multiple callbacks after each push.
+ */
 class Stream {
     _callbacks: Array<(value: any) => void>; 
 
@@ -27,6 +30,11 @@ class Stream {
 }
 
 
+/**
+ * Automatic consistency check crass that accepts pushes to any number of streams and 
+ * checks that the stream values are consistent. The stream classes allow replacements as we allow
+ * for segment downloads to be canceled(via Aborts).
+ */
 class ConsistencyChecker {
     _streams: Dict<string, Stream>; 
     _values: Dict<string, any>; 
@@ -68,6 +76,12 @@ class ConsistencyChecker {
         });
     }
 
+    /**
+     * Push `value` to stream `name`. 
+     * 
+     * After each push, the consistency will be automatically checked with the rest of streams 
+     * and inconsistencies will be logged.
+     */
     push(name: string, value: any): void {
         if (this._streams[name] === undefined) {
             this.__addStream(name, new Stream());
@@ -75,6 +89,9 @@ class ConsistencyChecker {
         this._streams[name].push(value);
     }
 
+    /**
+     * Replace the `index` `value` from stream `name`.
+     */
     replace(name: string, index: number, value: any): void {
         this._values[name][index] = value;
     }
@@ -83,7 +100,9 @@ class ConsistencyChecker {
 
 const checker = new ConsistencyChecker();
 
-
+/**
+ * Checker targeted on stream `name`.
+ */
 class TargetedChecker {
     name: string;
 
@@ -91,15 +110,27 @@ class TargetedChecker {
         this.name = name;
     }
     
+    /**
+     * Push a value to the stream.
+     *
+     * After each push, the consistency will be automatically checked with the rest of streams 
+     * and inconsistencies will be logged.
+     */
     push(value: any): void {
         checker.push(this.name, value);
     }
 
+    /**
+     * Replace a value from the steam.
+     */
     replace(index: number, value: any): void {
         checker.replace(this.name, index, value); 
     }
 }
 
+/**
+ * Returns a targetted checker.
+ */
 export function checking(name: string): TargetedChecker {
     return new TargetedChecker(name);
 }

@@ -2,6 +2,9 @@ import { Dict, ExternalDependency } from '../types';
 import { logging, Logger } from '../common/logger';
 import { VideoInfo } from '../common/video';
 
+/**
+ * WARNING: Here be dragons
+ */
 
 declare global {
     interface Window {
@@ -18,6 +21,10 @@ export function makeHeader(quality: number): string {
 }
 
 
+/**
+ * UrlProcessor class that allows extration of `quality` and `index` from a default  XmlHTTP 
+ * request made by DASH.
+ */
 class UrlProcessor {
     max_rates: number
     url: string
@@ -51,13 +58,23 @@ class UrlProcessor {
 }
 
 
+/**
+ * Intercetor utility that can be used for modification of a XMLHttp object.
+ */
 export class InterceptorUtil {
+    /**
+     * Make an object propety writable or unwritable.
+     */
     makeWritable(object: object, property: any, writable: any) {
         let descriptor = Object.getOwnPropertyDescriptor(object, property) || {};
         descriptor.writable = writable;
         Object.defineProperty(object, property, descriptor);
     }
 
+    /**
+     * For a given event, execute a callback on that event. To not crash the player, 
+     * catch and log any errors in event execution.
+     */ 
     executeCallback(
         callback: undefined | ((event: ProgressEvent | undefined) => void),
         event: ProgressEvent | undefined
@@ -75,6 +92,14 @@ export class InterceptorUtil {
         }
     }
 
+    /**
+     * For the XMLHttpRequest prototype, create a ProgressEvent of type `type` attached to the 
+     * XMLHttpRequest with the modified attributes according to dictionary `dict`.
+     *
+     * Make the event undistiguishable from a native event for DASH.js my modifying the ProgressEvent's
+     * default generated properties(currentTarget, srcElement, target and trusted). When the progress
+     * event is delivered(i.e. XMLHttpRequest's onprogress called), DASH will see our custom event.
+     */
     newEvent(ctx: ExternalDependency, type: any, dict: any): ProgressEvent {
         let event = new ProgressEvent(type, dict);
 
@@ -97,6 +122,14 @@ export class InterceptorUtil {
 }
 
 
+/**
+ * Intercetor class that stops outgoing segment XMLHttpRequests made by DASH(matched by the URL structure)
+ * and simulates progress and delivery events after the actual requests to the backend made via the 
+ * BackendShim have finished.
+ *
+ * The class allows attaching various callbacks so that our DASH wrapper can interact directly with the 
+ * backend.
+ */
 export class Interceptor extends InterceptorUtil {
     // Note we allow both number and string input, since we want to also be able to intercept
     // header, but also numbered requests to the backend.
@@ -136,11 +169,19 @@ export class Interceptor extends InterceptorUtil {
         return this._videoInfo.info[this._videoInfo.bitrateArray[0]].length;
     }
 
+    /**
+     * Allows for a *single* callback to be made for a particular `index` before the XMLHttpRequest 
+     * is intercepted. The callback exposes our XMLHttpRequest prototype.
+     */
     onRequest(callback: (ctx: ExternalDependency, index: number) => void): Interceptor {
         this._onRequest = callback;
         return this;
     }
 
+    /**
+     * Allow for a *single* callback to be made for a particular `index` as the send function 
+     * is called for the intercepted request.
+     */
     onIntercept(index: number | string, callback: (context: Dict<string, object>) => void): Interceptor {
         logger.log('Cache updated', index);
         this._onIntercept[index] = callback;
@@ -155,6 +196,9 @@ export class Interceptor extends InterceptorUtil {
         return this;
     }
 
+    /**
+     * Trigger a progress event for segment `index` with `loaded` bytes out of `total` bytes.
+     */
     progress(index: number, loaded: number, total: number): void {
         if (this._toIntercept[index] !== null) {
             const object = this._toIntercept[index];
@@ -176,26 +220,49 @@ export class Interceptor extends InterceptorUtil {
             }));
         }
     }
-
+    
+    /**
+     * Return the *context* for a request made at segment `index`:
+     *   The context contains: 
+     *    - ctx: the newXHROpen new prototype
+     *    - url: the intercepted request url
+     *    - makeWritable, execute, newEvent: attached InterceptorUtil functions
+     */
     context(index: number | string): object {
         return this._objects[index];
     }
 
+    /**
+     * Set context for an `index`. Should be genrally called only by the intercetor itself.
+     */
     setContext(index: number | string, obj: object): Interceptor {
         this._objects[index] = obj;
         return this;
     }
 
+    /**
+     * Set a bypass over the intercetor filter for single *index*. The bypass works only once. 
+     *
+     * This function will be used for request aborts.
+     */
     setBypass(index: number): Interceptor {
         this._bypass.add(index);
         return this;
     }
 
+    /**
+     * Mark that the onIntercept function has been attached for an `index` and hence needs to be 
+     * called later by the interceptor.
+     */
     intercept(index: number | string): Interceptor {
         this._toIntercept[index] = null;
         return this;
     }
 
+    /**
+     * Start the interceptor. After the start function has been called, all the native outgoing XMLHttp 
+     * requests constructed after this point will be put through the intercetor filter. 
+     */
     start() {
         let interceptor = this;
         let oldOpen = window.XMLHttpRequest.prototype.open;
