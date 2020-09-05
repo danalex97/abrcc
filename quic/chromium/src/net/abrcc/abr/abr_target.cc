@@ -176,7 +176,17 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   int start_index = last_index + 1;
   int start_buffer = last_buffer_level.value;
   
-  // DP
+  // Let dp[s][b][q] be the total QoE for segment s with buffer occupancy b and quality q.
+  // The s, b and q variables are contined in the `state_t` structure.
+
+  // We use the forward recurrence:
+  // dp[s + 1][b'][q'] = max(
+  //     dp[s + 1][b'][q'] ,
+  //     dp[s][b][q] + v(s + 1,q') + lambda |v(s, q) - v(s + 1,q')| + gamma r(s + 1,q')
+  // )
+
+  // The complexity is O(H∗B∗Q^2), where H is the length of the horizon, B is the number 
+  // of buffer discrete levels and Q is the number of different qualities.
   std::function<size_t (const state_t &)> hash = [](const state_t& state) {
     size_t seed = 0;
     seed ^= std::hash<int>()(state.segment) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
@@ -187,6 +197,8 @@ std::pair<double, int> TargetAbr::qoe(const double bandwidth) {
   std::unordered_map<state_t, value_t, std::function<size_t (const state_t&)> > dp(0, hash);
   std::unordered_set<state_t, std::function<size_t (const state_t&)> > curr_states(0, hash);
   
+  // We use buffer units of 40ms, hence having a maximum number of discrete buffer levels 
+  // of 2500(i.e. 100 seconds).
   int buffer_unit = 40;
   int max_buffer = 100 * ::SECOND / buffer_unit;
   state_t null_state, start_state(last_index, start_buffer / buffer_unit, current_quality);
@@ -291,6 +303,7 @@ void TargetAbr::registerMetrics(const abr_schema::Metrics &metrics) {
     }
   }
 
+  // The buffer adjustment is made at each new metrics registration(that is every 100ms).
   adjustCC();
 } 
 

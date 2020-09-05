@@ -535,7 +535,10 @@ QuicTime::Delta BbrTarget::GetMinRtt() const {
 QuicByteCount BbrTarget::GetTargetCongestionWindow(float gain) const {
   QuicByteCount bdp = GetMinRtt() * BandwidthEstimate();
   
-  // [Target] We modify this the Target received from the front-end
+  // [Target] We modify this the Target received from the front-end. The 
+  // usual target congestion window compute by BBR based on the bandwidth delay 
+  // produce and the current bandwidth estimations is adjusted(by computing 
+  // the mean) with the target bandwidth decided by the ABR algorithm.
   auto maybe_target_bandwidth = interface->getTargetRate();
   if (maybe_target_bandwidth != base::nullopt) {
     auto target_bandwidth = quic::QuicBandwidth::FromKBitsPerSecond(
