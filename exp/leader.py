@@ -30,6 +30,10 @@ class Instance:
     
 
 class LeaderController:
+    """
+    General-purpose manager of multiple `run.py` instances. Listens to events dispached by 
+    scripts coordinated by the leader(i.e. Controllers from the `controller.py` file).
+    """
     instances: Dict[int, Instance]
     _all_started: Optional[asyncio.Event]
     _all_stopped: Optional[asyncio.Event]
@@ -70,6 +74,9 @@ class LeaderController:
 
     @ctx_component
     async def on_start(self, json: JSONType) -> JSONType:
+        """
+        Synchronize after all `instances` instances have contacted the leader. 
+        """
         port = json['port']
         self.instances[port] = Instance()
         self.network.add_port(port)
@@ -92,6 +99,9 @@ class LeaderController:
 
     @ctx_component
     async def on_destroy(self, json: JSONType) -> JSONType:
+        """
+        Wait for all instances to call the destroy protocol.
+        """
         port = json['port']
         self.instances[port].stop() 
     
@@ -107,6 +117,10 @@ class LeaderController:
         return 'OK'
     
     def finalize(self) -> None:
+        """
+        Finalize self and all hanging processes after waiting a few seconds 
+        for the dependent processes' finalization.
+        """
         time.sleep(5)
         print('[leader] Finalization')
 

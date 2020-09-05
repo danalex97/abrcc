@@ -19,6 +19,11 @@ def run_cmd(cmd: str) -> None:
 
 
 class Network:
+    """
+    Network class that emulates links using the TC Linux utility. It can either emulate 
+    fixed-bandwidth links(by setting the `bandwidth`, `burst` and `delay` parameters) or 
+    emulate mobile traces(by setting the `trace_path`, `burst` and `delay` parameters).
+    """
     def __init__(self, 
         delay: Optional[float] = None,
         bandwidth: Optional[float] = None,

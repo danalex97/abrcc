@@ -23,6 +23,10 @@ SEGMENT_LENGTH = 4.0
 
 
 class MetricsProcessor(LogAccessMixin):
+    """
+    MetricsProcessor that prelucrates a stream of incoming front-end metrics into 
+    derived metrics.
+    """
     metrics: List[Metrics]
     timestamps: List[int]
     segments: List[Segment] 
@@ -173,6 +177,13 @@ class MetricsProcessor(LogAccessMixin):
 
 
 class Monitor(Component):
+    """
+    Data monitor component that processes front-end incoming metrics.
+
+    It orders the front-end stream, logs the metrics and uses a MetricsProcessor to compute
+    derived metrics.
+    """
+
     video: str
     path: Path
     name: str

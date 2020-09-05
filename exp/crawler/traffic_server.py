@@ -25,6 +25,11 @@ def get_file_size(file_path: str) -> int:
 
 
 class RandomPageProcessor(Component):
+    """
+    A random page processor that returns random pages crawled by the Crawler. The 
+    distribution of pages is adjusted to follow a negative exponential distribution
+    with an average size of 400kb files.
+    """
     cache: List[str]
     
     def __init__(self, max_load: int):
@@ -52,7 +57,7 @@ class RandomPageProcessor(Component):
 
             if adjust:
                 # adjust the traffic distribution by composing it with a 
-                # negative exponential ditribution with lambda 1 with an 
+                # negative exponential distribution with lambda 1 with an 
                 # avrage size 400kb files
                 if neg_exp() * 400 < file_size * 1000:
                     continue

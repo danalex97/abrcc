@@ -18,6 +18,7 @@ const int UPDATE_INTERVAL = 2;
 
 
 int main(int argc, char const *argv[]) { 
+  // Single flow TCP client that keeps requesting data.
   int port = DEFAULT_PORT;
   if (argc >= 2) {
     port = std::stoi(argv[1]);

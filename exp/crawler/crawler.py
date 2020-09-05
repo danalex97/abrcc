@@ -47,6 +47,10 @@ class UrlUtilsMixin:
 
 
 class Crawler(UrlUtilsMixin):
+    """
+    Crawler thar browses random pages from a given set of links and stores them into the 
+    `cache` folder.
+    """    
     _links: Set[str]
     _blacklist: Set[str]
    
@@ -87,6 +91,10 @@ class Crawler(UrlUtilsMixin):
         return filtered_urls
 
     def load_config_file(self, file_path: str) -> None:
+        """
+        Load a configuration file with blacklisted urls and root urls for starting the 
+        crawler.
+        """
         with open(file_path, 'r') as config_file:
             config = json.load(config_file)
             for link in config['blacklisted_urls']:
@@ -95,6 +103,11 @@ class Crawler(UrlUtilsMixin):
                 self._links.add(link)
 
     async def browse(self) -> None:
+        """
+        Pop a single link from the current seed list and browser the page asynchronously. 
+        The links found on the page will be added to the seed list. The browse function 
+        will call itself after parsing one page.
+        """
         if len(self._links) == 0:
             await asyncio.sleep(.1)
             await self.browse()
@@ -135,6 +148,9 @@ class Crawler(UrlUtilsMixin):
             await self.browse()
 
     async def crawl(self):
+        """
+        Browse in parallel multiple pages until the needed number of browsed pages is reached.
+        """
         await asyncio.gather(*[
             self.browse()
             for _ in range(self._parallel)

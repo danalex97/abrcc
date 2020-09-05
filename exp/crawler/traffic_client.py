@@ -73,6 +73,9 @@ async def get(port: int, time_log: Optional[FileWriter]) -> int:
 
 
 async def request(port: int, time_log: Optional[FileWriter] = None) -> None:
+     """
+     Create a request to a `port` and log the percieved response time in the `time_log`.
+     """
      wait = random.random() * WAIT_TIME 
      await asyncio.sleep(wait)
 

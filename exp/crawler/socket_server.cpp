@@ -35,6 +35,7 @@ std::string random_string(size_t length) {
 
 
 int main(int argc, char const *argv[]) { 
+  // Single flow TCP client that keeps sending data.
   int server_fd, new_socket, valread; 
   struct sockaddr_in address; 
   int opt = 1; 

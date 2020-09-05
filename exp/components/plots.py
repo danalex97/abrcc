@@ -52,6 +52,9 @@ def make_canvases() -> Tuple[Figure, List[Axes]]:
 
 
 class Dataset:
+    """
+    A named set of `w`-timestamped (`x`, `y`) data points attached to a plot axis.
+    """
     def __init__(self, axes: Axes, name: str, range_size: int) -> None:
         self.axes = axes
         self.name = name 
@@ -63,6 +66,9 @@ class Dataset:
         self.data, = self.axes.plot(self.x, self.y, label=name)
 
     def update(self, x: int, y: float, w: float) -> None: 
+        """
+        Update the (`x`, `y`) point if the `w` timestamp is newer.
+        """
         while len(self.x) < x - 1:
             self.x.append(len(self.x))
             self.y.append(y)
@@ -73,6 +79,9 @@ class Dataset:
             self.w[x - 1] = w
 
     def update_before(self, x: int, y: float, w: float) -> None:
+        """
+        Update all the points on `x` before `y` for which the `w` timestamp is newer.
+        """
         old_value = 0
         if x < len(self.x):
             old_value = self.y[x]
@@ -97,6 +106,11 @@ class Dataset:
 
 
 class LivePlot(Component):
+    """
+    A live plot component attached to an axis that holds which holds multiple updatable 
+    Datatsets. The data-points are segment-based(X axis generally represents the segment 
+    number, while the updates are point-based.
+    """
     FIGURE: Optional[Figure] = None
     AXES: List[Axes] = []
 
@@ -136,6 +150,9 @@ class LivePlot(Component):
         self.last_referesh = timer()
 
     async def update(self, name: str, x: int, y: float, w: float) -> None:
+        """
+        Update the `w`-timestamped (`x`, `y`) point in the `name` dataset.
+        """
         if name not in self.datasets:
             self.datasets[name] = Dataset(
                 axes=self.axes,
@@ -154,6 +171,10 @@ class LivePlot(Component):
             self.first_call = False
 
     async def draw(self, auto: bool = False, limit_y: bool = False) -> None:
+        """
+        Draw the current datasets. If `auto` is turned on, enque a future draw event.
+        If `limit_y` is on, limit the `y` axis around the maximum and minimum values.
+        """
         for dataset in self.datasets.values():
             dataset.draw()
         ys = sum([d.y for d in self.datasets.values()], [])
@@ -170,6 +191,9 @@ class LivePlot(Component):
             )
 
     async def process(self, json: JSONType) -> JSONType:
+        """
+        Dispatch events based on incoming JSON.
+        """
         name  = json['name']
         value = Value.from_json(json['value'])
         watermark = json.get('timestamp', 0)
@@ -182,6 +206,10 @@ class LivePlot(Component):
 
 
 class BandwidthPlot(LivePlot):
+    """
+    Special liveplot for bandwidths. Besides using different range sizes, it does interval
+    updates since the datapoints are time-based.
+    """
     def __init__(self, 
         figure_name: str="default", 
         y_label: str="y_label",
@@ -222,6 +250,10 @@ class BandwidthPlot(LivePlot):
         self.axes.grid()
 
     async def update(self, name: str, x: int, y: float, w: float) -> None:
+        """
+        Update the `w`-timestamped (x0, `y`) points with y for all points x0 with timestamps 
+        smaller than `w` and x0 < `x` in the `name` dataset.
+        """
         # [TODO] remove duplication
         if name not in self.datasets:
             self.datasets[name] = Dataset(
@@ -259,6 +291,10 @@ def attach_plot_components(
     bandwidth: Optional[int] = None,
     no_plot: bool = False,
 ) -> Dict[str, LivePlot]:
+    """
+    Attach multiple plot components with diverse metrics to react to and plot
+    Monitor-generated metrics.
+    """
     segments = get_video_chunks(video) + 1
     max_playback = int(1.25 * get_approx_video_length(video))
 

@@ -26,6 +26,11 @@ def generate_traffic(
     light: bool = True,
     single_flow: bool = False,
 ) -> Tuple[Popen, Popen]:
+    """
+    Return a pair of (server, client) proceses that generate background short-flow
+    TCP traffic(when `single_flow` = False) or a single long TCP traffic flow(when 
+    `single_flow` = True).
+    """
     dir_path = os.path.dirname(os.path.realpath(__file__))
     exec_dir = str(Path(dir_path) / '..')
 

@@ -10,6 +10,11 @@ from abr.video import get_approx_video_length, get_video_chunks
 
 
 class OnComplete(Component):
+    """
+    Server component to be run when a (server, Chrome) instance finishes it's run. Save the 
+    Chrome logs and exports the live plot metrics. These will be processed when loading an 
+    experiment.
+    """
     def __init__(self, 
         path: Path, 
         name: str, 
