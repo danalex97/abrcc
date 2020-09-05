@@ -9,6 +9,12 @@ import json
 
 
 class ExperimentMetric:
+    """
+    Per-experiment or time-bound data point metric. 
+      - metric: metadata name of the metric
+      - instance: experiment instance path
+      - value: the float data point metric
+    """
     def __init__(self, metric: str, instance: str, value: float) -> None:
         self.metric = metric
         self.instance = instance
@@ -22,26 +28,42 @@ class ExperimentMetric:
 
 
 class FlowCompletionTime(ExperimentMetric):
+    """
+    Time-bound data point metric represeting flow completion time.
+    """
     def __init__(self, instance: str, value: float) -> None:
         super().__init__('fct', instance, value)
 
 
 class RawQoe(ExperimentMetric):
+    """
+    Per-experiment data point metric represeting QoE as defined in the RobustMpc paper.
+    """
     def __init__(self, instance: str, value: float) -> None:
         super().__init__('raw_qoe', instance, value)
 
 
 class VmafQoe(ExperimentMetric):
+    """
+    Per-experiment data ponit metric representing QoE as defined in the Minerva paper.
+    """
     def __init__(self, instance: str, value: float) -> None:
         super().__init__('vmaf_qoe', instance, value)
 
 
 class Vmaf(ExperimentMetric):
+    """ 
+    Per-experimeent data point metric representing the average per-segment VMAF. 
+    """
     def __init__(self, instance: str, value: float) -> None:
         super().__init__('vmaf', instance, value)
 
 
 class Experiment:
+    """
+    Experiment data access structure. Gets loaded from a path and allows for metric parsing
+    if the experiment instance had a successful run.
+    """
     def __init__(self,
         video: str, 
         path: str,
@@ -61,6 +83,10 @@ class Experiment:
         self.video = video
 
     def get_flow_capacity(self) -> List[float]: 
+        """
+        Extract flow capacity(in mbps float values) for all competing background 
+        TCP traffic.
+        """
         try:
             base_path  = str(Path(self.path).parents[0])
             all_values = []
@@ -77,6 +103,10 @@ class Experiment:
             return []
 
     def get_flow_completion_times(self) -> List[float]: 
+        """
+        Extracts flow completion times(in seconds) for all competing background 
+        TCP traffic.
+        """
         base_path  = str(Path(self.path).parents[0])
         all_values = []
         for file_ in Path(base_path).iterdir():
@@ -88,6 +118,9 @@ class Experiment:
         return all_values
 
     def get_metrics(self) -> List[ExperimentMetric]:
+        """
+        Computes a list of per-experiment data point metrics.
+        """
         try:
             segments = get_video_chunks(self.video) + 1
             with open(self.path, 'r') as graph_log:
@@ -167,6 +200,9 @@ class Experiment:
 
     @staticmethod
     def from_json(json: JSONType) -> 'Experiment':
+        """
+        Loads experiment metadata from JSON format.
+        """
         return Experiment(
             video = json['video'],
             path = json['path'],
@@ -179,6 +215,9 @@ class Experiment:
 
     @property
     def json(self) -> JSONType:
+        """
+        Serialize experiment metadata into JSON format.
+        """
         out = {
             'video' : self.video,
             'path' : self.path,
@@ -200,12 +239,19 @@ class Experiment:
 
 
 def save_experiments(path: str, experiments: List[Experiment]) -> None:
+    """
+    Save a list of experiment metadata in JSON format in file `path` with 
+    one experiment metadata structure per line.
+    """
     with open(str(Path(path) / 'experiments.txt'), "w") as log:
         for experiment in experiments:
             log.write(json.dumps(experiment.json))
             log.write('\n')
 
 def load_experiments(path: str) -> List[Experiment]:
+    """
+    Load a list of experimental metadata from file `path`.
+    """
     try:
         with open(str(Path(path) / 'experiments.txt'), "r") as log:
             contents = log.read()
@@ -216,6 +262,10 @@ def load_experiments(path: str) -> List[Experiment]:
 
 
 def generate_summary(path: str, experiments: List[Experiment]) -> None:
+    """
+    Generate a summary of ran experiments with their specific per-experiment metrics 
+    saved in a single file.
+    """
     with open(str(Path(path) / "log.txt"), "w") as summary:
         for experiment in experiments:  
             summary.write(f'> [{experiment.path}]')

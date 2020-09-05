@@ -13,6 +13,9 @@ def kill_subprocess(
     without_parent: bool = False, 
     sig: int = signal.SIGUSR1,
 ) -> None:
+    """
+    Kills the family of processes spawed user process `pid`.
+    """
     try:
         parent = psutil.Process(pid)
         for child in parent.children(recursive=True):

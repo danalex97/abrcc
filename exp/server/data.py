@@ -5,6 +5,9 @@ JSONType = Union[str, int, float, bool, None, Mapping[str, 'JSONType'], List['JS
 
 
 class Value:
+    """
+    Timestamped floating point value.
+    """
     def __init__(self, value: float, timestamp: int) -> None:
         self.value = value
         self.timestamp = timestamp
@@ -28,6 +31,13 @@ class Value:
 
 
 class Segment:
+    """
+    Segment metadata. 
+      - index: the segment index
+      - state: loading, progress or downloaded
+      - quality: integer representing the quality track
+      - timestamp: front-end integer timestamp
+    """
     LOADING = "loading"
 
     def __init__(self, index: int, state: str, quality: int, timestamp: int) -> None:
@@ -61,6 +71,9 @@ class Segment:
 
 
 class Metrics:
+    """
+    Front-end generated metrics. The same data format as specified in `dash/common/data`.
+    """
     def __init__(self, 
         droppedFrames: List[Value], 
         playerTime: List[Value],  
