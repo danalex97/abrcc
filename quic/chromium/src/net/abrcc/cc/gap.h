@@ -27,6 +27,32 @@ namespace quic {
 
 class RttStats;
 
+// GapAbr's default congestion control. The main modifications to BBR are present
+// in the function `BbrGap::GetTargetCongestionWindow`. 
+// 
+// BBR's target congestion window is modified using 3 main signals:
+//    - s: `bandwidth_estimator_` - a 1-3-1 PID controller signal
+//    - b: `BandwidthEstiamte()` - latest bandwidth measured by BBR from the number of 
+//         acknowledged bytes over the minimum measured RTT
+//    - tb: `maybe_target_bandwidth` - an optional target bandwidth target set by GapAbr 
+//         through the `BbrInterface`'s setTargetRate function
+// 
+// We compute the following derived signals:
+//    - potential: p = (s + b) / 2
+//    - target adjusted bandwidth: t = (tb + b) / 2
+//    - target adjusted potential: tp = (tb + s + b) / 3
+//
+// The potential p captures our estimation of the future trend of the bandwidth 
+// (i.e. signal PID), while the target adjusted bandwidth t captures the direction 
+// inferred by the ABR algorithm from the structure of the video; the target adjusted
+// potential tp captures both of these trends.
+//
+// The target congestion window is set to: CW = RTT * max(t, tp). We do this since:
+//  - if tb > s(i.e. t > p), the ABR suggests we might want to be more aggressive; 
+//      we follow the more agressive trend, i.e. RTT * max(t, tp)
+//  - if tb < s(i.e. t < p), the ABR suggests we might not want to be more aggressive, 
+//      but the signal s thinks it might be better; hence we use a congestion window
+//      that considers both factors, that is RTT * tp = RTT * max(t, tp)
 class QUIC_EXPORT_PRIVATE BbrGap : public SendAlgorithmInterface {
  public:
   class __attribute__((packed)) BbrInterface {
