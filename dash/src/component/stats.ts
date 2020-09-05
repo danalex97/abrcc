@@ -20,7 +20,13 @@ function pushDefault(
     context.push(value);
 }
 
-
+/**
+ * Serializable object that contains all front-end metrics:
+ *   - number of dropped frames at each timestamp since last metrics update
+ *   - the player time(in seconds) at each timestamp since last metrics update
+ *   - the buffer level(in milliseconds) at each timestamp since last metrics update
+ *   - the list of new segments(including their download state) since last metrics update 
+ */
 export class Metrics {
     _segments: Array<Segment>;
     _droppedFrames: Array<Value>;
@@ -59,6 +65,10 @@ export class Metrics {
         return this;
     }
 
+    /**
+     * Builder-patter for adding new Metrics filtered by a filter applicable for 
+     * timestamped values.
+     */
     withMetrics(
         metrics: Metrics, 
         filter?: (x: Segment | Value) => boolean,
@@ -69,7 +79,10 @@ export class Metrics {
             ._apply('withBufferLevel', metrics.bufferLevel, filter)
             ._apply('withSegment', metrics.segments, filter);
     }
- 
+
+    /**
+     * Drop all metrics.
+     */
     clear(): Metrics {
         this._droppedFrames = [];
         this._bufferLevel = [];
@@ -78,7 +91,9 @@ export class Metrics {
         return this;
     }
 
-    // Serialize metrics; if noProgress is true, then don't include the segment serialization
+    /**
+     * Serialize metrics; if noProgress is true, then don't include the segment serialization
+     */
     serialize(noProgress: boolean = false): Json {
         // @ts-ignore: unsafe to use stringify, then JSON.parse
         const unique: (a: Array<Json>) => Array<Json> = arr => [...new Set(arr.map(stringify))].map(JSON.parse); 
@@ -120,7 +135,9 @@ export class Metrics {
         };
     }
 
-    // Sorts metrics by timestamp; mutates object.
+    /**
+     * Sorts metrics by timestamp; mutating the current object.
+     */
     sorted(): Metrics {
         let cmp = (a, b) => a.timestamp - b.timestamp;
         this._droppedFrames.sort(cmp);
@@ -130,21 +147,34 @@ export class Metrics {
         return this;
     }
 
+    /**
+     * Builder for adding a *single* dropped frames metric.
+     */
     withDroppedFrames(droppedFrames: Value): Metrics {
         this._droppedFrames.push(droppedFrames);
         return this;
     }
 
+    /**
+     * Builder for adding a *single* buffer level value.
+     */
     withBufferLevel(bufferLevel: Value): Metrics {
         this._bufferLevel.push(bufferLevel);
         return this;
     }
 
+    /**
+     * Builder for adding a *single* player time value.
+     */
     withPlayerTime(playerTime: Value): Metrics {
         this._playerTime.push(playerTime);
         return this;
     }
 
+    /**
+     * Builder for adding a *single* segment; requires the segment index 
+     * to be an integer number.
+     */
     withSegment(segment: Segment): Metrics {
         if (!isNaN(segment.index)) {
             this._segments.push(segment);
@@ -152,6 +182,9 @@ export class Metrics {
         return this;
     }
 
+    /******************
+     * Getters below. *
+     ******************/
     get segments(): Array<Segment> {
         return this._segments;
     }
@@ -169,7 +202,9 @@ export class Metrics {
     }
 }
 
-
+/**
+ * Class used for allowing automatic Metrics updates.
+ */
 export class StatsTracker {
     player: ExternalDependency;
     callbacks: Array<(metrics: Metrics) => void>;
@@ -179,6 +214,9 @@ export class StatsTracker {
         this.callbacks = [];
     }
 
+    /**
+     * Start the automatic metrics update. A tick will be made every TICK_INTERVAL_MS.
+     */
     start() {
         this.getMetrics();
         setInterval(() => {
@@ -186,6 +224,13 @@ export class StatsTracker {
         }, TICK_INTERVAL_MS);
     }
 
+    /**
+     * The tracker updates the Metrics from the DASH player. In case the withCallbacks
+     * flag is on, all metrics callbacks are apllied to the metrics object.
+     *
+     * The `getMetrics` function is exposed as we might want to call it explictly after significant
+     * modifications of the DASH player(e.g. new segment request). The callbacks *mutate* the metrics.
+     */
     getMetrics(withCallbacks: boolean = true) {
         let metrics_wrapper, metrics;
         try { 
@@ -201,6 +246,12 @@ export class StatsTracker {
         }
     }
 
+    /**
+     * Internal function: the tick returns a single mutable metrics object.
+     *
+     * Given a *metrics_wrapper* provided by the DASH player's method `getDashMetrics`,
+     * return a Metrics object.
+     */
     tick(metrics_wrapper: ExternalDependency): Metrics {
         const execute = (func, ...args) => {
             try {
@@ -222,6 +273,9 @@ export class StatsTracker {
         return metrics;
     }
 
+    /**
+     * Register a callback to be called during each getMetrics method.
+     */
     registerCallback(callback: (metrics: Metrics) => void): void {
         this.callbacks.push(callback); 
     }

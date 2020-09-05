@@ -15,6 +15,13 @@ type ResourceSuccessCallback = (index: number, res: XMLHttpRequest) => void;
 type PieceSuccessCallback = (index: number, body: Body) => void; 
 
 
+/**
+ * Controller responsible for maintaining a fixed pool of long-polling requests.
+ *
+ * It contains 2 pools of requests(symetric to each other):
+ *   - a pull of piece requests: high level-HTTP requests with JSON content
+ *   - a pull of resource requests: XMLHttp native requests
+ */
 export class RequestController {
     _current: number;
     _pool: number;
@@ -47,10 +54,16 @@ export class RequestController {
         this._max_index = videoInfo.info[videoInfo.bitrateArray[0]].length;
     }
 
+    /**
+     * Getter for piece requests.
+     */ 
     getPieceRequest(index: number): Request {
         return this._pieceRequests[index];
     }
 
+    /**
+     * Geter for resource requests.
+     */
     getResourceRequest(index: number): Request {
         return this._resourceRequests[index];
     }
@@ -111,36 +124,60 @@ export class RequestController {
         this._request(); 
     }
 
+    /**
+     * Starts the asynchrnous pool of requests. As both piece and resource requests finish for a piece
+     * they get replaces with requests for the pieces with the next index.
+     */
     start(): RequestController {
         this._request();
         return this;
     }
 
+    /**
+     * Allows attaching a *single* callback before sending a resource request. 
+     */
     onResourceSend(callback: ResourceSendCallback): RequestController {
         this._resourceSend = callback;
         return this;
     }
 
+    /**
+     * Allows attaching a *single* callback after sending a resource request.
+     */
     afterResourceSend(callback: ResourceSendAfterCallback): RequestController {
         this._resourceAfterSend = callback;
         return this;
     }
 
+    /**
+     * Allows attaching a *single* callback after a resource request was aborted.
+     */
     onResourceAbort(callback: ResourceOnAbortCallback): RequestController {
         this._resourceOnAbort = callback;
         return this;
     }
 
+    /**
+     * Allows attaching a *single* callback after the browser dispache an update event 
+     * on the XMLHttp request associated with a resource request.
+     */
     onResourceProgress(callback: ResourceProgressCallback): RequestController {
         this._resourceProgress = callback;
         return this;
     }
 
+    /** 
+     * Allows attaching a *single* callback after the resource request has successfully 
+     * finished. 
+     */
     onResourceSuccess(callback: ResourceSuccessCallback): RequestController {
         this._resourceSuccess = callback;
         return this;
     }
 
+    /**
+     * Allows attaching a *single* callback before a piece request was made.
+     */
     onPieceSuccess(callback: PieceSuccessCallback): RequestController {
         this._pieceSuccess = callback;
         return this;

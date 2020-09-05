@@ -6,7 +6,10 @@ import { checking } from '../component/consistency';
 
 const logger = logging('QualityController');
 
-
+/**
+ * Controller that received quality Decisions and allows accessing the Decisions taken
+ * for a given index. 
+ */ 
 export class QualityController {
     _index: number;
     _cache: PieceCache;
@@ -19,6 +22,10 @@ export class QualityController {
         this._onGetQuality = (index) => {};
     }
 
+    /**
+     * Mark that the decision taken for `index` is permament. Will throw a RangeError that marks 
+     * inconsistent behavior if the permanent decisions are not announced in order.
+     */
     advance(index: number): void {
         if (index < this._index) {
             throw new RangeError(`[QualityController] index ${index} < prev index ${this._index}`);
@@ -27,17 +34,30 @@ export class QualityController {
         logger.log('advance', index);
     }
 
+    /**
+     * Insert(or update) a new Piece.
+     */
     addPiece(piece: Piece): void {
         this._cache.insert(piece);
         logger.log('addPiece', piece);
     }
- 
+
+    /**
+     * Allow attaching a *single* callback to be called before the getQuality function returns a 
+     * value.
+     */
     onGetQuality(callback: (index: number) => void): QualityController {
         this._onGetQuality = callback;
         return this;
     }
 
-    // [TODO] get rid of undefined return
+    /**
+     * Given an index(or otherwise the latest encountered index) return a number representing 
+     * the quality of the Piece associated with the segment index present in the cache.
+     *
+     * In case the decision quality is 'undefined' we return an 'undefined' value as well as the 
+     * 'undefault' value marks default functionality in the ABR custom interface of DASH.
+     */
     getQuality(index: number | undefined, defaultQuality?: number): number | undefined {
         // If the index is undefined, we use a stateful quality controller,
         // i.e. the index that is calculated via the advance function.
@@ -82,7 +102,7 @@ export class QualityController {
         } 
 
         // In principle, our algorithms should never arrive here.
-        logger.log("No decision", index, "default decision", 0);
+        logger.log("No decision", index, "defn", 0);
         return 0;
     }
 }

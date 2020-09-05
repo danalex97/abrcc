@@ -4,8 +4,8 @@ import { VideoInfo } from '../common/video';
 
 
 declare global {
-    interface Window { 
-        XMLHttpRequest: ExternalDependency; 
+    interface Window {
+        XMLHttpRequest: ExternalDependency;
     }
 }
 
@@ -59,7 +59,7 @@ export class InterceptorUtil {
     }
 
     executeCallback(
-        callback: undefined | ((event: ProgressEvent | undefined) => void), 
+        callback: undefined | ((event: ProgressEvent | undefined) => void),
         event: ProgressEvent | undefined
     ): void {
         try {
@@ -77,19 +77,19 @@ export class InterceptorUtil {
 
     newEvent(ctx: ExternalDependency, type: any, dict: any): ProgressEvent {
         let event = new ProgressEvent(type, dict);
-        
+
         this.makeWritable(event, 'currentTarget', true);
         this.makeWritable(event, 'srcElement', true);
         this.makeWritable(event, 'target', true);
         this.makeWritable(event, 'trusted', true);
-       
-        // @ts-ignore: read-only propoerty 
+
+        // @ts-ignore: read-only propoerty
         event.currentTarget = ctx;
-        // @ts-ignore: read-only propoerty 
+        // @ts-ignore: read-only propoerty
         event.srcElement = ctx;
-        // @ts-ignore: read-only propoerty 
+        // @ts-ignore: read-only propoerty
         event.target = ctx;
-        // @ts-ignore: read-only propoerty 
+        // @ts-ignore: read-only propoerty
         event.trusted = true;
 
         return event;
@@ -114,13 +114,13 @@ export class Interceptor extends InterceptorUtil {
         this._videoInfo = videoInfo;
 
         this._onRequest = (ctx, index) => {};
-        
+
         // map of contexts for onIntercept
         this._toIntercept = {};
 
         // map of callbacks for onIntercept
         this._onIntercept = {};
-    
+
         // map of exposed context inside intercetor request
         this._objects = {};
 
@@ -131,7 +131,7 @@ export class Interceptor extends InterceptorUtil {
         // set of bypass requests
         this._bypass = new Set();
     }
-  
+
     get videoLength(): number {
         return this._videoInfo.info[this._videoInfo.bitrateArray[0]].length;
     }
@@ -158,11 +158,11 @@ export class Interceptor extends InterceptorUtil {
     progress(index: number, loaded: number, total: number): void {
         if (this._toIntercept[index] !== null) {
             const object = this._toIntercept[index];
-           
+
             let ctx = object["ctx"];
             const makeWritable = object["makeWritable"];
             const execute = object["execute"];
-            const newEvent = (type, dict) => { 
+            const newEvent = (type, dict) => {
                 return object["newEvent"](ctx, type, dict);
             };
 
@@ -170,13 +170,13 @@ export class Interceptor extends InterceptorUtil {
             makeWritable(ctx, 'readyState', true);
             ctx.readyState = 3;
             execute(ctx.onprogress, newEvent('progress', {
-                'lengthComputable': true, 
-                'loaded': loaded, 
+                'lengthComputable': true,
+                'loaded': loaded,
                 'total': total,
             }));
         }
     }
-   
+
     context(index: number | string): object {
         return this._objects[index];
     }
@@ -185,7 +185,7 @@ export class Interceptor extends InterceptorUtil {
         this._objects[index] = obj;
         return this;
     }
-    
+
     setBypass(index: number): Interceptor {
         this._bypass.add(index);
         return this;
@@ -195,7 +195,7 @@ export class Interceptor extends InterceptorUtil {
         this._toIntercept[index] = null;
         return this;
     }
-    
+
     start() {
         let interceptor = this;
         let oldOpen = window.XMLHttpRequest.prototype.open;
@@ -210,7 +210,7 @@ export class Interceptor extends InterceptorUtil {
             // modify url
             if (url.includes('video') && url.endsWith('.m4s') && !url.includes('Header')) {
                 logger.log('To modify', url);
-                
+
                 let processor = new UrlProcessor(max_rates, url);
                 let maybeIndex = processor.index;
                 if (maybeIndex === undefined) {
@@ -224,7 +224,7 @@ export class Interceptor extends InterceptorUtil {
                         if (interceptor._bypass.has(index)) {
                             // Bypass detected
                             logger.log("Bypass detected", index, url);
-                            
+
                             bypassDetected = true;
                             interceptor._onRequest(ctx, index);
                             interceptor._done[index] = url;
@@ -235,7 +235,7 @@ export class Interceptor extends InterceptorUtil {
                 }
             }
             if (bypassDetected) {
-                return oldOpen.apply(this, arguments); 
+                return oldOpen.apply(this, arguments);
             }
 
             ctx.send = function() {
@@ -244,8 +244,8 @@ export class Interceptor extends InterceptorUtil {
 
                     let processor = new UrlProcessor(max_rates, url);
                     let maybeIndex = processor.index;
-                    let quality = processor.quality; 
-                    
+                    let quality = processor.quality;
+
                     if (maybeIndex === undefined) {
                         logger.log(`[error] Index not present in ${url}`);
                     } else {
@@ -257,10 +257,10 @@ export class Interceptor extends InterceptorUtil {
                             interceptor._toIntercept[index] = {
                                 'ctx': ctx,
                                 'url': url,
-                                
+
                                 'makeWritable': interceptor.makeWritable,
                                 'execute': interceptor.executeCallback,
-                                'newEvent': interceptor.newEvent, 
+                                'newEvent': interceptor.newEvent,
                             };
 
                             // if the callback was set this means we already got the new response
@@ -277,13 +277,11 @@ export class Interceptor extends InterceptorUtil {
                     return oldSend.apply(this, arguments);
                 }
             };
- 
-            return oldOpen.apply(this, arguments); 
+
+            return oldOpen.apply(this, arguments);
         }
 
         // @ts-ignore: overriding XMLHttpRequest
         window.XMLHttpRequest.prototype.open = newXHROpen;
     }
 }
-
-
