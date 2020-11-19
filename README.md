@@ -24,9 +24,9 @@ Experiment can be run from the script `exp/experiments.py`. To be able to do so,
     pip3 install -r exp/requirements.txt
     ```
   - install front-end dependencies from the `dash` folder:
-  ```bash
-  npm install
-  ```
+    ```bash
+    npm install
+    ```
 
 The experiments can be listed using the command:
 ```bash
